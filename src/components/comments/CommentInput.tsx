@@ -3,7 +3,14 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Send, ChevronDown } from "lucide-react";
 import { parseTrigger, isPlainNote } from "@/lib/triggers";
 import {
   applyContextStrategy,
@@ -48,6 +55,10 @@ export default function CommentInput({
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Per-comment routing override. null = use default (or @-trigger in text).
+  // "note" = plain note (no AI). Otherwise a persona key.
+  const [personaOverride, setPersonaOverride] = useState<string | null>(null);
 
   // Autocomplete state
   const [showAutocomplete, setShowAutocomplete] = useState(false);
@@ -146,8 +157,22 @@ export default function CommentInput({
   const handleSubmit = () => {
     const trimmed = value.trim();
     if (!trimmed || disabled) return;
-    onSubmit(trimmed);
+
+    // Apply per-comment override if user hasn't typed an explicit @trigger
+    // or a Note: prefix already.
+    const explicit = parseTrigger(trimmed, triggerOptions.map((t) => t.key));
+    const alreadyNote = isPlainNote(trimmed);
+
+    let toSend = trimmed;
+    if (!explicit && !alreadyNote && personaOverride !== null) {
+      toSend = personaOverride === "note"
+        ? `Note: ${trimmed}`
+        : `@${personaOverride} ${trimmed}`;
+    }
+
+    onSubmit(toSend);
     setValue("");
+    setPersonaOverride(null);
     setShowAutocomplete(false);
   };
 
@@ -180,8 +205,9 @@ export default function CommentInput({
       }
     }
 
-    // Cmd/Ctrl + Enter to submit
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+    // Enter submits, Shift+Enter inserts a newline. Cmd/Ctrl+Enter also
+    // submits as a familiar fallback.
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
     }
@@ -233,19 +259,28 @@ export default function CommentInput({
     };
   }, [value, enabledTriggerKeys, triggerConfigs, selectedText, getDocumentSnapshot]);
 
-  // Routing hint — small line that tells the user what will happen on submit
-  // (which persona / plain note / unanchored chat) given the current input.
+  // Routing hint — what will happen on submit. Honours, in order:
+  //   1. explicit @trigger in the typed text
+  //   2. Note: / TODO: prefix in the typed text
+  //   3. per-comment override picked from the dropdown
+  //   4. default persona from settings
   const routingHint = useMemo(() => {
     const explicit = parseTrigger(value, enabledTriggerKeys);
     if (explicit) return null; // chip below already shows the persona
     if (isPlainNote(value)) {
-      return { kind: "note" as const };
+      return { kind: "note" as const, source: "typed" as const };
+    }
+    if (personaOverride === "note") {
+      return { kind: "note" as const, source: "override" as const };
+    }
+    if (personaOverride && enabledTriggerKeys.includes(personaOverride)) {
+      return { kind: "persona" as const, persona: personaOverride, source: "override" as const };
     }
     if (defaultPersona && enabledTriggerKeys.includes(defaultPersona)) {
-      return { kind: "default" as const, persona: defaultPersona };
+      return { kind: "persona" as const, persona: defaultPersona, source: "default" as const };
     }
     return null;
-  }, [value, enabledTriggerKeys, defaultPersona]);
+  }, [value, enabledTriggerKeys, defaultPersona, personaOverride]);
 
   return (
     <div className="relative">
@@ -264,14 +299,61 @@ export default function CommentInput({
         </div>
       )}
       {!chipInfo && routingHint && (
-        <div className="text-[10px] text-muted-foreground mb-1.5">
-          {routingHint.kind === "note" ? (
-            <span>Plain note · no AI</span>
-          ) : (
-            <span>
-              → <span className="font-medium">@{routingHint.persona}</span> (default)
-            </span>
-          )}
+        <div className="mb-1.5">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded px-1 -mx-1 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                {routingHint.kind === "note" ? (
+                  <span>
+                    Plain note · no AI
+                    {routingHint.source === "override" && " (override)"}
+                  </span>
+                ) : (
+                  <span>
+                    → <span className="font-medium">@{routingHint.persona}</span>
+                    {" "}
+                    {routingHint.source === "override" ? "(override)" : "(default)"}
+                  </span>
+                )}
+                <ChevronDown className="h-2.5 w-2.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="text-xs">
+              {triggerOptions.map((opt) => (
+                <DropdownMenuItem
+                  key={opt.key}
+                  onSelect={() => setPersonaOverride(opt.key)}
+                  className="text-xs"
+                >
+                  @{opt.key}
+                  {opt.key === defaultPersona && (
+                    <span className="ml-auto text-muted-foreground">default</span>
+                  )}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => setPersonaOverride("note")}
+                className="text-xs"
+              >
+                Plain note · no AI
+              </DropdownMenuItem>
+              {personaOverride !== null && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={() => setPersonaOverride(null)}
+                    className="text-xs text-muted-foreground"
+                  >
+                    Reset to default
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
       <div className="flex gap-2 items-end">
