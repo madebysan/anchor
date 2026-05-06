@@ -30,6 +30,8 @@ import {
   Maximize2,
   Minimize2,
   Keyboard,
+  ChevronDown,
+  Type,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useState, useEffect } from "react";
@@ -57,6 +59,8 @@ interface EditorToolbarProps {
   focusMode?: boolean;
   onToggleFocusMode?: () => void;
   onToggleShortcuts?: () => void;
+  formattingCollapsed?: boolean;
+  onToggleFormattingCollapsed?: () => void;
 }
 
 // Format a timestamp as a coarse "X ago" string. Refreshed by the parent's
@@ -110,6 +114,8 @@ export default function EditorToolbar({
   focusMode = false,
   onToggleFocusMode,
   onToggleShortcuts,
+  formattingCollapsed = false,
+  onToggleFormattingCollapsed,
 }: EditorToolbarProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const [themeMounted, setThemeMounted] = useState(false);
@@ -123,29 +129,42 @@ export default function EditorToolbar({
     .replace(/\s+/g, " ")
     .trim() || "Untitled";
 
-  // Export the document as plain text with paragraph breaks preserved
-  const handleExportTxt = () => {
-    const text = editor.getText({ blockSeparator: "\n\n" });
-    const blob = new Blob([text], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${safeTitle}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+  // Export via Tauri's native save dialog → user picks the destination
+  // explicitly. Falls back gracefully if the dialog/write isn't available
+  // (e.g. running the JS bundle in a plain browser).
+  const exportFile = async (
+    extension: "md" | "txt",
+    mime: string,
+    serialize: () => string,
+  ) => {
+    try {
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const { invoke } = await import("@tauri-apps/api/core");
+      const path = await save({
+        title: `Export as ${extension.toUpperCase()}`,
+        defaultPath: `${safeTitle}.${extension}`,
+        filters: [{ name: extension.toUpperCase(), extensions: [extension] }],
+      });
+      if (!path) return; // user cancelled
+      await invoke<void>("write_export_file", { path, content: serialize() });
+    } catch (e) {
+      console.error(`export as ${extension} failed:`, e);
+      // Browser fallback (e.g. running outside Tauri).
+      const blob = new Blob([serialize()], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${safeTitle}.${extension}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
-  // Export the document as Markdown
-  const handleExportMd = () => {
-    const md = docToMarkdown(editor.state.doc);
-    const blob = new Blob([md], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${safeTitle}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const handleExportTxt = () =>
+    exportFile("txt", "text/plain", () => editor.getText({ blockSeparator: "\n\n" }));
+
+  const handleExportMd = () =>
+    exportFile("md", "text/markdown", () => docToMarkdown(editor.state.doc));
 
   // Copy document content to clipboard with paragraph breaks
   const handleCopyContent = async () => {
@@ -177,6 +196,26 @@ export default function EditorToolbar({
 
   return (
     <div className="flex flex-wrap items-center gap-0.5 border-b border-border px-4 py-1.5 bg-background">
+      {/* Collapse toggle — chrome buttons (save indicator, export, settings…) stay
+          on the right; formatting cluster (B/I/H1.../font/size) hides under this. */}
+      {onToggleFormattingCollapsed && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 mr-1"
+          onClick={onToggleFormattingCollapsed}
+          title={formattingCollapsed ? "Show formatting toolbar" : "Hide formatting toolbar"}
+        >
+          {formattingCollapsed ? (
+            <Type className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+        </Button>
+      )}
+
+      {!formattingCollapsed && (
+        <>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
         isActive={editor.isActive("bold")}
@@ -316,6 +355,9 @@ export default function EditorToolbar({
             ))}
           </SelectContent>
         </Select>
+      )}
+
+        </>
       )}
 
       {/* Spacer — pushes right-side tools to the end of the row */}

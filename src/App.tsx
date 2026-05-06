@@ -4,7 +4,7 @@ import EditorPage from "@/components/editor/EditorPage";
 import OnboardingScreen from "@/components/onboarding/OnboardingScreen";
 import InstallClaudeScreen from "@/components/onboarding/InstallClaudeScreen";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { getNotesFolder } from "@/lib/notes-folder";
+import { getNotesFolder, pickNotesFolder, persistNotesFolder } from "@/lib/notes-folder";
 import { checkClaudeCli } from "@/lib/ai-cli";
 import { bootPersistence } from "@/lib/persistence";
 
@@ -60,6 +60,19 @@ export default function App() {
     };
   }, [claudeInstalled, notesFolder]);
 
+  // Folder change: re-pick + re-persist, then reload the window so the store
+  // re-bootstraps cleanly. Cheap and avoids cross-cutting cache invalidation.
+  async function handleChangeNotesFolder() {
+    try {
+      const next = await pickNotesFolder();
+      if (!next) return;
+      await persistNotesFolder(next);
+      window.location.reload();
+    } catch (e) {
+      console.error("change notes folder failed:", e);
+    }
+  }
+
   let view: React.ReactNode;
   if (claudeInstalled === undefined) {
     view = <LoadingScreen label="Checking Claude Code…" />;
@@ -72,7 +85,12 @@ export default function App() {
   } else if (!persistenceReady) {
     view = <LoadingScreen label="Loading notes…" />;
   } else {
-    view = <EditorPage />;
+    view = (
+      <EditorPage
+        notesFolder={notesFolder}
+        onChangeNotesFolder={handleChangeNotesFolder}
+      />
+    );
   }
 
   return (

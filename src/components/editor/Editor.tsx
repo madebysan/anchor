@@ -53,6 +53,8 @@ interface EditorProps {
   focusMode?: boolean;
   onToggleFocusMode?: () => void;
   onToggleShortcuts?: () => void;
+  formattingCollapsed?: boolean;
+  onToggleFormattingCollapsed?: () => void;
 }
 
 // Sample content so the editor isn't empty on first load
@@ -82,6 +84,8 @@ export default function Editor({
   focusMode,
   onToggleFocusMode,
   onToggleShortcuts,
+  formattingCollapsed,
+  onToggleFormattingCollapsed,
 }: EditorProps) {
   const editor = useEditor({
     // Prevent SSR hydration mismatch — Tiptap renders client-only
@@ -131,6 +135,11 @@ export default function Editor({
 
   return (
     <div className="flex flex-col h-full">
+      {/* Drag strip aligning with the sidebar's traffic-light spacer. */}
+      <div
+        className="h-7 shrink-0 bg-background"
+        style={{ ["WebkitAppRegion" as never]: "drag" }}
+      />
       <EditorToolbar
         editor={editor}
         onOpenSettings={onOpenSettings}
@@ -144,6 +153,8 @@ export default function Editor({
         focusMode={focusMode}
         onToggleFocusMode={onToggleFocusMode}
         onToggleShortcuts={onToggleShortcuts}
+        formattingCollapsed={formattingCollapsed}
+        onToggleFormattingCollapsed={onToggleFormattingCollapsed}
       />
       <div className="flex-1 overflow-y-auto">
         {editor && (
