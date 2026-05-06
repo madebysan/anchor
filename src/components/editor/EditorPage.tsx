@@ -1,4 +1,3 @@
-"use client";
 
 import { useRef, useCallback, useEffect, useState, useMemo } from "react";
 import Editor from "./Editor";
@@ -21,18 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { GripVertical } from "lucide-react";
-import { docToMarkdown } from "@/lib/export-markdown";
 
 const SHORTCUTS = [
   { keys: "⌘ B", desc: "Bold" },
@@ -101,7 +89,6 @@ export default function EditorPage() {
   const activeThreadId = useDocumentStore((s) => s.activeThreadId);
   const saveStatus = useDocumentStore((s) => s.saveStatus);
   const lastSavedAt = useDocumentStore((s) => s.lastSavedAt);
-  const quotaExceeded = useDocumentStore((s) => s.quotaExceeded);
   const pendingContentLoad = useDocumentStore((s) => s.pendingContentLoad);
   const initialized = useDocumentStore((s) => s.initialized);
 
@@ -248,24 +235,6 @@ export default function EditorPage() {
     },
     []
   );
-
-  // Recovery: export current doc as Markdown when localStorage is full.
-  const handleEmergencyExport = useCallback(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    const safeTitle = (documentTitle || "Untitled")
-      .replace(/[/\\?%*:|"<>]/g, "-")
-      .replace(/\s+/g, " ")
-      .trim() || "Untitled";
-    const md = docToMarkdown(editor.state.doc);
-    const blob = new Blob([md], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${safeTitle}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [documentTitle]);
 
   const toggleFocusMode = useCallback(() => setFocusMode((p) => !p), []);
   const toggleShortcuts = useCallback(() => setShortcutsOpen((p) => !p), []);
@@ -521,10 +490,6 @@ export default function EditorPage() {
     useDocumentStore.getState().unresolveThread(threadId);
   }, []);
 
-  const dismissQuotaWarning = useCallback(() => {
-    useDocumentStore.getState().dismissQuotaWarning();
-  }, []);
-
   // inline-md uses Claude Code (no API keys); the install gate runs in App.tsx.
   // The SetupScreen is unreachable here; left out so it doesn't flash up if
   // settings ever round-trip through an empty state.
@@ -603,25 +568,6 @@ export default function EditorPage() {
         onAddTrigger={addTrigger}
         onRemoveTrigger={removeTrigger}
       />
-
-      <AlertDialog open={quotaExceeded} onOpenChange={(open) => !open && dismissQuotaWarning()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Storage full</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your browser has run out of space for new edits. Export your current
-              document now to keep it safe, then delete older documents to free up
-              space. Recent edits since the last successful save may not be persisted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Dismiss</AlertDialogCancel>
-            <AlertDialogAction onClick={handleEmergencyExport}>
-              Export Markdown
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
         <DialogContent className="sm:max-w-[360px]">

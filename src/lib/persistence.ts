@@ -23,23 +23,6 @@ function threadsKey(id: string) {
 
 const KEY_ACTIVE_DOC = "inline-md-active-doc";
 
-// QuotaError is kept for backwards compatibility with the document store's
-// catch sites. Disk doesn't have a quota in any meaningful sense, so it's
-// effectively dead code now — but throwing one here would still let the
-// store distinguish "save failed for a known reason" from a generic crash.
-export class QuotaError extends Error {
-  constructor() {
-    super("storage quota exceeded");
-    this.name = "QuotaError";
-  }
-}
-
-const quotaListeners = new Set<() => void>();
-export function onQuotaExceeded(listener: () => void): () => void {
-  quotaListeners.add(listener);
-  return () => quotaListeners.delete(listener);
-}
-
 // =====================
 // Boot — populate the cache from disk before the store initializes.
 // =====================
@@ -185,14 +168,6 @@ export function extractTitle(html: string): string {
     if (text.length > 0) return text;
   }
   return "Untitled";
-}
-
-// =====================
-// Migration — gone. inline-md is a fresh start.
-// =====================
-
-export function migrateFromSingleDoc(): DocumentMeta[] | null {
-  return null;
 }
 
 // =====================

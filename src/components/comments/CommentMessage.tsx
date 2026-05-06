@@ -1,4 +1,3 @@
-"use client";
 
 import type { ThreadMessage, SuggestedEdit as SuggestedEditType } from "@/types";
 import SuggestedEditComponent from "./SuggestedEdit";

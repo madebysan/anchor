@@ -1,4 +1,3 @@
-"use client";
 
 import type { SuggestedEdit as SuggestedEditType } from "@/types";
 import { Button } from "@/components/ui/button";
