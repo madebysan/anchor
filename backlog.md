@@ -3,79 +3,33 @@
 inline-md roadmap. Forked from inlineai 2026-05-06.
 Organized by topic, not chronology.
 
----
-
-## Phase 1 — Make the AI layer work again
-
-The fork compiles and the window opens, but the AI layer is currently disconnected
-(the `/api/ai` route is gone, `useAIChat.ts` still calls `fetch("/api/ai")`).
-This phase replaces that call with a Tauri command that shells out to `claude`.
-
-### Add `ai_execute_claude` Rust command
-**File:** `src-tauri/src/lib.rs` (new command + handler).
-Reference: [Scratch's `ai_execute_claude`](https://github.com/erictli/scratch/blob/main/src-tauri/src/lib.rs).
-
-- Spawn `claude <file_path> --dangerously-skip-permissions --print` with the
-  user's prompt piped to stdin.
-- Validate the file path is inside the user's notes folder (path-traversal guard,
-  same pattern Scratch uses).
-- Return `{ success, output, error }` to the JS side via `tauri::command`.
-- Register in `tauri::generate_handler![]`.
-
-### Replace `useAIChat.ts` with a Tauri-invoke wrapper
-**File:** `src/hooks/useAIChat.ts`.
-- Drop the `fetch("/api/ai")` SSE parser entirely.
-- Call `invoke("ai_execute_claude", { filePath, prompt })` from `@tauri-apps/api/core`.
-- Keep the same `UseAIChatReturn` shape so `EditorPage.tsx` doesn't need to change yet.
-- `isLoading` is now a single boolean per thread (no streaming chunks).
-- `stopGeneration` becomes a Rust-side process kill.
-
-### Detect Claude CLI on launch
-**Files:** `src-tauri/src/lib.rs` (new `ai_check_claude_cli` command), some
-new component on first launch (`OnboardingScreen.tsx`?).
-- If `claude` not found in PATH, show install instructions and refuse to run.
-- No fallback to API keys (locked decision).
+Status as of 2026-05-06 end-of-session: **Phase 1, 2.1, 2.2 shipped.** Auto-apply
+UX (Phase 3) and comment-mark round-trip (Phase 3 sub) are the remaining
+big chunks before this is daily-driver quality.
 
 ---
 
-## Phase 2 — Markdown on disk
+## Phase 3 — Auto-apply + ⌘Z UX
 
-### Folder picker on first run
-**Files:** new `src/components/onboarding/`, `src-tauri` config.
-- "Choose your notes folder" via `tauri-plugin-dialog`.
-- Persist the folder path (Tauri store, not localStorage).
-- All `.md` files in that folder become the document list.
+The current AI loop drops Claude's response into the comment thread as
+text. The locked design is auto-apply: claude edits the file directly,
+the change is highlighted, ⌘Z reverts.
 
-### Replace `localStorage` persistence with file I/O
-**File:** `src/lib/persistence.ts`.
-- Read: list `.md` files in the notes folder, parse each into a `DocumentSnapshot`.
-- Write: save HTML-as-markdown back to the source file.
-- Watcher: notify the store when files change on disk (drop-in replacement for
-  the current `QuotaError` pub/sub).
+### Switch from `ai_chat_claude` to `ai_execute_claude` for edits
+**Files:** `src/hooks/useAIChat.ts`, possibly new `src/hooks/useAIEdit.ts`.
+- The Rust command exists already (`ai_execute_claude` in
+  `src-tauri/src/ai.rs`), takes a file path + prompt.
+- Active doc's path is `<notes_folder>/<docId>.md`. The hook needs to
+  resolve that. Either pass it from EditorPage, or have the hook read
+  `useDocumentStore.getState().activeDocId` + `getNotesFolder()`.
+- After claude returns, re-read the file from disk and pipe through
+  `markdownToHtml()` into `pendingContentLoad`.
 
-### Markdown ↔ Tiptap conversion
-**Files:** `src/lib/document-store.ts`, possibly new `src/lib/markdown.ts`.
-- Tiptap loads from markdown (`tiptap-markdown` extension or `marked` + a
-  custom paste handler).
-- Save converts the editor's HTML back to markdown.
-- Round-trip parity is the milestone — no formatting drift on save/reload.
-
-### Per-passage comment storage
-- Threads currently live in localStorage as JSON. Two options:
-  1. Sidecar file: `note.md` + `note.md.threads.json` (visible but ugly in Finder).
-  2. YAML frontmatter or fenced code block embedded in the markdown.
-- Probably option 1 — simpler, doesn't pollute the markdown.
-- Tracked separately because this is a real product decision, not just plumbing.
-
----
-
-## Phase 3 — UX shift: thread → instruction-with-undo
-
-### Auto-apply + diff highlight + ⌘Z
-**Files:** `src/components/editor/Editor.tsx`, `src/extensions/comment-mark.ts`,
-new `src/extensions/edit-highlight.ts`.
-- After Claude returns, the new text replaces the old in the document.
-- Add a transient `editHighlight` Tiptap mark that fades over ~3s.
+### Diff highlight + auto-fade
+**Files:** new `src/extensions/edit-highlight.ts`, integration in
+`src/components/editor/Editor.tsx`.
+- Custom Tiptap mark applied to the changed range right after a claude
+  edit. Fades over ~3s.
 - ⌘Z reverts to the pre-edit snapshot. Tiptap's history extension already
   supports this — verify the snapshot is captured before the AI write.
 
@@ -87,11 +41,38 @@ new `src/extensions/edit-highlight.ts`.
 
 ### Drop `suggestEdit` accept/reject card
 **File:** `src/components/comments/SuggestedEdit.tsx`.
-- Delete entirely. The interaction is now in the document, not in a sidebar card.
+- Delete entirely. The interaction is now in the document, not a sidebar card.
+
+### Comment-mark round-trip (KNOWN BROKEN)
+**Files:** `src/extensions/comment-mark.ts`, `src/lib/markdown.ts`,
+`src/lib/persistence.ts`.
+- Phase 2 trade-off: turndown strips comment marks when converting HTML →
+  markdown. Threads in localStorage survive but their visual highlights in
+  the doc disappear on reload.
+- Fix: store passage positions per-thread (start/end offsets in the
+  markdown source), re-apply CommentMark on load by mapping those offsets
+  to ProseMirror positions.
+- Or: switch comment storage to a sidecar `<note>.md.threads.json` file
+  alongside each note, with positions captured at create time.
 
 ---
 
-## UX polish (carried from inlineai)
+## Phase 2.3 — File watching (deferred from Phase 2)
+
+### Detect external file changes
+**Files:** `src-tauri/src/notes.rs`, new emit channel.
+- Use `notify` crate (or Tauri's `tauri-plugin-fs` watcher) to watch the
+  notes folder.
+- Emit a `notes-changed` event to the JS side with the changed file's id.
+- Document store reacts: refresh the in-memory cache + re-render if the
+  active doc changed.
+- Crucial for Phase 3 auto-apply: claude writes to disk, watcher fires,
+  editor reloads. Without this, the file changes but the editor doesn't
+  see it until next reload.
+
+---
+
+## UX polish
 
 ### Suggestion `reason` display
 - The new flow is auto-apply, but Claude's text response (the "why") is still
@@ -111,6 +92,18 @@ new `src/extensions/edit-highlight.ts`.
   comment button. Add `⌘⇧M` to open the comment composer on the current
   selection.
 
+### Rename note (file rename on disk)
+**File:** `src/lib/document-store.ts`.
+- The Rust `rename_note` command exists. The store's `renameDocument`
+  currently just mutates state.documents — the in-memory rename doesn't
+  hit disk. Wire it up so renaming a doc renames the .md file and updates
+  the cache id everywhere.
+
+### App icon
+- Currently using Tauri's default icon. Generate a real one via `/mac-icons`
+  → `/generate-image` when the rest is functional.
+- Use `tauri icon <source.png>` to produce all sizes (`.icns`, `.ico`, PNG matrix).
+
 ---
 
 ## Hygiene
@@ -121,11 +114,6 @@ new `src/extensions/edit-highlight.ts`.
   don't overlap the editor toolbar at narrow widths.
 - Windows/Linux: needs a different decoration strategy. Skip until a non-mac
   user actually surfaces.
-
-### App icon
-- Currently using Tauri's default icon. Generate a real one via `/mac-icons`
-  → `/generate-image` when the rest is functional.
-- Use `tauri icon <source.png>` to produce all sizes (`.icns`, `.ico`, PNG matrix).
 
 ### Tests (Playwright)
 - Inherited from inlineai's backlog. `playwright` is in devDeps; no tests
@@ -142,6 +130,10 @@ new `src/extensions/edit-highlight.ts`.
 - Inherited: `context-router.ts` finds the passage by substring match.
   Fragile. Track passage position via the comment mark's range when the
   comment is created, store it on the thread.
+
+### Subprocess cancellation
+- `useAIChat.stopGeneration()` is a no-op. Add a Rust command that kills
+  the running claude subprocess by pid (track per-thread).
 
 ---
 
@@ -165,5 +157,20 @@ new `src/extensions/edit-highlight.ts`.
   multi-file edit. Some personas may not need any of `passage-only` /
   `tight` / `local-section` — they could just call `claude` on the file
   with the instruction and let Claude decide what to read.
-- Investigate after Phase 1 — the right design depends on how Claude Code
+- Investigate after Phase 3. The right design depends on how Claude Code
   behaves with structured prompts vs free-form ones.
+
+---
+
+## Done
+
+- ✓ **Init** (commit `a7fe28c`) — Tauri + Vite scaffold, fork from inlineai,
+  fonts swapped, window opens.
+- ✓ **Rename to inline-md** (commit `16bab76`) — folder, npm, Cargo, lib,
+  bundle id, product name. Plus folder-picker onboarding (Phase 2.1).
+- ✓ **Phase 2.2: markdown on disk** (commit `edf5a53`) — Rust file I/O
+  commands, marked + turndown round-trip, persistence.ts rewritten,
+  document store uses filename-based ids.
+- ✓ **Phase 1: Claude Code integration** (commit `0da3765`) —
+  ai_check_claude_cli + ai_chat_claude + ai_execute_claude commands,
+  install-detection hard wall, useAIChat rewritten to invoke claude.
