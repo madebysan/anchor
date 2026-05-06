@@ -47,14 +47,25 @@ npm run tauri build    # production .app + .dmg
 
 Vite dev server runs on port 1420 (Tauri-standard, not 3000).
 
-## Architecture seams (inherited from inlineai, will be reshaped)
+## Architecture (current state)
 
-- **`src/hooks/useAIChat.ts`** — currently calls `fetch("/api/ai")` which no longer exists. Will be replaced with a Tauri `invoke("ai_execute_claude", ...)` call. Same return shape so `EditorPage.tsx` keeps compiling.
-- **`src/lib/ai/context-router.ts`** — the 7 strategies (`passage-only`, `tight`, etc.) still apply. The output shape changes: instead of building a `messages[]` array for the AI SDK, it builds a single prompt string passed to `claude` via stdin.
-- **`src/lib/ai/providers.ts`** + **`model-loader.ts`** — gone. No multi-provider, no live model fetch. A single config object replaces them.
-- **`src/lib/ai/tools.ts`** — already deleted. No more typed `suggestEdit` tool calls; we get plain text or in-place file edits from claude.
-- **`src/lib/persistence.ts`** — currently localStorage. Will be replaced with a Tauri-side `tauri_plugin_fs` reader/writer for the user's chosen notes folder.
-- **`src/lib/document-store.ts`** — keep most of the shape. Replace the `localStorage` subscription with a directory-watcher-driven sync.
+- **`src/hooks/useAIChat.ts`** — calls `invokeClaudeSession` (Tauri command). Module-level `Map<docId, sessionId>` holds per-doc claude sessions. First call passes `file_path` to start a session; subsequent calls pass `session_id` for `--resume`. Auto-retry on session failure (one transparent retry without session_id). Prompt is a plain-English directive (NOT XML-tagged sections — claude --print sees the whole thing as text).
+- **`src/lib/ai/context-router.ts`** — 7 strategies still resolve at this layer; only 3 (`passage-only`, `local-section`, `full-document`) are exposed in the Settings UI. Migrations in `lib/settings.ts` rewrite hidden strategies on load.
+- **`src/lib/persistence.ts`** — markdown files on disk. `bootPersistence` calls `list_note_tree`, flattens files into `noteCache` (id-keyed), and exposes `getNoteTree()` for the sidebar. Threads still in localStorage (Phase 3).
+- **`src/lib/document-store.ts`** — Zustand store. `createDocument` uses sanitized-title ids (e.g. `Untitled-2`), not `doc-{ts}-{rand}`. ids include forward-slash separators for nested files (e.g. `playbook/foo`).
+- **`src/components/editor/EditorPage.tsx`** — props: `notesFolder`, `onChangeNotesFolder` from `App.tsx`. Threads `sidebarTree` (augmented with synthetic root entries for in-memory-only docs) to `DocumentSidebar`.
+
+## Production-only gotchas (learned 2026-05-06)
+
+- **`.app` bundles inherit minimal PATH.** Mac apps launched from Finder get only `/usr/bin:/bin:...` — not the user's shell PATH. So Homebrew-installed tools (`/opt/homebrew/bin/claude`) are invisible. Fix: `augment_path()` in `src-tauri/src/lib.rs` runs at startup, prepending common dev locations to PATH. Subprocess spawns via `std::process::Command` inherit it. The `find_in_path()` helper in `ai.rs` reads the same augmented PATH.
+- **`Path::canonicalize` resolves symlinks.** For path-traversal checks in folders that contain symlinks (Drive-synced subfolders, etc.), canonicalize will resolve out of the chosen folder and break `starts_with`. Use the `normalize()` helper in `notes.rs` / `ai.rs` instead — it resolves `.` and `..` without following symlinks. The user's chosen folder is authoritative; everything inside (including symlinks pointing elsewhere) counts as "inside."
+- **`--bare` flag on claude is unusable.** It skips CLAUDE.md auto-discovery (which we want — see next point) but ALSO forces `ANTHROPIC_API_KEY` auth, defeating the subscription-quota benefit. Don't use it.
+- **Global `~/.claude/CLAUDE.md` disclosure rules leak into outputs.** san's global file says "every response starts with `→ ref:`". Claude obeys that even in our automated rewriting context, prepending the disclosure to the replacement text. Two-layer fix: prompt explicitly tells claude to ignore global conventions for this turn, AND `stripCommentary()` in `useAIChat.ts` strips leading `→ ref:`/`Here is…`/`<thinking>` lines as a safety net.
+- **Claude has Read AND Write/Edit tools at runtime** when launched via `claude --print --dangerously-skip-permissions`. We tell it in the prompt to use Read freely but NEVER Write/Edit — the editor is the authoritative writer, and direct file writes get clobbered on the next debounced save.
+
+## File watcher (scaffolded, JS side TODO)
+
+Rust side is in `src-tauri/src/watcher.rs` with `notify` crate, debounce, self-write marker, and `start_watching_notes` command. Hooked into `write_note` to suppress bouncing our own saves. JS listener (App.tsx → `listen("notes-changed")` → refresh cache → reload editor when active doc clean) is the next step. See backlog for details.
 
 ## What to keep from inlineai's `.claude/CLAUDE.md`
 

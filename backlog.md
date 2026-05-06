@@ -3,45 +3,43 @@
 inline-md roadmap. Forked from inlineai 2026-05-06.
 Organized by topic, not chronology.
 
-Status as of 2026-05-06 end-of-session: **Phase 1, 2.1, 2.2 shipped.** Auto-apply
-UX (Phase 3) and comment-mark round-trip (Phase 3 sub) are the remaining
-big chunks before this is daily-driver quality.
+Status as of 2026-05-06 end-of-session: **Phases 1, 2.1, 2.2, 2.3 (Rust),
+core auto-apply UX, hierarchical sidebar, dead-code cleanup, settings,
+session reuse, app icon + DMG all shipped.** Remaining big chunks:
+file watcher JS listener, sidebar context menus, comment-mark round-trip,
+critic/feedback persona mode.
 
 ---
 
-## Phase 3 — Auto-apply + ⌘Z UX
+## Phase 3 — Auto-apply polish (core shipped)
 
-The current AI loop drops Claude's response into the comment thread as
-text. The locked design is auto-apply: claude edits the file directly,
-the change is highlighted, ⌘Z reverts.
-
-### Switch from `ai_chat_claude` to `ai_execute_claude` for edits
-**Files:** `src/hooks/useAIChat.ts`, possibly new `src/hooks/useAIEdit.ts`.
-- The Rust command exists already (`ai_execute_claude` in
-  `src-tauri/src/ai.rs`), takes a file path + prompt.
-- Active doc's path is `<notes_folder>/<docId>.md`. The hook needs to
-  resolve that. Either pass it from EditorPage, or have the hook read
-  `useDocumentStore.getState().activeDocId` + `getNotesFolder()`.
-- After claude returns, re-read the file from disk and pipe through
-  `markdownToHtml()` into `pendingContentLoad`.
+The auto-apply UX shipped. Claude's reply replaces the highlighted passage
+in Tiptap; ⌘Z reverts via the editor's history. What's still missing:
 
 ### Diff highlight + auto-fade
 **Files:** new `src/extensions/edit-highlight.ts`, integration in
 `src/components/editor/Editor.tsx`.
 - Custom Tiptap mark applied to the changed range right after a claude
   edit. Fades over ~3s.
-- ⌘Z reverts to the pre-edit snapshot. Tiptap's history extension already
-  supports this — verify the snapshot is captured before the AI write.
+- The snapshot is already captured by Tiptap's history extension; verify
+  it consistently does so before our `replaceWith` dispatch.
 
-### Drop the comment thread UI
+### Critic / feedback persona mode
+The current auto-apply contract substitutes claude's response for the
+highlighted passage. That works for editor/copywriter but breaks
+researcher/challenger — those are critique personas; their output is
+analysis, not a replacement.
+- Add a `mode: "rewrite" | "feedback"` field to TriggerConfig.
+- Feedback personas: response stays in the comment thread, no replacement.
+- Settings UI gets a toggle per persona.
+- Default modes: editor/copywriter = rewrite; researcher/challenger =
+  feedback.
+
+### Drop the comment thread UI (deferred)
 **Files:** `src/components/comments/`.
 - Comments become single-message anchors, not threads.
-- The comment record is: `{ passage, instruction, claudeOutput, decision: "kept" | "reverted" }`.
-- Per-passage history log (collapsed by default) replaces the thread view.
-
-### Drop `suggestEdit` accept/reject card
-**File:** `src/components/comments/SuggestedEdit.tsx`.
-- Delete entirely. The interaction is now in the document, not a sidebar card.
+- Per-passage history log (collapsed by default) replaces the thread.
+- Coupled with comment-mark round-trip below.
 
 ### Comment-mark round-trip (KNOWN BROKEN)
 **Files:** `src/extensions/comment-mark.ts`, `src/lib/markdown.ts`,
@@ -105,18 +103,9 @@ worth re-enabling, OR when external editing is a regular workflow.
 - Sidebar already has the visual scaffold. Skip unless folder-of-files mode
   ends up needing manual ordering. (Filesystem mtime sort is probably enough.)
 
-### Keyboard shortcut to leave a comment
-- Today commenting requires a mouse: highlight passage, click the floating
-  comment button. Add `⌘⇧M` to open the comment composer on the current
-  selection.
-
-### Rename note (file rename on disk)
-**File:** `src/lib/document-store.ts`.
-- The Rust `rename_note` command exists. The store's `renameDocument`
-  currently just mutates state.documents — the in-memory rename doesn't
-  hit disk. Wire it up so renaming a doc renames the .md file and updates
-  the cache id everywhere.
-- Folded into the "Sidebar context menus — v1" item below.
+### Rename note (file rename on disk) — folded into sidebar context menu v1
+- The Rust `rename_note` command exists; the store's `renameDocument`
+  currently just mutates state. Wire it up via the sidebar v1 work below.
 
 ---
 
@@ -225,6 +214,24 @@ the product is stable enough to commit to identity:
   the running claude subprocess by pid (track per-thread).
 
 ---
+
+## Added 2026-05-06 (session housekeeping)
+
+- [ ] Sign + notarize the macOS `.app` bundle for distribution. Currently
+      unsigned — users get the "unidentified developer" warning on first
+      launch and need to right-click → Open. Use the Apple Developer ID
+      cert + `xcrun notarytool` flow per `~/.claude/references/macos-niche-rules.md`.
+- [ ] Replace the second DMG-on-Desktop hack — TCC blocked us from
+      overwriting the old DMG, so two are sitting on Desktop. A small
+      `/release-dmg` workflow that handles "trash old, drop new" cleanly
+      would be nicer.
+- [ ] Tests — Playwright is in devDeps but no tests yet. Backlog
+      candidates already noted in `## Hygiene`. First targets: comment
+      auto-apply round-trip with a mocked claude, markdown-on-disk
+      save/reload parity, persona override flow.
+- [ ] First-run UX polish — the OnboardingScreen currently shows just
+      "Pick your notes folder." Could explain what Inline MD does in 1-2
+      lines. Worth thinking about when we revisit branding.
 
 ## Future / exploratory
 
