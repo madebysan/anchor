@@ -25,10 +25,7 @@ export default function App() {
 
   useEffect(() => {
     checkClaudeCli()
-      .then((ok) => {
-        console.log("checkClaudeCli ->", ok);
-        setClaudeInstalled(ok);
-      })
+      .then(setClaudeInstalled)
       .catch((e) => {
         console.error("checkClaudeCli failed:", e);
         setClaudeInstalled(false);
@@ -38,10 +35,7 @@ export default function App() {
   useEffect(() => {
     if (claudeInstalled !== true) return;
     getNotesFolder()
-      .then((f) => {
-        console.log("getNotesFolder ->", f);
-        setNotesFolder(f);
-      })
+      .then(setNotesFolder)
       .catch((e) => {
         console.error("getNotesFolder failed:", e);
         setNotesFolder(null);
@@ -56,10 +50,7 @@ export default function App() {
     let cancelled = false;
     bootPersistence()
       .then(() => {
-        if (!cancelled) {
-          console.log("bootPersistence done");
-          setPersistenceReady(true);
-        }
+        if (!cancelled) setPersistenceReady(true);
       })
       .catch((e) => {
         console.error("bootPersistence failed:", e);

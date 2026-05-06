@@ -1,4 +1,3 @@
-"use client";
 
 import { create } from "zustand";
 import {
@@ -12,9 +11,6 @@ import {
   saveActiveDocId,
   loadActiveDocId,
   extractTitle,
-  migrateFromSingleDoc,
-  QuotaError,
-  onQuotaExceeded,
   allocateNoteId,
   registerNewNote,
 } from "./persistence";
@@ -42,7 +38,6 @@ interface DocumentStore {
   activeThreadId: string | null;
   saveStatus: SaveStatus;
   lastSavedAt: number | null;
-  quotaExceeded: boolean;
   initialized: boolean;
 
   // ---- Lifecycle ----
@@ -71,9 +66,6 @@ interface DocumentStore {
   resolveThread: (threadId: string) => void;
   unresolveThread: (threadId: string) => void;
   updateThread: (threadId: string, updater: (t: CommentThread) => CommentThread) => void;
-
-  // ---- Quota ----
-  dismissQuotaWarning: () => void;
 }
 
 // Note ids are now filenames (sanitized titles). allocateNoteId returns a
@@ -93,15 +85,10 @@ function makeMessageId() {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-// Save the current doc + threads immediately. Returns true on success.
-// QuotaErrors are swallowed (the persistence module has already notified listeners).
+// Save the current doc + threads immediately.
 function flushCurrent(docId: string, content: string, threads: CommentThread[]): void {
-  try {
-    saveDocContent(docId, content);
-    saveDocThreads(docId, threads);
-  } catch (e) {
-    if (!(e instanceof QuotaError)) throw e;
-  }
+  saveDocContent(docId, content);
+  saveDocThreads(docId, threads);
 }
 
 export const useDocumentStore = create<DocumentStore>((set, get) => ({
@@ -113,15 +100,12 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   activeThreadId: null,
   saveStatus: "idle",
   lastSavedAt: null,
-  quotaExceeded: false,
   initialized: false,
 
   initialize: () => {
     if (get().initialized) return;
 
-    // Migrate legacy single-doc keys if present.
-    const migrated = migrateFromSingleDoc();
-    let docs = migrated ?? loadDocIndex();
+    let docs = loadDocIndex();
 
     if (!docs || docs.length === 0) {
       const id = newNote();
@@ -301,26 +285,20 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       const { activeDocId: docId, content: latest } = get();
       if (!docId) return;
 
-      try {
-        saveDocContent(docId, latest);
-        const newTitle = extractTitle(latest);
-        set((state) => {
-          const updated = state.documents.map((d) =>
-            d.id === docId ? { ...d, title: newTitle, updatedAt: Date.now() } : d
-          );
-          saveDocIndex(updated);
-          return {
-            documents: updated,
-            saveStatus: "saved",
-            lastSavedAt: Date.now(),
-          };
-        });
-        savedResetTimer = setTimeout(() => set({ saveStatus: "idle" }), SAVED_RESET_MS);
-      } catch (e) {
-        // QuotaError already notified listeners; reset save indicator.
-        if (e instanceof QuotaError) set({ saveStatus: "idle" });
-        else set({ saveStatus: "idle" });
-      }
+      saveDocContent(docId, latest);
+      const newTitle = extractTitle(latest);
+      set((state) => {
+        const updated = state.documents.map((d) =>
+          d.id === docId ? { ...d, title: newTitle, updatedAt: Date.now() } : d
+        );
+        saveDocIndex(updated);
+        return {
+          documents: updated,
+          saveStatus: "saved",
+          lastSavedAt: Date.now(),
+        };
+      });
+      savedResetTimer = setTimeout(() => set({ saveStatus: "idle" }), SAVED_RESET_MS);
     }, SAVE_DEBOUNCE_MS);
   },
 
@@ -422,9 +400,6 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     }));
     scheduleThreadSave();
   },
-
-  // ---- Quota ----
-  dismissQuotaWarning: () => set({ quotaExceeded: false }),
 }));
 
 function scheduleThreadSave() {
@@ -432,17 +407,6 @@ function scheduleThreadSave() {
   threadSaveTimer = setTimeout(() => {
     const { activeDocId, threads } = useDocumentStore.getState();
     if (!activeDocId) return;
-    try {
-      saveDocThreads(activeDocId, threads);
-    } catch {
-      // QuotaError already notifies listeners.
-    }
+    saveDocThreads(activeDocId, threads);
   }, SAVE_DEBOUNCE_MS);
-}
-
-// Surface quota events from any save path into the store.
-if (typeof window !== "undefined") {
-  onQuotaExceeded(() => {
-    useDocumentStore.setState({ quotaExceeded: true });
-  });
 }
