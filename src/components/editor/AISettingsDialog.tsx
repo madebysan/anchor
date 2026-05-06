@@ -1,3 +1,5 @@
+import { invoke } from "@tauri-apps/api/core";
+import { useTheme } from "next-themes";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, RotateCcw, Trash2 } from "lucide-react";
+import { FolderOpen, Plus, RotateCcw, Trash2 } from "lucide-react";
 import type {
   AISettings,
   TriggerConfig,
@@ -30,6 +32,14 @@ import {
   STRATEGY_LABELS,
   STRATEGY_DESCRIPTIONS,
 } from "@/lib/ai/context-router";
+import {
+  FONT_OPTIONS,
+  SIZE_OPTIONS,
+  type FontOption,
+  type SizeOption,
+} from "@/lib/editor-preferences";
+
+const APP_VERSION = "0.1.0";
 
 interface AISettingsDialogProps {
   open: boolean;
@@ -40,6 +50,12 @@ interface AISettingsDialogProps {
   onResetTriggerPrompt: (key: string) => void;
   onAddTrigger: (name: string) => boolean;
   onRemoveTrigger: (key: string) => void;
+  notesFolder?: string;
+  onChangeNotesFolder?: () => void;
+  currentFont?: FontOption;
+  currentSize?: SizeOption;
+  onFontChange?: (id: string) => void;
+  onSizeChange?: (id: string) => void;
 }
 
 export default function AISettingsDialog({
@@ -51,9 +67,16 @@ export default function AISettingsDialog({
   onResetTriggerPrompt,
   onAddTrigger,
   onRemoveTrigger,
+  notesFolder,
+  onChangeNotesFolder,
+  currentFont,
+  currentSize,
+  onFontChange,
+  onSizeChange,
 }: AISettingsDialogProps) {
   const triggerEntries = Object.entries(settings.triggers);
   const enabledTriggers = triggerEntries.filter(([, c]) => c.enabled);
+  const { theme, setTheme } = useTheme();
 
   const handleAddTrigger = () => {
     let name = "New Persona";
@@ -67,22 +90,167 @@ export default function AISettingsDialog({
     onAddTrigger(name);
   };
 
+  const handleRevealFolder = () => {
+    if (!notesFolder) return;
+    invoke<void>("open_path", { path: notesFolder }).catch((e) => {
+      console.error("open_path failed:", e);
+    });
+  };
+
+  const handleResetSettings = () => {
+    if (!window.confirm("Reset all personas, default persona, and editor preferences? Notes folder is kept.")) {
+      return;
+    }
+    try {
+      localStorage.removeItem("inline-md-settings");
+      localStorage.removeItem("inline-md-editor-prefs");
+      localStorage.removeItem("inline-md-expanded-folders");
+      window.location.reload();
+    } catch (e) {
+      console.error("reset failed:", e);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[640px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription className="sr-only">
-            Configure AI personas and keyboard shortcuts
+            General preferences, AI personas, and keyboard shortcuts
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="triggers" className="mt-2">
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs defaultValue="general" className="mt-2">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="triggers">Personas</TabsTrigger>
             <TabsTrigger value="shortcuts">Shortcuts</TabsTrigger>
           </TabsList>
 
+          {/* ----- GENERAL ----- */}
+          <TabsContent value="general" className="space-y-5 mt-4">
+            {/* Notes folder */}
+            <section className="space-y-2">
+              <Label className="text-xs">Notes folder</Label>
+              <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs font-mono">
+                <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate flex-1 min-w-0" title={notesFolder}>
+                  {notesFolder || "(not set)"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRevealFolder}
+                  disabled={!notesFolder}
+                >
+                  Reveal in Finder
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onChangeNotesFolder}
+                  disabled={!onChangeNotesFolder}
+                >
+                  Change folder…
+                </Button>
+              </div>
+            </section>
+
+            <Separator />
+
+            {/* Appearance */}
+            <section className="space-y-3">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Appearance</h4>
+
+              <div className="grid grid-cols-[140px_1fr] items-center gap-3">
+                <Label className="text-xs">Theme</Label>
+                <Select value={theme || "system"} onValueChange={setTheme}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="system" className="text-xs">System</SelectItem>
+                    <SelectItem value="light" className="text-xs">Light</SelectItem>
+                    <SelectItem value="dark" className="text-xs">Dark</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-[140px_1fr] items-center gap-3">
+                <Label className="text-xs">Default font</Label>
+                <Select
+                  value={currentFont?.id ?? FONT_OPTIONS[0].id}
+                  onValueChange={(next) => onFontChange?.(next)}
+                  disabled={!onFontChange}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FONT_OPTIONS.map((font) => (
+                      <SelectItem key={font.id} value={font.id} className="text-xs">
+                        {font.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-[140px_1fr] items-center gap-3">
+                <Label className="text-xs">Default size</Label>
+                <Select
+                  value={currentSize?.id ?? SIZE_OPTIONS[2].id}
+                  onValueChange={(next) => onSizeChange?.(next)}
+                  disabled={!onSizeChange}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SIZE_OPTIONS.map((size) => (
+                      <SelectItem key={size.id} value={size.id} className="text-xs">
+                        {size.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </section>
+
+            <Separator />
+
+            {/* About */}
+            <section className="space-y-2">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">About</h4>
+              <p className="text-xs text-muted-foreground">
+                Inline MD v{APP_VERSION} · Made by{" "}
+                <a
+                  href="https://santiagoalonso.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2 hover:text-foreground transition-colors"
+                >
+                  santiagoalonso.com
+                </a>
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResetSettings}
+                className="text-destructive hover:text-destructive"
+              >
+                Reset all settings…
+              </Button>
+              <p className="text-[11px] text-muted-foreground">
+                Resets personas, default persona, and editor preferences. Your notes folder and the files in it are not touched.
+              </p>
+            </section>
+          </TabsContent>
+
+          {/* ----- PERSONAS ----- */}
           <TabsContent value="triggers" className="space-y-4 mt-4">
             <p className="text-xs text-muted-foreground">
               Each persona is invoked by typing{" "}
@@ -212,6 +380,7 @@ export default function AISettingsDialog({
             </Button>
           </TabsContent>
 
+          {/* ----- SHORTCUTS ----- */}
           <TabsContent value="shortcuts" className="mt-4">
             <div className="rounded-lg border p-4 space-y-3">
               <h4 className="text-sm font-medium">Keyboard Shortcuts</h4>
@@ -227,6 +396,18 @@ export default function AISettingsDialog({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Comment on selection</span>
                   <kbd className="px-2 py-0.5 bg-muted rounded text-xs font-mono">⌘ ⇧ V</kbd>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Toggle focus mode</span>
+                  <kbd className="px-2 py-0.5 bg-muted rounded text-xs font-mono">⌘ ⇧ M</kbd>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Open Settings</span>
+                  <kbd className="px-2 py-0.5 bg-muted rounded text-xs font-mono">⌘ /</kbd>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">New document</span>
+                  <kbd className="px-2 py-0.5 bg-muted rounded text-xs font-mono">⌘ N</kbd>
                 </div>
               </div>
 

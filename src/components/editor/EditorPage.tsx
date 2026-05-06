@@ -14,27 +14,7 @@ import { parseTrigger, isPlainNote } from "@/lib/triggers";
 import type { DocumentSnapshot } from "@/lib/ai/context-router";
 import type { SuggestedEdit } from "@/types";
 import type { Editor as TiptapEditor } from "@tiptap/react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { GripVertical } from "lucide-react";
-
-const SHORTCUTS = [
-  { keys: "⌘ B", desc: "Bold" },
-  { keys: "⌘ I", desc: "Italic" },
-  { keys: "⌘ ⇧ X", desc: "Strikethrough" },
-  { keys: "⌘ E", desc: "Inline code" },
-  { keys: "⌘ Z", desc: "Undo" },
-  { keys: "⌘ ⇧ Z", desc: "Redo" },
-  { keys: "⌘ N", desc: "New document" },
-  { keys: "⌘ ⇧ V", desc: "Comment on selection" },
-  { keys: "⌘ ⇧ M", desc: "Toggle focus mode" },
-  { keys: "⌘ /", desc: "Keyboard shortcuts" },
-];
 
 function DragHandle({
   onDragStart,
@@ -104,7 +84,6 @@ export default function EditorPage({
   // Local UI state
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [docWidth, setDocWidth] = useState(240);
   const [commentWidth, setCommentWidth] = useState(360);
   const docWidthRef = useRef(docWidth);
@@ -279,7 +258,6 @@ export default function EditorPage({
   );
 
   const toggleFocusMode = useCallback(() => setFocusMode((p) => !p), []);
-  const toggleShortcuts = useCallback(() => setShortcutsOpen((p) => !p), []);
 
   const handleDocDragStart = useCallback(() => {
     docWidthRef.current = docWidth;
@@ -313,7 +291,7 @@ export default function EditorPage({
       }
       if (meta && e.key === "/") {
         e.preventDefault();
-        setShortcutsOpen((p) => !p);
+        setSettingsOpen((p) => !p);
         return;
       }
     };
@@ -570,7 +548,6 @@ export default function EditorPage({
           lastSavedAt={lastSavedAt}
           focusMode={focusMode}
           onToggleFocusMode={toggleFocusMode}
-          onToggleShortcuts={toggleShortcuts}
           formattingCollapsed={formattingCollapsed}
           onToggleFormattingCollapsed={toggleFormattingCollapsed}
         />
@@ -610,26 +587,14 @@ export default function EditorPage({
         onResetTriggerPrompt={resetTriggerPrompt}
         onAddTrigger={addTrigger}
         onRemoveTrigger={removeTrigger}
+        notesFolder={notesFolder}
+        onChangeNotesFolder={onChangeNotesFolder}
+        currentFont={currentFont}
+        currentSize={currentSize}
+        onFontChange={setFont}
+        onSizeChange={setFontSize}
       />
 
-      <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
-        <DialogContent className="sm:max-w-[360px]">
-          <DialogHeader>
-            <DialogTitle>Keyboard shortcuts</DialogTitle>
-            <DialogDescription className="sr-only">List of available keyboard shortcuts</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-1.5">
-            {SHORTCUTS.map((s) => (
-              <div key={s.keys} className="flex items-center justify-between py-1">
-                <span className="text-sm text-foreground">{s.desc}</span>
-                <kbd className="text-xs bg-muted px-2 py-0.5 rounded font-mono text-muted-foreground">
-                  {s.keys}
-                </kbd>
-              </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

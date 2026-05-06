@@ -29,7 +29,6 @@ import {
   Moon,
   Maximize2,
   Minimize2,
-  Keyboard,
   ChevronDown,
   Type,
 } from "lucide-react";
@@ -58,7 +57,6 @@ interface EditorToolbarProps {
   lastSavedAt?: number | null;
   focusMode?: boolean;
   onToggleFocusMode?: () => void;
-  onToggleShortcuts?: () => void;
   formattingCollapsed?: boolean;
   onToggleFormattingCollapsed?: () => void;
 }
@@ -113,7 +111,6 @@ export default function EditorToolbar({
   lastSavedAt = null,
   focusMode = false,
   onToggleFocusMode,
-  onToggleShortcuts,
   formattingCollapsed = false,
   onToggleFormattingCollapsed,
 }: EditorToolbarProps) {
@@ -417,16 +414,9 @@ export default function EditorToolbar({
         </ToolbarButton>
       )}
 
-      {/* Keyboard shortcuts */}
-      {onToggleShortcuts && (
-        <ToolbarButton onClick={onToggleShortcuts} title="Keyboard shortcuts (⌘/)">
-          <Keyboard className="h-4 w-4" />
-        </ToolbarButton>
-      )}
-
       <div className="w-px h-5 bg-border mx-1" />
 
-      <ToolbarButton onClick={() => onOpenSettings?.()} title="AI Settings">
+      <ToolbarButton onClick={() => onOpenSettings?.()} title="Settings">
         <Settings className="h-4 w-4" />
       </ToolbarButton>
     </div>
