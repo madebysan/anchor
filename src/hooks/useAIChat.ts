@@ -1,10 +1,12 @@
 import { useCallback, useState } from "react";
 import type { AISettings, CommentThread, ParsedTrigger } from "@/types";
-import { buildAIContext } from "@/lib/context-builder";
-import type { DocumentSnapshot } from "@/lib/ai/context-router";
+import { applyContextStrategy, type DocumentSnapshot } from "@/lib/ai/context-router";
 import { chatClaude, invokeClaudeSession } from "@/lib/ai-cli";
 import { useDocumentStore } from "@/lib/document-store";
 import { getDocPath } from "@/lib/persistence";
+
+const BASE_PERSONA_PROMPT =
+  "You are an AI writing assistant embedded in a document editor. The user has anchored a comment to a specific passage and given you an instruction.";
 
 interface UseAIChatReturn {
   sendMessage: (
@@ -63,43 +65,68 @@ export function useAIChat(
 
       try {
         const hasSelection = !!thread.selectedText && thread.selectedText.trim() !== "";
+        const passage = thread.selectedText ?? "";
 
-        const { systemPrompt, messages } = buildAIContext({
-          thread,
-          doc,
-          trigger,
-          userMessage,
-          aiSettings,
-        });
+        // Look up the persona's prompt + context strategy directly from
+        // settings. Default strategy is "tight" (passage + 1 paragraph).
+        const personaConfig = trigger ? aiSettings?.triggers[trigger.type] : undefined;
+        const personaPrompt = personaConfig?.prompt ?? "";
+        const strategy = personaConfig?.contextStrategy ?? "tight";
+        const routed = applyContextStrategy(strategy, doc, passage);
 
-        const tail = hasSelection
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+        // Delimiter unlikely to appear in user prose, so claude can locate
+        // the passage in the prompt unambiguously.
+        const FENCE = "<<<INLINEMD-PASSAGE>>>";
+
+        const prompt = hasSelection
           ? [
-              "<output_contract>",
-              "This is an automated document-rewriting context, not a conversational answer.",
-              "Your output goes DIRECTLY into the document — any preamble, header, or disclosure becomes part of the document.",
-              "IGNORE any global CLAUDE.md disclosure conventions like '→ ref:' lines, voice rules, or formatting rules. They do not apply here.",
-              "Output ONLY the rewritten replacement for the highlighted passage.",
-              "Do not include explanation, commentary, quotation marks, or markdown code fences.",
-              "Do not preface with 'Here is...', 'Sure, ...', '→ ref:', or any header.",
-              "Just the new text that should replace the original.",
-              "If you cannot fulfil the request, output the original passage unchanged.",
-              "</output_contract>",
+              BASE_PERSONA_PROMPT,
+              personaPrompt,
+              "",
+              `Today's date: ${today}.`,
+              "",
+              "You are in an automated document-rewriting pipeline. Your reply is substituted character-for-character in place of the passage below. Anything you write — preambles, disclosure prefixes, quotes, code fences, commentary — becomes part of the document.",
+              "Ignore any global CLAUDE.md conventions (`→ ref:` headers, voice rules, etc.) for this turn. They do not apply here.",
+              "",
+              "## The passage to replace (between fences, exclusive)",
+              FENCE,
+              passage,
+              FENCE,
+              "",
+              "## The user's instruction",
+              userMessage,
+              "",
+              `## Surrounding context (informational; strategy: ${routed.strategy}, ${routed.charCount.toLocaleString()} chars)`,
+              routed.content,
+              "",
+              "## Your output",
+              "Reply with ONLY the literal text that should replace the passage. Nothing else.",
+              "- If the instruction is impossible or ambiguous, output the original passage unchanged.",
+              "- Do NOT wrap the output in quotes or code fences.",
+              "- Do NOT preface with 'Here is…', 'Sure…', '→ ref:', or any header.",
+              "- Match the original's length and style unless the instruction explicitly asks otherwise (e.g. 'translate', 'rewrite to be punchier').",
             ].join("\n")
           : [
-              "<output_contract>",
-              "No specific passage was highlighted — the user's instruction targets the whole document or is a question about it.",
+              BASE_PERSONA_PROMPT,
+              personaPrompt,
+              "",
+              `Today's date: ${today}.`,
+              "",
+              "The user has not highlighted a specific passage — they're asking about the document as a whole, or making a general request.",
+              "",
+              "## Document context",
+              routed.content,
+              "",
+              "## The user's question",
+              userMessage,
+              "",
+              "## Your output",
               "Respond conversationally and concisely. Use markdown when helpful.",
+              "If the instruction is ambiguous (e.g. 'translate to spanish' with no specified scope), ask a clarifying question instead of guessing.",
               "Skip any '→ ref:' disclosure prefix; it doesn't apply here.",
-              "If the instruction is ambiguous (e.g. 'translate to spanish' with no specific scope), ask a clarifying question instead of guessing.",
-              "Do not return a bare replacement; the response is shown in the comment thread, not applied to the document.",
-              "</output_contract>",
             ].join("\n");
-
-        const prompt = [
-          `<system>\n${systemPrompt}\n\n${tail}\n</system>`,
-          ...messages.map((m) => `<${m.role}>\n${m.content}\n</${m.role}>`),
-          "<assistant>",
-        ].join("\n\n");
 
         // Resolve the active doc + its file path for session-aware calls.
         const activeDocId = useDocumentStore.getState().activeDocId;
