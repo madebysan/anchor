@@ -15,6 +15,8 @@ import {
   migrateFromSingleDoc,
   QuotaError,
   onQuotaExceeded,
+  allocateNoteId,
+  registerNewNote,
 } from "./persistence";
 import type { DocumentMeta, CommentThread, ThreadMessage } from "@/types";
 
@@ -74,8 +76,13 @@ interface DocumentStore {
   dismissQuotaWarning: () => void;
 }
 
-function makeDocId() {
-  return `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+// Note ids are now filenames (sanitized titles). allocateNoteId returns a
+// collision-safe id like "Untitled" or "Untitled-2". registerNewNote adds
+// it to the persistence cache and writes an empty .md to disk.
+function newNote(suggestedTitle = "Untitled"): string {
+  const id = allocateNoteId(suggestedTitle);
+  registerNewNote(id);
+  return id;
 }
 
 function makeThreadId() {
@@ -117,7 +124,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     let docs = migrated ?? loadDocIndex();
 
     if (!docs || docs.length === 0) {
-      const id = makeDocId();
+      const id = newNote();
       const now = Date.now();
       docs = [{ id, title: "Untitled", createdAt: now, updatedAt: now }];
       saveDocIndex(docs);
@@ -170,7 +177,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     if (activeDocId) flushCurrent(activeDocId, content, threads);
     get().cancelPendingSaves();
 
-    const id = makeDocId();
+    const id = newNote();
     const now = Date.now();
     const newDoc: DocumentMeta = {
       id,
@@ -231,7 +238,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       get().cancelPendingSaves();
 
       if (remaining.length === 0) {
-        const id = makeDocId();
+        const id = newNote();
         const now = Date.now();
         const fresh: DocumentMeta = {
           id,

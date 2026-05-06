@@ -1,121 +1,128 @@
 import type { CommentThread, DocumentMeta } from "@/types";
+import {
+  listNotes,
+  writeNote,
+  deleteNote,
+  sanitizeNoteId,
+  type NoteFile,
+} from "./notes-fs";
+import { markdownToHtml, htmlToMarkdown } from "./markdown";
 
-// --- Legacy keys (kept for migration) ---
-const STORAGE_KEY_DOC = "inlineai-document";
-const STORAGE_KEY_THREADS = "inlineai-threads";
+// In-memory cache of notes loaded from disk at boot. The store reads from
+// this cache synchronously; writes are debounced and fire-and-forget to
+// disk via writeNote(). This preserves the store's existing sync API while
+// the source of truth lives on the filesystem.
+const noteCache = new Map<string, NoteFile>();
+let bootCompleted = false;
 
-// --- Multi-doc keys ---
-const KEY_DOC_INDEX = "inlineai-docs-index";
-const KEY_ACTIVE_DOC = "inlineai-active-doc";
-
-function docContentKey(id: string) {
-  return `inlineai-doc-${id}`;
+// Threads continue to live in localStorage keyed by note id (file stem).
+// Phase 3 of the backlog moves them into sidecar files alongside the .md.
+function threadsKey(id: string) {
+  return `inline-md-threads-${id}`;
 }
-function docThreadsKey(id: string) {
-  return `inlineai-threads-${id}`;
-}
 
-// Tagged error so callers can distinguish "out of space" from generic save failure.
-// localStorage QuotaExceededError detection works across modern browsers (name match) and
-// legacy Firefox (numeric code 1014). Modern Safari/Chrome use code 22.
+const KEY_ACTIVE_DOC = "inline-md-active-doc";
+
+// QuotaError is kept for backwards compatibility with the document store's
+// catch sites. Disk doesn't have a quota in any meaningful sense, so it's
+// effectively dead code now — but throwing one here would still let the
+// store distinguish "save failed for a known reason" from a generic crash.
 export class QuotaError extends Error {
   constructor() {
-    super("localStorage quota exceeded");
+    super("storage quota exceeded");
     this.name = "QuotaError";
   }
 }
 
-function isQuotaError(e: unknown): boolean {
-  if (!(e instanceof Error)) return false;
-  if (e.name === "QuotaExceededError") return true;
-  // DOMException codes for legacy browsers
-  const code = (e as unknown as { code?: number }).code;
-  return code === 22 || code === 1014;
-}
-
-// Pub/sub for quota events so any save path can notify the UI without
-// each call site needing to handle the throw individually. The document
-// store subscribes once at module init.
-type QuotaListener = () => void;
-const quotaListeners = new Set<QuotaListener>();
-
-export function onQuotaExceeded(listener: QuotaListener): () => void {
+const quotaListeners = new Set<() => void>();
+export function onQuotaExceeded(listener: () => void): () => void {
   quotaListeners.add(listener);
   return () => quotaListeners.delete(listener);
 }
 
-function notifyQuota(): void {
-  for (const l of quotaListeners) l();
-}
-
 // =====================
-// Document index (list of all docs)
+// Boot — populate the cache from disk before the store initializes.
 // =====================
 
-export function saveDocIndex(docs: DocumentMeta[]): void {
-  // The index is small; swallow errors here to keep multi-doc operations
-  // resilient. Big writes (content, threads) throw QuotaError so callers
-  // can surface a recovery dialog.
-  try {
-    localStorage.setItem(KEY_DOC_INDEX, JSON.stringify(docs));
-  } catch (e) {
-    console.warn("localStorage save failed:", e);
+export async function bootPersistence(): Promise<void> {
+  const notes = await listNotes();
+  noteCache.clear();
+  for (const n of notes) {
+    noteCache.set(n.id, n);
   }
+  bootCompleted = true;
 }
+
+export function isPersistenceReady(): boolean {
+  return bootCompleted;
+}
+
+// =====================
+// Document index — derived from the cache.
+// =====================
 
 export function loadDocIndex(): DocumentMeta[] | null {
-  try {
-    const stored = localStorage.getItem(KEY_DOC_INDEX);
-    if (!stored) return null;
-    return JSON.parse(stored);
-  } catch {
-    return null;
-  }
+  if (!bootCompleted) return null;
+  if (noteCache.size === 0) return null;
+  return Array.from(noteCache.values()).map(toMeta);
+}
+
+// Filesystem is the source of truth, so the index isn't a separate write.
+// Kept as a no-op so existing call sites don't need to change.
+export function saveDocIndex(_docs: DocumentMeta[]): void {
+  // intentionally empty
+}
+
+function toMeta(note: NoteFile): DocumentMeta {
+  const ms = note.modified * 1000;
+  return {
+    id: note.id,
+    title: note.title,
+    createdAt: ms,
+    updatedAt: ms,
+  };
 }
 
 // =====================
-// Per-document content
+// Per-document content — markdown on disk, HTML in memory.
 // =====================
-
-export function saveDocContent(id: string, html: string): void {
-  try {
-    localStorage.setItem(docContentKey(id), html);
-  } catch (e) {
-    if (isQuotaError(e)) {
-      notifyQuota();
-      throw new QuotaError();
-    }
-    console.warn("localStorage save failed:", e);
-  }
-}
 
 export function loadDocContent(id: string): string | null {
-  try {
-    return localStorage.getItem(docContentKey(id));
-  } catch {
-    return null;
+  const note = noteCache.get(id);
+  if (!note) return null;
+  return markdownToHtml(note.content);
+}
+
+export function saveDocContent(id: string, html: string): void {
+  const md = htmlToMarkdown(html);
+
+  // Update cache optimistically so subsequent reads see the latest.
+  const existing = noteCache.get(id);
+  if (existing) {
+    noteCache.set(id, {
+      ...existing,
+      content: md,
+      modified: Math.floor(Date.now() / 1000),
+    });
   }
+
+  void writeNote(id, md)
+    .then((saved) => {
+      // Reconcile cache with the post-write metadata (real mtime).
+      noteCache.set(id, saved);
+    })
+    .catch((e) => {
+      console.error(`saveDocContent(${id}) failed:`, e);
+    });
 }
 
 // =====================
-// Per-document threads
+// Per-document threads — still localStorage for Phase 2.
 // =====================
-
-export function saveDocThreads(id: string, threads: CommentThread[]): void {
-  try {
-    localStorage.setItem(docThreadsKey(id), JSON.stringify(threads));
-  } catch (e) {
-    if (isQuotaError(e)) {
-      notifyQuota();
-      throw new QuotaError();
-    }
-    console.warn("localStorage save failed:", e);
-  }
-}
 
 export function loadDocThreads(id: string): CommentThread[] | null {
   try {
-    const stored = localStorage.getItem(docThreadsKey(id));
+    const stored = localStorage.getItem(threadsKey(id));
     if (!stored) return null;
     return JSON.parse(stored);
   } catch {
@@ -123,21 +130,32 @@ export function loadDocThreads(id: string): CommentThread[] | null {
   }
 }
 
+export function saveDocThreads(id: string, threads: CommentThread[]): void {
+  try {
+    localStorage.setItem(threadsKey(id), JSON.stringify(threads));
+  } catch (e) {
+    console.warn(`saveDocThreads(${id}) failed:`, e);
+  }
+}
+
 // =====================
-// Delete a document's data (content + threads keys)
+// Delete — remove file + thread cache + localStorage threads.
 // =====================
 
 export function deleteDocData(id: string): void {
+  noteCache.delete(id);
+  void deleteNote(id).catch((e) => {
+    console.error(`deleteDocData(${id}) failed:`, e);
+  });
   try {
-    localStorage.removeItem(docContentKey(id));
-    localStorage.removeItem(docThreadsKey(id));
+    localStorage.removeItem(threadsKey(id));
   } catch {
     // ignore
   }
 }
 
 // =====================
-// Active document ID
+// Active document id — small enough that localStorage is fine.
 // =====================
 
 export function saveActiveDocId(id: string): void {
@@ -157,14 +175,12 @@ export function loadActiveDocId(): string | null {
 }
 
 // =====================
-// Title extraction — pull first <h1> or <h2> text from HTML
+// Title extraction (kept for the editor's first-heading-as-title fallback).
 // =====================
 
 export function extractTitle(html: string): string {
-  // Match the content inside the first <h1> or <h2> tag (handles nested tags like <strong>)
   const match = html.match(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/i);
   if (match) {
-    // Strip any nested HTML tags from the heading text
     const text = match[1].replace(/<[^>]*>/g, "").trim();
     if (text.length > 0) return text;
   }
@@ -172,50 +188,41 @@ export function extractTitle(html: string): string {
 }
 
 // =====================
-// Migration: move old single-doc keys into multi-doc structure
+// Migration — gone. inline-md is a fresh start.
 // =====================
 
 export function migrateFromSingleDoc(): DocumentMeta[] | null {
-  try {
-    // Only migrate if there's no index yet but old keys exist
-    const existingIndex = localStorage.getItem(KEY_DOC_INDEX);
-    if (existingIndex) return null; // already migrated
-
-    const oldDoc = localStorage.getItem(STORAGE_KEY_DOC);
-    const oldThreads = localStorage.getItem(STORAGE_KEY_THREADS);
-
-    // Nothing to migrate
-    if (!oldDoc && !oldThreads) return null;
-
-    const now = Date.now();
-    const id = `doc-${now}-${Math.random().toString(36).slice(2, 7)}`;
-
-    const meta: DocumentMeta = {
-      id,
-      title: oldDoc ? extractTitle(oldDoc) : "Untitled",
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    // Save under new keys
-    if (oldDoc) {
-      localStorage.setItem(docContentKey(id), oldDoc);
-    }
-    if (oldThreads) {
-      localStorage.setItem(docThreadsKey(id), oldThreads);
-    }
-
-    const index = [meta];
-    localStorage.setItem(KEY_DOC_INDEX, JSON.stringify(index));
-    localStorage.setItem(KEY_ACTIVE_DOC, id);
-
-    // Clean up old keys
-    localStorage.removeItem(STORAGE_KEY_DOC);
-    localStorage.removeItem(STORAGE_KEY_THREADS);
-
-    return index;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
+// =====================
+// New-note id allocation — sanitized title with collision-safe suffixing.
+// =====================
+
+export function allocateNoteId(suggestedTitle = "Untitled"): string {
+  const base = sanitizeNoteId(suggestedTitle);
+  if (!noteCache.has(base)) return base;
+  let n = 2;
+  while (noteCache.has(`${base}-${n}`)) n += 1;
+  return `${base}-${n}`;
+}
+
+// Add a new note to the cache and write an empty .md file to disk so the
+// note survives reload even if the user never types into it.
+export function registerNewNote(id: string): void {
+  const now = Math.floor(Date.now() / 1000);
+  noteCache.set(id, {
+    id,
+    path: "",
+    title: id,
+    content: "",
+    modified: now,
+  });
+  void writeNote(id, "")
+    .then((saved) => {
+      noteCache.set(id, saved);
+    })
+    .catch((e) => {
+      console.error(`registerNewNote(${id}) failed:`, e);
+    });
+}
