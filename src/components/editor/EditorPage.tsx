@@ -4,7 +4,6 @@ import Editor from "./Editor";
 import CommentSidebar from "@/components/comments/CommentSidebar";
 import DocumentSidebar from "@/components/documents/DocumentSidebar";
 import AISettingsDialog from "./AISettingsDialog";
-import SetupScreen from "./SetupScreen";
 import { useAIChat } from "@/hooks/useAIChat";
 import { useAISettings } from "@/hooks/useAISettings";
 import { useEditorPreferences } from "@/hooks/useEditorPreferences";
@@ -489,10 +488,6 @@ export default function EditorPage() {
   const handleUnresolveThread = useCallback((threadId: string) => {
     useDocumentStore.getState().unresolveThread(threadId);
   }, []);
-
-  // inline-md uses Claude Code (no API keys); the install gate runs in App.tsx.
-  // The SetupScreen is unreachable here; left out so it doesn't flash up if
-  // settings ever round-trip through an empty state.
 
   return (
     <div className="flex h-screen bg-background">

@@ -54,14 +54,9 @@ export interface TriggerConfig {
   enabled: boolean;
   prompt: string;
   contextStrategy: ContextStrategy;
-  // Format: "providerId/modelName" e.g. "anthropic/claude-sonnet-4-20250514"
-  // Empty string falls back to provider's first available model.
-  modelId: string;
 }
 
 export interface AISettings {
-  anthropicKey: string;
-  deepseekKey: string;
   triggers: Record<string, TriggerConfig>;
   /**
    * Persona key (e.g. "editor") used when a comment has no @trigger and isn't
@@ -70,13 +65,3 @@ export interface AISettings {
   defaultPersona?: string;
 }
 
-export type ProviderId = "anthropic" | "deepseek";
-
-// One model option as returned by a provider's /models endpoint and
-// presented in the per-persona model dropdown.
-export interface ModelOption {
-  providerId: ProviderId;
-  modelId: string;        // the full "providerId/modelName" composite id
-  modelName: string;      // bare model name within the provider
-  displayName: string;    // friendly label for the dropdown
-}
