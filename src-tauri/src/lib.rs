@@ -1,6 +1,7 @@
 mod ai;
 mod config;
 mod notes;
+mod watcher;
 
 use std::sync::Mutex;
 use tauri::Manager;
@@ -12,6 +13,7 @@ pub fn run() {
         .setup(|app| {
             let initial = config::load_config(app.handle());
             app.manage(config::ConfigState(Mutex::new(initial)));
+            app.manage(watcher::WatcherState::new());
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -33,6 +35,7 @@ pub fn run() {
             notes::delete_note,
             notes::write_export_file,
             notes::open_path,
+            watcher::start_watching_notes,
             ai::ai_check_claude_cli,
             ai::ai_chat_claude,
             ai::ai_invoke_claude,
