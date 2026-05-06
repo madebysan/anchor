@@ -167,22 +167,53 @@ export default function EditorPage() {
     useDocumentStore.getState().updateContent(editor.getHTML());
   }, []);
 
-  // AI streaming. Text deltas flow into the last assistant message; tool calls
-  // (suggestEdit) become typed suggestion cards directly — no regex parsing.
+  // AI loop — Inline MD's locked auto-apply UX.
+  // 1. Claude's full response lands in the thread's last assistant message
+  //    (auditability, the user can see what was applied).
+  // 2. Then the same text replaces the comment-marked range in the document.
+  //    Tiptap's history extension snapshots the pre-edit state, so ⌘Z reverts.
   const { sendMessage: sendAIMessage, isLoading, stopGeneration, stopAllGenerations } = useAIChat(
     (threadId, _messageId, content) => {
       useDocumentStore.getState().updateLastAssistantMessage(threadId, content);
     },
     (threadId, toolName, input) => {
       if (
-        toolName === "suggestEdit" &&
-        typeof input === "object" &&
-        input !== null &&
-        typeof (input as { replacement?: unknown }).replacement === "string"
+        toolName !== "suggestEdit" ||
+        typeof input !== "object" ||
+        input === null ||
+        typeof (input as { replacement?: unknown }).replacement !== "string"
       ) {
-        const typed = input as { replacement: string; reason?: string };
-        useDocumentStore.getState().setLastAssistantSuggestion(threadId, typed);
+        return;
       }
+      const replacement = (input as { replacement: string }).replacement;
+      const editor = editorRef.current;
+      if (!editor) return;
+
+      // Find the comment mark's range for this thread and replace it.
+      const { doc } = editor.state;
+      let markFrom: number | null = null;
+      let markTo: number | null = null;
+      doc.descendants((node, pos) => {
+        node.marks.forEach((mark) => {
+          if (mark.type.name === "comment" && mark.attrs.commentId === threadId) {
+            if (markFrom === null) markFrom = pos;
+            markTo = pos + node.nodeSize;
+          }
+        });
+      });
+      if (markFrom === null || markTo === null) return;
+
+      const commentMark = editor.schema.marks.comment.create({ commentId: threadId });
+      const newText = editor.schema.text(replacement, [commentMark]);
+      const tr = editor.state.tr.replaceWith(markFrom, markTo, newText);
+      editor.view.dispatch(tr);
+
+      // Update the thread's selectedText so subsequent follow-up messages
+      // operate on the post-edit passage.
+      useDocumentStore.getState().updateThread(threadId, (t) => ({
+        ...t,
+        selectedText: replacement,
+      }));
     },
     settings
   );
