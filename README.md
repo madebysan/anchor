@@ -22,13 +22,22 @@ inlineai (the web parent) is a Vercel-deployed React app that calls the Anthropi
 
 ## Status
 
-Forked 2026-05-06. Currently:
+Forked from inlineai 2026-05-06, then shipped as a working .app the same day.
 
-- Tauri shell scaffolded ✓
-- Vite + React + Tiptap UI ports from inlineai ✓
-- Window opens with the editor ✓
-- Claude Code integration **next** (the AI layer is currently broken — `/api/ai` route is gone, no replacement yet)
-- Markdown-on-disk persistence **next** (still using localStorage from the parent)
+**What works:**
+- Tauri shell + Vite + React + Tiptap editor
+- Local Claude Code integration: per-doc sessions (token-cheap follow-ups across comments), prompt-injected today's date, `--resume` with auto-retry on session expiry
+- Hierarchical sidebar — folders + nested `.md` files, search, expand/collapse persistence
+- Personas: editor / copywriter / researcher / challenger; default-persona setting; `Note:` opt-out for plain notes; per-comment persona override dropdown
+- Auto-apply UX — claude's response replaces the highlighted passage in the editor; ⌘Z reverts
+- Settings dialog (General / Personas / Shortcuts) with notes folder, theme, default font/size, reset
+- Native save dialogs for export, native folder picker for notes location, Reveal in Finder
+- macOS `.app` bundle with PATH augmentation so it finds `claude` outside Finder's default PATH
+
+**Known limitations:**
+- No file watcher yet — external edits to `.md` files (vim, Obsidian, claude direct write) don't refresh the editor. JS listener is the next big task; Rust scaffolding is in place.
+- Comments don't survive doc reload: turndown strips Tiptap comment marks during HTML→markdown round-trip. Fix is position-based comment tracking.
+- Unsigned `.app` — first launch requires right-click → Open to bypass Gatekeeper.
 
 See [`backlog.md`](backlog.md) for the work list.
 
