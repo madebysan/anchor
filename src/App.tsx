@@ -3,6 +3,7 @@ import ThemeProvider from "@/components/ThemeProvider";
 import EditorPage from "@/components/editor/EditorPage";
 import OnboardingScreen from "@/components/onboarding/OnboardingScreen";
 import InstallClaudeScreen from "@/components/onboarding/InstallClaudeScreen";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { getNotesFolder } from "@/lib/notes-folder";
 import { checkClaudeCli } from "@/lib/ai-cli";
 import { bootPersistence } from "@/lib/persistence";
@@ -23,37 +24,24 @@ export default function App() {
   const [persistenceReady, setPersistenceReady] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    const timeoutId = window.setTimeout(() => {
-      if (cancelled) return;
-      console.warn("checkClaudeCli timed out after 5s — defaulting to false");
-      setClaudeInstalled(false);
-    }, 5000);
-
     checkClaudeCli()
       .then((ok) => {
-        if (cancelled) return;
-        window.clearTimeout(timeoutId);
-        console.log("checkClaudeCli resolved:", ok);
+        console.log("checkClaudeCli ->", ok);
         setClaudeInstalled(ok);
       })
       .catch((e) => {
-        if (cancelled) return;
-        window.clearTimeout(timeoutId);
         console.error("checkClaudeCli failed:", e);
         setClaudeInstalled(false);
       });
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-    };
   }, []);
 
   useEffect(() => {
     if (claudeInstalled !== true) return;
     getNotesFolder()
-      .then(setNotesFolder)
+      .then((f) => {
+        console.log("getNotesFolder ->", f);
+        setNotesFolder(f);
+      })
       .catch((e) => {
         console.error("getNotesFolder failed:", e);
         setNotesFolder(null);
@@ -68,7 +56,10 @@ export default function App() {
     let cancelled = false;
     bootPersistence()
       .then(() => {
-        if (!cancelled) setPersistenceReady(true);
+        if (!cancelled) {
+          console.log("bootPersistence done");
+          setPersistenceReady(true);
+        }
       })
       .catch((e) => {
         console.error("bootPersistence failed:", e);
@@ -95,7 +86,9 @@ export default function App() {
 
   return (
     <div className="font-sans antialiased">
-      <ThemeProvider>{view}</ThemeProvider>
+      <ThemeProvider>
+        <ErrorBoundary>{view}</ErrorBoundary>
+      </ThemeProvider>
     </div>
   );
 }
