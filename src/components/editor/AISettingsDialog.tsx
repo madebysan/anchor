@@ -31,6 +31,7 @@ import { DEFAULT_TRIGGER_PROMPTS } from "@/lib/settings";
 import {
   STRATEGY_LABELS,
   STRATEGY_DESCRIPTIONS,
+  VISIBLE_STRATEGIES,
 } from "@/lib/ai/context-router";
 import {
   FONT_OPTIONS,
@@ -356,12 +357,12 @@ export default function AISettingsDialog({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {Object.entries(STRATEGY_LABELS).map(([k, label]) => (
+                          {VISIBLE_STRATEGIES.map((k) => (
                             <SelectItem key={k} value={k} className="text-xs">
                               <div className="flex flex-col gap-0.5">
-                                <span>{label}</span>
+                                <span>{STRATEGY_LABELS[k]}</span>
                                 <span className="text-[10px] text-muted-foreground">
-                                  {STRATEGY_DESCRIPTIONS[k as ContextStrategy]}
+                                  {STRATEGY_DESCRIPTIONS[k]}
                                 </span>
                               </div>
                             </SelectItem>

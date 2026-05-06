@@ -41,8 +41,9 @@ Rules:
 - Follow any specific instructions the user gave after the trigger.`,
 };
 
-// Default trigger configs. Strategy is chosen to fit each persona's natural
-// request type — see the comments in DEFAULT_TRIGGERS for the rationale.
+// Default trigger configs. We expose 3 context strategies in the UI
+// (passage-only / local-section / full-document); these defaults pick
+// from that set so the dropdown always reflects the persona's setting.
 export const DEFAULT_TRIGGERS: Record<string, TriggerConfig> = {
   copywriter: {
     name: "Copywriter",
@@ -54,19 +55,19 @@ export const DEFAULT_TRIGGERS: Record<string, TriggerConfig> = {
     name: "Editor",
     enabled: true,
     prompt: DEFAULT_TRIGGER_PROMPTS.editor,
-    contextStrategy: "tight",
+    contextStrategy: "passage-only",
   },
   researcher: {
     name: "Researcher",
     enabled: true,
     prompt: DEFAULT_TRIGGER_PROMPTS.researcher,
-    contextStrategy: "tight-plus-thesis",
+    contextStrategy: "local-section",
   },
   challenger: {
     name: "Challenger",
     enabled: true,
     prompt: DEFAULT_TRIGGER_PROMPTS.challenger,
-    contextStrategy: "outline-plus-passage",
+    contextStrategy: "full-document",
   },
 };
 
@@ -85,24 +86,39 @@ export function saveSettings(settings: AISettings): void {
   }
 }
 
-const VALID_STRATEGIES: ContextStrategy[] = [
+// Strategies that still resolve at the routing layer but are no longer
+// exposed in the UI. We migrate them to the closest visible alternative
+// on load so the dropdown always reflects what's stored.
+const STRATEGY_MIGRATIONS: Record<string, ContextStrategy> = {
+  "tight": "passage-only",
+  "tight-plus-thesis": "local-section",
+  "outline-plus-passage": "full-document",
+  "outline": "full-document",
+};
+
+const VISIBLE_STRATEGY_SET = new Set<ContextStrategy>([
   "passage-only",
-  "tight",
   "local-section",
-  "tight-plus-thesis",
-  "outline-plus-passage",
-  "outline",
   "full-document",
-];
+]);
 
 // Backfill missing trigger fields when loading; discards malformed entries.
+// Also migrates deprecated context strategies to their closest survivor.
 function backfillTrigger(
   key: string,
   config: Partial<TriggerConfig>,
 ): TriggerConfig {
-  const isValidStrategy =
-    typeof config.contextStrategy === "string" &&
-    (VALID_STRATEGIES as string[]).includes(config.contextStrategy);
+  const rawStrategy = typeof config.contextStrategy === "string"
+    ? config.contextStrategy
+    : null;
+  const migrated =
+    rawStrategy && STRATEGY_MIGRATIONS[rawStrategy]
+      ? STRATEGY_MIGRATIONS[rawStrategy]
+      : (rawStrategy as ContextStrategy | null);
+  const finalStrategy: ContextStrategy =
+    migrated && VISIBLE_STRATEGY_SET.has(migrated)
+      ? migrated
+      : DEFAULT_TRIGGERS[key]?.contextStrategy ?? "passage-only";
 
   return {
     name: typeof config.name === "string" ? config.name : key,
@@ -111,9 +127,7 @@ function backfillTrigger(
       typeof config.prompt === "string"
         ? config.prompt
         : DEFAULT_TRIGGER_PROMPTS[key] ?? "",
-    contextStrategy: isValidStrategy
-      ? (config.contextStrategy as ContextStrategy)
-      : DEFAULT_TRIGGERS[key]?.contextStrategy ?? "tight",
+    contextStrategy: finalStrategy,
   };
 }
 

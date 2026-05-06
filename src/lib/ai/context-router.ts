@@ -204,3 +204,14 @@ export const STRATEGY_DESCRIPTIONS: Record<ContextStrategy, string> = {
   "outline": "Just the heading outline. Best for table-of-contents or restructuring tasks.",
   "full-document": "Send the entire document. Use for short docs only.",
 };
+
+// Subset shown in the Settings dropdown. The other strategies still work
+// at the routing layer, but the UI exposes only the three that cover most
+// real-world choices (cheap / context-aware / big-picture). Existing
+// persona configs with hidden strategies are migrated on load (see
+// settings.ts → CONTEXT_STRATEGY_MIGRATIONS).
+export const VISIBLE_STRATEGIES: readonly ContextStrategy[] = [
+  "passage-only",
+  "local-section",
+  "full-document",
+];
