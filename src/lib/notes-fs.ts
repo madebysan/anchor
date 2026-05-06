@@ -8,8 +8,44 @@ export interface NoteFile {
   modified: number;
 }
 
+// Tree node returned by list_note_tree — matches the Rust enum's serde shape.
+export type NoteTreeNode =
+  | {
+      type: "file";
+      id: string;
+      path: string;
+      title: string;
+      content: string;
+      modified: number;
+    }
+  | {
+      type: "folder";
+      id: string;
+      path: string;
+      name: string;
+      children: NoteTreeNode[];
+    };
+
 export async function listNotes(): Promise<NoteFile[]> {
   return invoke<NoteFile[]>("list_notes");
+}
+
+export async function listNoteTree(): Promise<NoteTreeNode[]> {
+  return invoke<NoteTreeNode[]>("list_note_tree");
+}
+
+// Walk a tree and yield every file node — useful for flattening into the
+// existing id-keyed cache.
+export function* walkFiles(
+  nodes: NoteTreeNode[],
+): Generator<Extract<NoteTreeNode, { type: "file" }>> {
+  for (const n of nodes) {
+    if (n.type === "file") {
+      yield n;
+    } else {
+      yield* walkFiles(n.children);
+    }
+  }
 }
 
 export async function readNote(id: string): Promise<NoteFile> {

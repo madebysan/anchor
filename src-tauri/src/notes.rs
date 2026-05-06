@@ -14,6 +14,34 @@ pub struct NoteFile {
     pub modified: u64,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum NoteTreeNode {
+    File {
+        id: String,
+        path: String,
+        title: String,
+        content: String,
+        modified: u64,
+    },
+    Folder {
+        id: String,
+        path: String,
+        name: String,
+        children: Vec<NoteTreeNode>,
+    },
+}
+
+// Folder/file names we never traverse into. Hidden dirs (starting with `.`)
+// are also skipped via a separate check.
+const SKIP_DIRS: &[&str] = &[
+    "node_modules",
+    "target",
+    ".git",
+    "dist",
+    "build",
+];
+
 fn notes_folder(state: &State<'_, ConfigState>) -> Result<PathBuf, String> {
     let guard = state.0.lock().expect("config mutex poisoned");
     guard
@@ -159,4 +187,100 @@ pub fn delete_note(state: State<'_, ConfigState>, id: String) -> Result<(), Stri
 #[tauri::command]
 pub fn write_export_file(path: String, content: String) -> Result<(), String> {
     fs::write(&path, &content).map_err(|e| format!("write: {e}"))
+}
+
+// Walk the notes folder recursively. Returns a tree of NoteTreeNode. The
+// `id` of each file is its relative path from the notes folder, with the
+// `.md` extension stripped — same convention as the flat list_notes command,
+// just with `/` separators in subfolder cases. read_note/write_note still
+// take this id and resolve it correctly.
+fn walk_dir(root: &Path, dir: &Path, depth: usize) -> Vec<NoteTreeNode> {
+    if depth > 20 {
+        return Vec::new(); // pathological symlink loop guard
+    }
+
+    let mut nodes = Vec::new();
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return nodes,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = match entry.file_name().to_str() {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
+
+        if name.starts_with('.') {
+            continue;
+        }
+
+        if path.is_dir() {
+            if SKIP_DIRS.iter().any(|d| *d == name) {
+                continue;
+            }
+            let children = walk_dir(root, &path, depth + 1);
+            if children.is_empty() {
+                continue; // hide folders that contain no .md files
+            }
+            let rel = path
+                .strip_prefix(root)
+                .ok()
+                .and_then(|p| p.to_str())
+                .unwrap_or(&name)
+                .replace('\\', "/");
+            nodes.push(NoteTreeNode::Folder {
+                id: rel.clone(),
+                path: path.to_string_lossy().to_string(),
+                name,
+                children,
+            });
+        } else if path.is_file() {
+            let ext = path.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase());
+            if ext.as_deref() != Some("md") {
+                continue;
+            }
+            let stem = match path.file_stem().and_then(|s| s.to_str()) {
+                Some(s) if !s.is_empty() => s.to_string(),
+                _ => continue,
+            };
+            // ID = relative path with extension stripped, forward-slash separated.
+            let rel_with_ext = path
+                .strip_prefix(root)
+                .ok()
+                .and_then(|p| p.to_str())
+                .map(|s| s.replace('\\', "/"))
+                .unwrap_or_else(|| name.clone());
+            let id = rel_with_ext
+                .strip_suffix(".md")
+                .unwrap_or(&rel_with_ext)
+                .to_string();
+
+            let content = fs::read_to_string(&path).unwrap_or_default();
+            nodes.push(NoteTreeNode::File {
+                id,
+                path: path.to_string_lossy().to_string(),
+                title: stem,
+                content,
+                modified: modified_secs(&path),
+            });
+        }
+    }
+
+    // Folders before files, then alphabetically by display name.
+    nodes.sort_by(|a, b| {
+        let key = |n: &NoteTreeNode| match n {
+            NoteTreeNode::Folder { name, .. } => (0, name.to_ascii_lowercase()),
+            NoteTreeNode::File { title, .. } => (1, title.to_ascii_lowercase()),
+        };
+        key(a).cmp(&key(b))
+    });
+    nodes
+}
+
+#[tauri::command]
+pub fn list_note_tree(state: State<'_, ConfigState>) -> Result<Vec<NoteTreeNode>, String> {
+    let folder = notes_folder(&state)?;
+    Ok(walk_dir(&folder, &folder, 0))
 }
