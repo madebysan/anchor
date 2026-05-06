@@ -1,4 +1,4 @@
-# inline-mac — project notes
+# inline-md — project notes
 
 Native desktop document editor where AI instructions are anchored to text passages.
 Forked from `~/Projects/inlineai/` 2026-05-06. The web parent (web-smart-docs.vercel.app)
@@ -16,7 +16,7 @@ remains as the portfolio/demo version; this fork is the daily-driver target.
 
 ## What's different from the inlineai parent
 
-| | inlineai (web) | inline-mac (fork) |
+| | inlineai (web) | inline-md (fork) |
 |---|---|---|
 | Shell | Next.js + Vercel | Tauri (Rust + webview) |
 | Build | Next.js | Vite |

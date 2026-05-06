@@ -1,6 +1,6 @@
 # Backlog
 
-inline-mac roadmap. Forked from inlineai 2026-05-06.
+inline-md roadmap. Forked from inlineai 2026-05-06.
 Organized by topic, not chronology.
 
 ---

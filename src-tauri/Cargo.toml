@@ -1,5 +1,5 @@
 [package]
-name = "inline-mac"
+name = "inline-md"
 version = "0.1.0"
 description = "Document editor where AI instructions are anchored to text passages."
 authors = ["Santiago Alonso"]
@@ -9,7 +9,7 @@ edition = "2021"
 rust-version = "1.77.2"
 
 [lib]
-name = "inline_mac_lib"
+name = "inline_md_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
