@@ -1,4 +1,5 @@
 mod config;
+mod notes;
 
 use std::sync::Mutex;
 use tauri::Manager;
@@ -25,6 +26,11 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             config::get_notes_folder,
             config::set_notes_folder,
+            notes::list_notes,
+            notes::read_note,
+            notes::write_note,
+            notes::rename_note,
+            notes::delete_note,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
