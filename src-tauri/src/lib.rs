@@ -1,3 +1,4 @@
+mod ai;
 mod config;
 mod notes;
 
@@ -31,6 +32,9 @@ pub fn run() {
             notes::write_note,
             notes::rename_note,
             notes::delete_note,
+            ai::ai_check_claude_cli,
+            ai::ai_chat_claude,
+            ai::ai_execute_claude,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
