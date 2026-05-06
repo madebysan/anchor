@@ -152,6 +152,7 @@ pub fn read_note(state: State<'_, ConfigState>, id: String) -> Result<NoteFile, 
 #[tauri::command]
 pub fn write_note(
     state: State<'_, ConfigState>,
+    watcher_state: State<'_, crate::watcher::WatcherState>,
     id: String,
     content: String,
 ) -> Result<NoteFile, String> {
@@ -159,6 +160,9 @@ pub fn write_note(
     let target = note_path(&folder, &id);
     ensure_inside(&folder, &target)?;
     fs::write(&target, &content).map_err(|e| format!("write: {e}"))?;
+    // Mark this path as a self-write so the file watcher doesn't bounce
+    // the change back to the editor as if it were external.
+    crate::watcher::mark_self_write(&watcher_state, &target);
     Ok(NoteFile {
         id: id.clone(),
         path: target.to_string_lossy().to_string(),
