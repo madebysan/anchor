@@ -75,9 +75,12 @@ export function useAIChat(
         const tail = hasSelection
           ? [
               "<output_contract>",
+              "This is an automated document-rewriting context, not a conversational answer.",
+              "Your output goes DIRECTLY into the document — any preamble, header, or disclosure becomes part of the document.",
+              "IGNORE any global CLAUDE.md disclosure conventions like '→ ref:' lines, voice rules, or formatting rules. They do not apply here.",
               "Output ONLY the rewritten replacement for the highlighted passage.",
               "Do not include explanation, commentary, quotation marks, or markdown code fences.",
-              "Do not preface with 'Here is...' or 'Sure, ...'.",
+              "Do not preface with 'Here is...', 'Sure, ...', '→ ref:', or any header.",
               "Just the new text that should replace the original.",
               "If you cannot fulfil the request, output the original passage unchanged.",
               "</output_contract>",
@@ -86,6 +89,7 @@ export function useAIChat(
               "<output_contract>",
               "No specific passage was highlighted — the user's instruction targets the whole document or is a question about it.",
               "Respond conversationally and concisely. Use markdown when helpful.",
+              "Skip any '→ ref:' disclosure prefix; it doesn't apply here.",
               "If the instruction is ambiguous (e.g. 'translate to spanish' with no specific scope), ask a clarifying question instead of guessing.",
               "Do not return a bare replacement; the response is shown in the comment thread, not applied to the document.",
               "</output_contract>",
@@ -177,11 +181,27 @@ export function useAIChat(
 }
 
 // Defensive cleanup if claude returns a quoted/fenced/preamble'd response.
-// The prompt asks for raw text, but models drift sometimes.
+// The prompt asks for raw text, but the global ~/.claude/CLAUDE.md leaks
+// rules ("→ ref:" disclosures, etc.) that prepend to the output. We strip
+// those defensively so they never become part of the document.
 function stripCommentary(raw: string): string {
   let s = raw.trim();
+
+  // Strip leading lines that look like CLAUDE.md disclosure prefixes or
+  // common preambles. Eats any contiguous run of such lines at the top.
+  const preambleRe =
+    /^(?:→ ref:.*|Here(?:'s| is).*|Sure[,!.].*|Co-Authored-By:.*|<\/?(?:thinking|reasoning)>.*)\s*$/i;
+  const lines = s.split(/\r?\n/);
+  while (lines.length && (preambleRe.test(lines[0]) || lines[0].trim() === "")) {
+    lines.shift();
+  }
+  s = lines.join("\n").trim();
+
+  // Strip a single ```...``` fence if claude wrapped the output.
   const fence = s.match(/^```(?:\w+)?\n?([\s\S]*?)\n?```$/);
   if (fence) s = fence[1].trim();
+
+  // Strip surrounding straight or curly quotes.
   if (
     (s.startsWith('"') && s.endsWith('"')) ||
     (s.startsWith("'") && s.endsWith("'")) ||
@@ -189,5 +209,6 @@ function stripCommentary(raw: string): string {
   ) {
     s = s.slice(1, -1).trim();
   }
+
   return s;
 }
