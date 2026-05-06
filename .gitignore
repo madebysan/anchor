@@ -1,0 +1,30 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# build outputs
+/dist
+/build
+
+# Rust / Tauri
+/src-tauri/target
+/src-tauri/gen/schemas
+
+# editor
+.DS_Store
+
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env
+.env*
+
+# typescript
+*.tsbuildinfo
+
+# claude
+.claude/settings.local.json
