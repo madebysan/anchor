@@ -35,6 +35,7 @@ pub fn run() {
             notes::open_path,
             ai::ai_check_claude_cli,
             ai::ai_chat_claude,
+            ai::ai_invoke_claude,
             ai::ai_execute_claude,
         ])
         .run(tauri::generate_context!())

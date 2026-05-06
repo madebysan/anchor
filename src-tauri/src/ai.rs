@@ -13,6 +13,27 @@ pub struct AiExecutionResult {
     pub error: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AiSessionResult {
+    pub success: bool,
+    pub output: String,
+    pub error: Option<String>,
+    /// claude session id for future --resume calls. Some on success, None on error.
+    pub session_id: Option<String>,
+}
+
+/// JSON shape returned by `claude --print --output-format json`.
+/// We only unmarshal the fields we care about; everything else is ignored.
+#[derive(Deserialize, Debug)]
+struct ClaudeJsonResult {
+    #[serde(default)]
+    result: Option<String>,
+    #[serde(default)]
+    session_id: Option<String>,
+    #[serde(default)]
+    is_error: bool,
+}
+
 // Resolve `claude` against PATH without actually running it. Avoids
 // hangs or surprises from CLIs that do init work on every invocation.
 fn find_in_path(bin: &str) -> Option<PathBuf> {
@@ -106,6 +127,110 @@ pub fn ai_chat_claude(prompt: String) -> Result<AiExecutionResult, String> {
             }),
         })
     }
+}
+
+// Session-aware claude invocation. Either:
+//   - First call in a doc: pass `file_path` (claude reads the file once,
+//     subsequent --resume calls reuse the cached context)
+//   - Follow-up: pass `session_id` from the prior call's response
+//   - Both empty: chat-only with no doc context (pre-session flow)
+//
+// Uses `--output-format json` so we can parse out the session_id for
+// stitching follow-ups together. The prompt is piped via stdin.
+#[tauri::command]
+pub fn ai_invoke_claude(
+    state: State<'_, ConfigState>,
+    file_path: Option<String>,
+    session_id: Option<String>,
+    prompt: String,
+) -> Result<AiSessionResult, String> {
+    let mut cmd = Command::new("claude");
+    cmd.arg("--dangerously-skip-permissions")
+        .arg("--print")
+        .arg("--output-format")
+        .arg("json");
+
+    if let Some(sid) = &session_id {
+        cmd.arg("--resume").arg(sid);
+    } else if let Some(fp) = &file_path {
+        let folder = {
+            let guard = state.0.lock().expect("config mutex poisoned");
+            guard
+                .notes_folder
+                .clone()
+                .ok_or_else(|| "Notes folder not set".to_string())?
+        };
+        let target = PathBuf::from(fp);
+        ensure_inside(&folder, &target)?;
+        cmd.arg(target);
+    }
+
+    let mut child = cmd
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| {
+            format!(
+                "Failed to launch claude CLI: {e}. Install from https://claude.ai/code if missing."
+            )
+        })?;
+
+    if let Some(stdin) = child.stdin.as_mut() {
+        stdin
+            .write_all(prompt.as_bytes())
+            .map_err(|e| format!("write stdin: {e}"))?;
+    }
+    drop(child.stdin.take());
+
+    let output = child
+        .wait_with_output()
+        .map_err(|e| format!("wait for claude: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+
+    if !output.status.success() {
+        return Ok(AiSessionResult {
+            success: false,
+            output: stdout,
+            error: Some(if stderr.is_empty() {
+                format!("claude exited with status {}", output.status)
+            } else {
+                stderr
+            }),
+            session_id: None,
+        });
+    }
+
+    // Parse the JSON result block.
+    let parsed: ClaudeJsonResult = match serde_json::from_str(&stdout) {
+        Ok(p) => p,
+        Err(e) => {
+            return Ok(AiSessionResult {
+                success: false,
+                output: stdout,
+                error: Some(format!("parse claude json: {e}")),
+                session_id: None,
+            });
+        }
+    };
+
+    if parsed.is_error {
+        return Ok(AiSessionResult {
+            success: false,
+            output: parsed.result.unwrap_or_default(),
+            error: Some("claude reported is_error=true".to_string()),
+            session_id: parsed.session_id,
+        });
+    }
+
+    Ok(AiSessionResult {
+        success: true,
+        output: parsed.result.unwrap_or_default(),
+        error: None,
+        session_id: parsed.session_id,
+    })
 }
 
 // Spawns `claude <file> --dangerously-skip-permissions --print` with the
