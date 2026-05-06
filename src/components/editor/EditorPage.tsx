@@ -427,7 +427,21 @@ export default function EditorPage({
           effectiveTrigger,
         );
       } catch (err) {
-        const reason = err instanceof Error ? err.message : "Unknown error";
+        // Tauri invoke rejections come through as strings (Rust Result::Err),
+        // not Error instances. Normalize so the user sees the real message.
+        console.error("AI call failed:", err);
+        const reason =
+          err instanceof Error
+            ? err.message
+            : typeof err === "string"
+              ? err
+              : (() => {
+                  try {
+                    return JSON.stringify(err);
+                  } catch {
+                    return "Unknown error";
+                  }
+                })();
         useDocumentStore
           .getState()
           .updateLastAssistantMessage(threadId, `⚠️ ${reason}`);
