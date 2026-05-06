@@ -3,11 +3,47 @@ mod config;
 mod notes;
 mod watcher;
 
+use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::Manager;
 
+/// macOS apps launched from Finder inherit a minimal PATH (~/usr/bin:/bin:..).
+/// Shell-installed tools (`claude` via Homebrew at /opt/homebrew/bin, etc.) are
+/// invisible. Augment PATH at startup with common dev-tool locations so our
+/// own `find_in_path` and subprocess spawns can locate them.
+fn augment_path() {
+    let mut paths: Vec<PathBuf> =
+        std::env::var_os("PATH").map(|p| std::env::split_paths(&p).collect()).unwrap_or_default();
+
+    let mut extras: Vec<PathBuf> = vec![
+        PathBuf::from("/opt/homebrew/bin"),
+        PathBuf::from("/opt/homebrew/sbin"),
+        PathBuf::from("/usr/local/bin"),
+        PathBuf::from("/usr/local/sbin"),
+    ];
+    if let Ok(home) = std::env::var("HOME") {
+        for sub in [".local/bin", ".npm-global/bin", ".cargo/bin", ".bun/bin"] {
+            extras.push(PathBuf::from(&home).join(sub));
+        }
+    }
+
+    for p in extras {
+        if !paths.contains(&p) {
+            paths.push(p);
+        }
+    }
+
+    if let Ok(joined) = std::env::join_paths(paths) {
+        // SAFETY: called before any threads spawn (early in run()).
+        unsafe {
+            std::env::set_var("PATH", joined);
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    augment_path();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
