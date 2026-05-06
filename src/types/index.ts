@@ -63,6 +63,11 @@ export interface AISettings {
   anthropicKey: string;
   deepseekKey: string;
   triggers: Record<string, TriggerConfig>;
+  /**
+   * Persona key (e.g. "editor") used when a comment has no @trigger and isn't
+   * a plain note. Empty string means "no default — untagged comments are notes".
+   */
+  defaultPersona?: string;
 }
 
 export type ProviderId = "anthropic" | "deepseek";

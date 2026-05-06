@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send } from "lucide-react";
-import { parseTrigger } from "@/lib/triggers";
+import { parseTrigger, isPlainNote } from "@/lib/triggers";
 import {
   applyContextStrategy,
   STRATEGY_LABELS,
@@ -30,6 +30,8 @@ interface CommentInputProps {
   selectedText?: string;
   /** Lazy doc snapshot getter — only walked when a trigger is detected. */
   getDocumentSnapshot?: () => DocumentSnapshot;
+  /** Default persona key to fire when no @trigger and not a plain note. */
+  defaultPersona?: string;
 }
 
 export default function CommentInput({
@@ -41,6 +43,7 @@ export default function CommentInput({
   triggerConfigs,
   selectedText = "",
   getDocumentSnapshot,
+  defaultPersona,
 }: CommentInputProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -54,9 +57,22 @@ export default function CommentInput({
   const [atStartPos, setAtStartPos] = useState<number | null>(null);
 
   useEffect(() => {
-    if (autoFocus && textareaRef.current) {
-      textareaRef.current.focus();
-    }
+    if (!autoFocus) return;
+    // Tiptap may grab focus back when the bubble menu closes after the
+    // comment button click. Defer + retry so the textarea wins the race.
+    const focusEl = () => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    };
+    focusEl();
+    const t1 = window.setTimeout(focusEl, 50);
+    const t2 = window.setTimeout(focusEl, 200);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
   }, [autoFocus]);
 
   // Detect @ and filter triggers as user types
@@ -217,6 +233,20 @@ export default function CommentInput({
     };
   }, [value, enabledTriggerKeys, triggerConfigs, selectedText, getDocumentSnapshot]);
 
+  // Routing hint — small line that tells the user what will happen on submit
+  // (which persona / plain note / unanchored chat) given the current input.
+  const routingHint = useMemo(() => {
+    const explicit = parseTrigger(value, enabledTriggerKeys);
+    if (explicit) return null; // chip below already shows the persona
+    if (isPlainNote(value)) {
+      return { kind: "note" as const };
+    }
+    if (defaultPersona && enabledTriggerKeys.includes(defaultPersona)) {
+      return { kind: "default" as const, persona: defaultPersona };
+    }
+    return null;
+  }, [value, enabledTriggerKeys, defaultPersona]);
+
   return (
     <div className="relative">
       {chipInfo && (
@@ -231,6 +261,17 @@ export default function CommentInput({
           >
             {chipInfo.modelName}
           </span>
+        </div>
+      )}
+      {!chipInfo && routingHint && (
+        <div className="text-[10px] text-muted-foreground mb-1.5">
+          {routingHint.kind === "note" ? (
+            <span>Plain note · no AI</span>
+          ) : (
+            <span>
+              → <span className="font-medium">@{routingHint.persona}</span> (default)
+            </span>
+          )}
         </div>
       )}
       <div className="flex gap-2 items-end">

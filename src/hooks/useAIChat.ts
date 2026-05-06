@@ -47,6 +47,8 @@ export function useAIChat(
       const messageId = `ai-${threadId}`;
 
       try {
+        const hasSelection = !!thread.selectedText && thread.selectedText.trim() !== "";
+
         const { systemPrompt, messages } = buildAIContext({
           thread,
           doc,
@@ -55,22 +57,32 @@ export function useAIChat(
           aiSettings,
         });
 
-        // Strict output contract — claude must return ONLY the replacement
-        // for the highlighted passage. No explanation, no markdown fence,
-        // no surrounding quotes. The text returned will be substituted
-        // verbatim for the original passage in the document.
-        const outputContract = [
-          "<output_contract>",
-          "Output ONLY the rewritten replacement for the highlighted passage.",
-          "Do not include explanation, commentary, quotation marks, or markdown code fences.",
-          "Do not preface with 'Here is...' or 'Sure, ...'.",
-          "Just the new text that should replace the original.",
-          "If you cannot fulfil the request, output the original passage unchanged.",
-          "</output_contract>",
-        ].join("\n");
+        // Two prompt modes:
+        //  - Anchored (selection exists) → strict replacement, auto-applied
+        //    in place of the highlighted passage.
+        //  - Unanchored (no selection) → conversational, full-doc-aware,
+        //    no replacement. Response stays in the thread.
+        const tail = hasSelection
+          ? [
+              "<output_contract>",
+              "Output ONLY the rewritten replacement for the highlighted passage.",
+              "Do not include explanation, commentary, quotation marks, or markdown code fences.",
+              "Do not preface with 'Here is...' or 'Sure, ...'.",
+              "Just the new text that should replace the original.",
+              "If you cannot fulfil the request, output the original passage unchanged.",
+              "</output_contract>",
+            ].join("\n")
+          : [
+              "<output_contract>",
+              "No specific passage was highlighted — the user's instruction targets the whole document or is a question about it.",
+              "Respond conversationally and concisely. Use markdown when helpful.",
+              "If the instruction is ambiguous (e.g. 'translate to spanish' with no specific scope), ask a clarifying question instead of guessing.",
+              "Do not return a bare replacement; the response is shown in the comment thread, not applied to the document.",
+              "</output_contract>",
+            ].join("\n");
 
         const prompt = [
-          `<system>\n${systemPrompt}\n\n${outputContract}\n</system>`,
+          `<system>\n${systemPrompt}\n\n${tail}\n</system>`,
           ...messages.map((m) => `<${m.role}>\n${m.content}\n</${m.role}>`),
           "<assistant>",
         ].join("\n\n");
@@ -83,15 +95,19 @@ export function useAIChat(
           );
         }
 
-        const replacement = stripCommentary(result.output);
+        const output = hasSelection
+          ? stripCommentary(result.output)
+          : result.output.trim();
 
-        // Show the response in the thread (auditability).
-        onStreamChunk(threadId, messageId, replacement);
+        // Show the response in the thread (auditability for both modes).
+        onStreamChunk(threadId, messageId, output);
 
-        // Trigger auto-apply via the existing suggestEdit pipeline.
-        onToolCall(threadId, "suggestEdit", { replacement });
+        // Auto-apply only when there's an anchor to apply to.
+        if (hasSelection) {
+          onToolCall(threadId, "suggestEdit", { replacement: output });
+        }
 
-        return replacement;
+        return output;
       } finally {
         setIsLoading((prev) => ({ ...prev, [threadId]: false }));
       }

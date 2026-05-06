@@ -31,6 +31,7 @@ interface CommentThreadProps {
   triggerOptions?: TriggerOption[];
   triggerConfigs?: Record<string, TriggerConfig>;
   getDocumentSnapshot?: () => DocumentSnapshot;
+  defaultPersona?: string;
 }
 
 export default function CommentThread({
@@ -46,6 +47,7 @@ export default function CommentThread({
   triggerOptions,
   triggerConfigs,
   getDocumentSnapshot,
+  defaultPersona,
 }: CommentThreadProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -188,6 +190,7 @@ export default function CommentThread({
             triggerConfigs={triggerConfigs}
             selectedText={thread.selectedText}
             getDocumentSnapshot={getDocumentSnapshot}
+            defaultPersona={defaultPersona}
           />
         </div>
       )}

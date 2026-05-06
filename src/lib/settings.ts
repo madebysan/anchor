@@ -115,6 +115,8 @@ export const DEFAULT_SETTINGS: AISettings = {
   anthropicKey: "",
   deepseekKey: "",
   triggers: { ...DEFAULT_TRIGGERS },
+  // Most comments are AI requests; default to @editor when nothing tagged.
+  defaultPersona: "editor",
 };
 
 // Save settings to localStorage
@@ -222,10 +224,16 @@ export function loadSettings(): AISettings {
       Object.assign(validated, DEFAULT_TRIGGERS);
     }
 
+    const defaultPersona =
+      typeof parsed.defaultPersona === "string"
+        ? parsed.defaultPersona
+        : DEFAULT_SETTINGS.defaultPersona;
+
     return {
       anthropicKey,
       deepseekKey,
       triggers: validated,
+      defaultPersona,
     };
   } catch {
     return DEFAULT_SETTINGS;
