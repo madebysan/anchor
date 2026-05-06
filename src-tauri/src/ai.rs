@@ -1,5 +1,6 @@
 use crate::config::ConfigState;
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -12,18 +13,27 @@ pub struct AiExecutionResult {
     pub error: Option<String>,
 }
 
-// Probe whether `claude` resolves on PATH. Uses `claude --version` (cheap,
-// short-lived) instead of `which claude` so we tolerate a shim that exists
-// but doesn't run.
+// Resolve `claude` against PATH without actually running it. Avoids
+// hangs or surprises from CLIs that do init work on every invocation.
+fn find_in_path(bin: &str) -> Option<PathBuf> {
+    let path = env::var_os("PATH")?;
+    for dir in env::split_paths(&path) {
+        let candidate = dir.join(bin);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
 #[tauri::command]
 pub fn ai_check_claude_cli() -> bool {
-    Command::new("claude")
-        .arg("--version")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+    let found = find_in_path("claude");
+    if let Ok(path) = env::var("PATH") {
+        log::info!("ai_check_claude_cli: PATH={path}");
+    }
+    log::info!("ai_check_claude_cli: claude resolved to {:?}", found);
+    found.is_some()
 }
 
 fn ensure_inside(folder: &Path, target: &Path) -> Result<(), String> {
