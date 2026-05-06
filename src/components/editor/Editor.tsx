@@ -52,7 +52,6 @@ interface EditorProps {
   lastSavedAt?: number | null;
   focusMode?: boolean;
   onToggleFocusMode?: () => void;
-  onToggleShortcuts?: () => void;
   formattingCollapsed?: boolean;
   onToggleFormattingCollapsed?: () => void;
 }
@@ -83,7 +82,6 @@ export default function Editor({
   lastSavedAt,
   focusMode,
   onToggleFocusMode,
-  onToggleShortcuts,
   formattingCollapsed,
   onToggleFormattingCollapsed,
 }: EditorProps) {
@@ -152,7 +150,6 @@ export default function Editor({
         lastSavedAt={lastSavedAt}
         focusMode={focusMode}
         onToggleFocusMode={onToggleFocusMode}
-        onToggleShortcuts={onToggleShortcuts}
         formattingCollapsed={formattingCollapsed}
         onToggleFormattingCollapsed={onToggleFormattingCollapsed}
       />

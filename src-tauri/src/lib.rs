@@ -32,6 +32,7 @@ pub fn run() {
             notes::rename_note,
             notes::delete_note,
             notes::write_export_file,
+            notes::open_path,
             ai::ai_check_claude_cli,
             ai::ai_chat_claude,
             ai::ai_execute_claude,

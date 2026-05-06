@@ -189,6 +189,25 @@ pub fn write_export_file(path: String, content: String) -> Result<(), String> {
     fs::write(&path, &content).map_err(|e| format!("write: {e}"))
 }
 
+// Reveal a path in the OS file manager. macOS uses `open`, Windows
+// `explorer`, Linux `xdg-open`. No scope check — the caller passes the
+// configured notes folder, not arbitrary user input.
+#[tauri::command]
+pub fn open_path(path: String) -> Result<(), String> {
+    use std::process::Command;
+
+    #[cfg(target_os = "macos")]
+    let cmd = Command::new("open").arg(&path).spawn();
+
+    #[cfg(target_os = "windows")]
+    let cmd = Command::new("explorer").arg(&path).spawn();
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let cmd = Command::new("xdg-open").arg(&path).spawn();
+
+    cmd.map(|_| ()).map_err(|e| format!("open: {e}"))
+}
+
 // Walk the notes folder recursively. Returns a tree of NoteTreeNode. The
 // `id` of each file is its relative path from the notes folder, with the
 // `.md` extension stripped — same convention as the flat list_notes command,
