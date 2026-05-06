@@ -1,4 +1,4 @@
-# inline-mac
+# inline-md
 
 A desktop document editor where AI instructions live anchored to your text. Highlight a passage, type an instruction, and your local Claude Code edits the file in place. ⌘Z if you don't like it.
 
@@ -14,7 +14,7 @@ No API keys. Markdown files on disk. Cross-platform via Tauri.
 
 ## Why this exists
 
-inlineai (the web parent) is a Vercel-deployed React app that calls the Anthropic API directly. Each comment costs tokens, every key is in the bundle, and notes live in localStorage. inline-mac fixes all three:
+inlineai (the web parent) is a Vercel-deployed React app that calls the Anthropic API directly. Each comment costs tokens, every key is in the bundle, and notes live in localStorage. inline-md fixes all three:
 
 - **Uses Claude Code locally.** Auth lives in your `~/.claude/`. Your Pro/Max subscription quota covers it. No API key flow.
 - **Files on disk.** Notes are real `.md` files in a folder you choose. Open them in any editor. No storage quota.

@@ -1639,7 +1639,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "inline-mac"
+name = "inline-md"
 version = "0.1.0"
 dependencies = [
  "log",

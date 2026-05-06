@@ -1,3 +1,8 @@
+mod config;
+
+use std::sync::Mutex;
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -5,6 +10,9 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+            let initial = config::load_config(app.handle());
+            app.manage(config::ConfigState(Mutex::new(initial)));
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -14,6 +22,10 @@ pub fn run() {
             }
             Ok(())
         })
+        .invoke_handler(tauri::generate_handler![
+            config::get_notes_folder,
+            config::set_notes_folder,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
