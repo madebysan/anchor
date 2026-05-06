@@ -72,18 +72,11 @@ export function useAISettings() {
   );
 
   // Add a new trigger. Returns false if key already exists.
-  // New triggers default to the "tight" context strategy and inherit a sane
-  // model from an existing persona (or fall back to a sonnet-tier seed).
+  // New triggers default to the "tight" context strategy.
   const addTrigger = useCallback((name: string): boolean => {
     const key = name.toLowerCase().replace(/\s+/g, "-");
     setSettings((prev) => {
       if (prev.triggers[key]) return prev; // duplicate key — no-op
-      // Inherit the modelId from any existing persona so the new one matches the
-      // user's current provider preference. Fallback to the first DEFAULT modelId.
-      const inheritedModelId =
-        Object.values(prev.triggers)[0]?.modelId ??
-        Object.values(DEFAULT_SETTINGS.triggers)[0]?.modelId ??
-        "";
       return {
         ...prev,
         triggers: {
@@ -91,9 +84,8 @@ export function useAISettings() {
           [key]: {
             name,
             enabled: true,
-            prompt: `You are a ${name.toLowerCase()}. Help the user with the highlighted text based on your expertise. If the user gave specific instructions after the trigger, follow those instructions.`,
+            prompt: `You are a ${name.toLowerCase()}. Help the user with the highlighted passage based on your expertise. Follow any specific instructions the user gave after the trigger.`,
             contextStrategy: "tight",
-            modelId: inheritedModelId,
           },
         },
       };

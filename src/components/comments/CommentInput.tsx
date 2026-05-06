@@ -16,7 +16,6 @@ import {
   STRATEGY_LABELS,
   type DocumentSnapshot,
 } from "@/lib/ai/context-router";
-import { parseModelId } from "@/lib/ai/providers";
 import type { TriggerConfig } from "@/types";
 
 interface TriggerOption {
@@ -229,8 +228,8 @@ export default function CommentInput({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showAutocomplete]);
 
-  // Context preview chip — shows what slice of the doc + which model will be
-  // used when the user submits. Only renders when an @trigger is detected.
+  // Context preview chip — shows what slice of the doc will be sent to the
+  // AI when the user submits. Only renders when an @trigger is detected.
   const enabledTriggerKeys = useMemo(
     () => triggerOptions.map((t) => t.key),
     [triggerOptions]
@@ -248,13 +247,11 @@ export default function CommentInput({
       doc,
       selectedText
     );
-    const parsedModel = parseModelId(config.modelId);
     return {
       personaKey: trigger.type,
       strategy: STRATEGY_LABELS[config.contextStrategy],
       charCount: routed.charCount,
       truncated: routed.truncated,
-      modelName: parsedModel?.modelName ?? config.modelId ?? "(no model)",
     };
   }, [value, enabledTriggerKeys, triggerConfigs, selectedText, getDocumentSnapshot]);
 
@@ -286,14 +283,8 @@ export default function CommentInput({
       {chipInfo && (
         <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 mb-1.5 flex-wrap">
           <span className="px-1.5 py-0.5 rounded bg-muted shrink-0">
-            {chipInfo.strategy} · {chipInfo.charCount.toLocaleString()} chars
+            @{chipInfo.personaKey} · {chipInfo.strategy} · {chipInfo.charCount.toLocaleString()} chars
             {chipInfo.truncated && " · truncated"}
-          </span>
-          <span
-            className="font-mono truncate min-w-0"
-            title={chipInfo.modelName}
-          >
-            {chipInfo.modelName}
           </span>
         </div>
       )}

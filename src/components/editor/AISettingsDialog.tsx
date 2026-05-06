@@ -1,5 +1,3 @@
-
-import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -26,15 +24,12 @@ import type {
   AISettings,
   TriggerConfig,
   ContextStrategy,
-  ProviderId,
 } from "@/types";
 import { DEFAULT_TRIGGER_PROMPTS } from "@/lib/settings";
 import {
   STRATEGY_LABELS,
   STRATEGY_DESCRIPTIONS,
 } from "@/lib/ai/context-router";
-import { loadAvailableModels, type ModelLoaderResult } from "@/lib/ai/model-loader";
-import ModelPicker from "./ModelPicker";
 
 interface AISettingsDialogProps {
   open: boolean;
@@ -58,47 +53,15 @@ export default function AISettingsDialog({
   onRemoveTrigger,
 }: AISettingsDialogProps) {
   const triggerEntries = Object.entries(settings.triggers);
-
-  const configuredProviders = new Set<ProviderId>();
-  if (settings.anthropicKey) configuredProviders.add("anthropic");
-  if (settings.deepseekKey) configuredProviders.add("deepseek");
-
-  // Load model lists live whenever the dialog opens with at least one key set.
-  // Failures per-provider are kept in availableModels so the picker can fall
-  // back to free-text entry for that provider only.
-  const [availableModels, setAvailableModels] = useState<ModelLoaderResult | null>(null);
-  const [loadingModels, setLoadingModels] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    if (!settings.anthropicKey && !settings.deepseekKey) {
-      setAvailableModels(null);
-      return;
-    }
-    let cancelled = false;
-    setLoadingModels(true);
-    loadAvailableModels({
-      anthropicKey: settings.anthropicKey,
-      deepseekKey: settings.deepseekKey,
-    })
-      .then((result) => {
-        if (!cancelled) setAvailableModels(result);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingModels(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, settings.anthropicKey, settings.deepseekKey]);
+  const enabledTriggers = triggerEntries.filter(([, c]) => c.enabled);
 
   const handleAddTrigger = () => {
-    let name = "New Trigger";
-    let key = "new-trigger";
+    let name = "New Persona";
     let counter = 2;
+    let key = "new-persona";
     while (settings.triggers[key]) {
-      name = `New Trigger ${counter}`;
-      key = `new-trigger-${counter}`;
+      name = `New Persona ${counter}`;
+      key = `new-persona-${counter}`;
       counter++;
     }
     onAddTrigger(name);
@@ -108,80 +71,53 @@ export default function AISettingsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[640px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>AI Settings</DialogTitle>
+          <DialogTitle>Settings</DialogTitle>
           <DialogDescription className="sr-only">
-            Configure API keys, AI personas, and keyboard shortcuts
+            Configure AI personas and keyboard shortcuts
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="model" className="mt-2">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="model">API Keys</TabsTrigger>
+        <Tabs defaultValue="triggers" className="mt-2">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="triggers">Personas</TabsTrigger>
             <TabsTrigger value="shortcuts">Shortcuts</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="model" className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="anthropic-key">Anthropic API Key</Label>
-              <Input
-                id="anthropic-key"
-                type="password"
-                placeholder="sk-ant-..."
-                value={settings.anthropicKey}
-                onChange={(e) => onUpdateSettings({ anthropicKey: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                For Claude models.{" "}
-                <a
-                  href="https://console.anthropic.com/settings/keys"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-2 hover:text-foreground transition-colors"
-                >
-                  Get a key
-                </a>
-              </p>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-2">
-              <Label htmlFor="deepseek-key">DeepSeek API Key</Label>
-              <Input
-                id="deepseek-key"
-                type="password"
-                placeholder="sk-..."
-                value={settings.deepseekKey}
-                onChange={(e) => onUpdateSettings({ deepseekKey: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                For DeepSeek models.{" "}
-                <a
-                  href="https://platform.deepseek.com/api_keys"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-2 hover:text-foreground transition-colors"
-                >
-                  Get a key
-                </a>
-              </p>
-            </div>
-
-            {!settings.anthropicKey && !settings.deepseekKey && (
-              <p className="text-xs text-destructive">
-                At least one API key is required to use AI features.
-              </p>
-            )}
-          </TabsContent>
 
           <TabsContent value="triggers" className="space-y-4 mt-4">
             <p className="text-xs text-muted-foreground">
               Each persona is invoked by typing{" "}
               <code className="bg-muted px-1 rounded">@name</code> at the start of a
-              comment. You can change the prompt, the model, and how much of the
-              document gets sent.
+              comment. Edit the prompt or change how much of the document gets sent.
+              Inline MD uses your local Claude Code CLI for every persona.
             </p>
+
+            <div className="grid grid-cols-[140px_1fr] items-center gap-3">
+              <Label className="text-xs">Default persona</Label>
+              <Select
+                value={settings.defaultPersona || "__none__"}
+                onValueChange={(next) =>
+                  onUpdateSettings({
+                    defaultPersona: next === "__none__" ? "" : next,
+                  })
+                }
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" className="text-xs">
+                    None — untagged comments are plain notes
+                  </SelectItem>
+                  {enabledTriggers.map(([key]) => (
+                    <SelectItem key={key} value={key} className="text-xs">
+                      @{key}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
 
             {triggerEntries.map(([key, config], i) => {
               const hasDefault = key in DEFAULT_TRIGGER_PROMPTS;
@@ -241,17 +177,6 @@ export default function AISettingsDialog({
                     />
 
                     <div className="grid grid-cols-[100px_1fr] items-center gap-3">
-                      <Label className="text-xs text-muted-foreground">Model</Label>
-                      <ModelPicker
-                        value={config.modelId}
-                        onChange={(next) => onUpdateTrigger(key, { modelId: next })}
-                        availableModels={availableModels}
-                        loading={loadingModels}
-                        configuredProviders={configuredProviders}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-[100px_1fr] items-center gap-3">
                       <Label className="text-xs text-muted-foreground">Context</Label>
                       <Select
                         value={config.contextStrategy}
@@ -293,9 +218,15 @@ export default function AISettingsDialog({
               <div className="grid gap-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Submit message</span>
-                  <kbd className="px-2 py-0.5 bg-muted rounded text-xs font-mono">
-                    Cmd + Enter
-                  </kbd>
+                  <kbd className="px-2 py-0.5 bg-muted rounded text-xs font-mono">Enter</kbd>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">New line in message</span>
+                  <kbd className="px-2 py-0.5 bg-muted rounded text-xs font-mono">Shift + Enter</kbd>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Comment on selection</span>
+                  <kbd className="px-2 py-0.5 bg-muted rounded text-xs font-mono">⌘ ⇧ V</kbd>
                 </div>
               </div>
 
@@ -306,23 +237,23 @@ export default function AISettingsDialog({
                 Type these at the start of a comment to invoke a persona.
               </p>
               <div className="grid gap-2 text-sm">
-                {triggerEntries
-                  .filter(([, config]) => config.enabled)
-                  .map(([key, config]) => (
-                    <div key={key} className="flex justify-between">
-                      <span className="text-muted-foreground">{config.name}</span>
-                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono">
-                        @{key}
-                      </code>
-                    </div>
-                  ))}
+                {enabledTriggers.map(([key, config]) => (
+                  <div key={key} className="flex justify-between">
+                    <span className="text-muted-foreground">{config.name}</span>
+                    <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono">
+                      @{key}
+                    </code>
+                  </div>
+                ))}
               </div>
 
               <Separator />
 
               <p className="text-xs text-muted-foreground">
-                You can add instructions after a trigger, e.g.{" "}
-                <code className="bg-muted px-1 rounded">@copywriter make it punchier</code>
+                Add instructions after a trigger, e.g.{" "}
+                <code className="bg-muted px-1 rounded">@copywriter make it punchier</code>.
+                Or prefix with <code className="bg-muted px-1 rounded">Note:</code> to skip
+                the AI and save as a plain note.
               </p>
             </div>
           </TabsContent>
