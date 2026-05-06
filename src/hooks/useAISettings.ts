@@ -14,25 +14,11 @@ export function useAISettings() {
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
-  // Load from localStorage on mount. If the deployment was built with
-  // NEXT_PUBLIC_ANTHROPIC_KEY / NEXT_PUBLIC_DEEPSEEK_KEY env vars (e.g. for
-  // a deployment-protected personal preview), seed missing keys from those.
-  // Trade-off: NEXT_PUBLIC_* values are baked into the client bundle, so this
-  // is only safe when the URL itself is gated (Vercel Deployment Protection).
+  // inline-md doesn't use API keys (Claude Code handles auth), but we keep
+  // the AISettings shape from the inlineai parent for the persona/trigger
+  // config it carries. Just load whatever's persisted in localStorage.
   useEffect(() => {
-    const stored = loadSettings();
-    const seeded: AISettings = {
-      ...stored,
-      anthropicKey:
-        stored.anthropicKey ||
-        process.env.NEXT_PUBLIC_ANTHROPIC_KEY ||
-        "",
-      deepseekKey:
-        stored.deepseekKey ||
-        process.env.NEXT_PUBLIC_DEEPSEEK_KEY ||
-        "",
-    };
-    setSettings(seeded);
+    setSettings(loadSettings());
     setLoaded(true);
   }, []);
 

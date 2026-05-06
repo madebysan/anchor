@@ -441,18 +441,9 @@ export default function EditorPage() {
     useDocumentStore.getState().dismissQuotaWarning();
   }, []);
 
-  // Gate: show setup screen until the user provides at least one API key.
-  // Either Anthropic or DeepSeek is enough — the per-persona model picker
-  // gates which providers any given persona can use.
-  if (!settings.anthropicKey && !settings.deepseekKey) {
-    return (
-      <SetupScreen
-        onComplete={({ anthropicKey, deepseekKey }) =>
-          updateSettings({ anthropicKey, deepseekKey })
-        }
-      />
-    );
-  }
+  // inline-md uses Claude Code (no API keys); the install gate runs in App.tsx.
+  // The SetupScreen is unreachable here; left out so it doesn't flash up if
+  // settings ever round-trip through an empty state.
 
   return (
     <div className="flex h-screen bg-background">
