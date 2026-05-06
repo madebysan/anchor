@@ -61,11 +61,35 @@ fn ensure_inside(folder: &Path, target: &Path) -> Result<(), String> {
     let folder_canon = folder
         .canonicalize()
         .map_err(|e| format!("notes folder canonicalize: {e}"))?;
-    let target_canon = target
-        .canonicalize()
-        .map_err(|e| format!("file canonicalize: {e}"))?;
-    if !target_canon.starts_with(&folder_canon) {
-        return Err("File is outside notes folder".to_string());
+
+    let canon = if target.exists() {
+        target
+            .canonicalize()
+            .map_err(|e| format!("file canonicalize: {e}"))?
+    } else {
+        let parent = target
+            .parent()
+            .ok_or_else(|| "target has no parent".to_string())?;
+        let parent_canon = parent
+            .canonicalize()
+            .map_err(|e| format!("parent canonicalize: {e}"))?;
+        let filename = target
+            .file_name()
+            .ok_or_else(|| "target has no filename".to_string())?;
+        parent_canon.join(filename)
+    };
+
+    if !canon.starts_with(&folder_canon) {
+        log::warn!(
+            "ensure_inside reject: target_canon={} folder_canon={}",
+            canon.display(),
+            folder_canon.display()
+        );
+        return Err(format!(
+            "File is outside notes folder (file: {}, folder: {})",
+            canon.display(),
+            folder_canon.display()
+        ));
     }
     Ok(())
 }
