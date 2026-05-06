@@ -57,18 +57,36 @@ the change is highlighted, ⌘Z reverts.
 
 ---
 
-## Phase 2.3 — File watching (deferred from Phase 2)
+## Phase 2.3 — File watching
 
-### Detect external file changes
-**Files:** `src-tauri/src/notes.rs`, new emit channel.
-- Use `notify` crate (or Tauri's `tauri-plugin-fs` watcher) to watch the
-  notes folder.
-- Emit a `notes-changed` event to the JS side with the changed file's id.
-- Document store reacts: refresh the in-memory cache + re-render if the
-  active doc changed.
-- Crucial for Phase 3 auto-apply: claude writes to disk, watcher fires,
-  editor reloads. Without this, the file changes but the editor doesn't
-  see it until next reload.
+### Detect external file changes (JS listener — Rust side scaffolded)
+The Rust watcher is in place (`src-tauri/src/watcher.rs`, `notify` crate,
+emits `notes-changed` events with `{ path, kind }`, debounces per-path,
+self-write marker prevents bouncing our own saves). What's missing:
+
+**Files:** `src/App.tsx` (or new `src/hooks/useFileWatcher.ts`),
+`src/lib/persistence.ts`, `src/lib/document-store.ts`.
+
+- After `bootPersistence()` succeeds, call
+  `invoke("start_watching_notes")` to start the watcher.
+- Listen for `notes-changed` via `@tauri-apps/api/event`'s `listen()`.
+- On event:
+  - Resolve the `path` to a doc id by stripping `<notes-folder>/` prefix
+    and `.md` suffix.
+  - Re-fetch the file content (`readNote(id)`) and update `noteCache`.
+  - Update the sidebar tree cache so renames/creates/deletes show up.
+  - If the changed doc is the active doc:
+    - Editor clean (`saveStatus !== "saving"` and no pending content) →
+      reload the editor with the new content via `pendingContentLoad`.
+    - Editor dirty → log a warning and skip the reload. v2 adds a small
+      conflict toast ("file changed externally — [Reload] [Keep mine]").
+
+**Why this matters:** lets the user edit notes in vim/Obsidian/Bear and
+have Inline MD pick up changes. Also re-enables claude-writes-the-file
+flows (currently blocked via prompt because edits would get clobbered).
+
+**Trigger:** when the "claude can edit the file" workflow becomes
+worth re-enabling, OR when external editing is a regular workflow.
 
 ---
 
@@ -98,6 +116,65 @@ the change is highlighted, ⌘Z reverts.
   currently just mutates state.documents — the in-memory rename doesn't
   hit disk. Wire it up so renaming a doc renames the .md file and updates
   the cache id everywhere.
+- Folded into the "Sidebar context menus — v1" item below.
+
+---
+
+## Sidebar context menus
+
+Replace the per-row hover icons (Pencil, Trash) with a right-click menu.
+Different actions per item kind (file vs folder). Reference: macOS Notes
+and Bear context-menu UX patterns.
+
+### v1 — low-hanging set (~2 hours)
+**Files:** `src/components/documents/DocumentSidebar.tsx` (or new
+`SidebarContextMenu.tsx`), needs `shadcn/ui`'s `context-menu` component
+installed (`npx shadcn add context-menu`).
+
+- Wrap each FileRow and TreeNodeView folder header in `<ContextMenu>`.
+- File menu items:
+  - **Reveal in Finder** — call existing `open_path` Rust command on the
+    file's parent dir + select the file (`open -R <path>` reveals).
+  - **Copy filepath** — `navigator.clipboard.writeText(path)`.
+  - **Rename** — same flow as the current Pencil button (inline edit).
+    Wire renameDocument to also call the Rust `rename_note` command (the
+    folded "Rename note (file rename on disk)" task above).
+  - **Delete** — same flow as the current Trash button (existing
+    AlertDialog confirmation).
+- Folder menu items:
+  - **Reveal in Finder** — `open_path` on the folder.
+  - **Rename folder** — needs a small Rust `rename_folder(old, new)`
+    command (one `fs::rename` call). Update the tree cache.
+- Remove the hover Pencil/Trash icons from FileRow.
+
+### v2 — file/folder management (~1 day)
+
+**Folder actions:**
+- **New Note in this folder** — extend `allocateNoteId` to take a parent
+  folder id; have the Rust `write_note` create parent dirs as needed.
+  The id becomes `<folder-id>/<sanitized-title>`.
+- **New Subfolder** — new Rust `create_folder(path)` command. Refresh
+  tree cache. Empty folders are currently hidden by `walk_dir` — change
+  that, or leave it (folders only appear once they have a `.md` inside).
+- **Delete Folder (recursive)** — new Rust `delete_folder(id)`. Big
+  confirmation dialog ("Delete X note files inside?"). Update tree.
+
+**File actions:**
+- **Duplicate** — read source content, allocate `<original>-copy` id
+  (with collision-safe suffixing — `allocateNoteId` already handles
+  this), write new file. Persistence writeNote does the rest.
+- **Move to Parent Folder** — new Rust `move_note(id, target_dir)`
+  command (fs::rename across folders). Update cache id everywhere.
+  Active-doc id rewrite if needed.
+
+### Later — needs separate design
+
+- **Pin** — new state `pinnedDocIds: Set<string>`, persist in localStorage,
+  sort sidebar with pinned at top. Visual pin indicator. Question: do
+  pinned items override the mtime sort entirely, or is "pinned section
+  first, then mtime-sorted" the right shape?
+- **Move to arbitrary folder** — needs a folder-picker UI (sub-menu or
+  dialog). "Move to Parent Folder" covers most cases for less work.
 
 ### App icon
 - Currently using Tauri's default icon. Generate a real one via `/mac-icons`
