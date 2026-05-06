@@ -176,10 +176,22 @@ installed (`npx shadcn add context-menu`).
 - **Move to arbitrary folder** — needs a folder-picker UI (sub-menu or
   dialog). "Move to Parent Folder" covers most cases for less work.
 
-### App icon
-- Currently using Tauri's default icon. Generate a real one via `/mac-icons`
-  → `/generate-image` when the rest is functional.
-- Use `tauri icon <source.png>` to produce all sizes (`.icns`, `.ico`, PNG matrix).
+### Branding pass — final icon, app name, identity
+A working pixel-mark icon was wired up via `tauri icon` (committed at
+`src-tauri/icons/`), but in dev mode the Dock often shows the Tauri
+default — release `.app` bundles use it correctly. When the rest of
+the product is stable enough to commit to identity:
+- Confirm final app name (currently "Inline MD" / `inline-md` —
+  open question whether this is the keeper).
+- Final icon design pass. The current pixel-mark is a placeholder
+  vibe; if it stays, generate higher-fidelity variants for retina /
+  hover / etc.
+- Update `productName`, `identifier`, README hero, and DMG branding
+  if the name changes. See
+  `~/.claude/references/project-rename-checklist.md` for the
+  cross-cutting rename steps.
+- Run `tauri icon <source.png>` to regenerate all sizes (`.icns`,
+  `.ico`, PNG matrix) once the final icon is locked.
 
 ---
 
