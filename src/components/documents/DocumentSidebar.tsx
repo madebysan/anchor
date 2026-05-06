@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FileText, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { FileText, FolderOpen, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 interface DocumentSidebarProps {
   documents: DocumentMeta[];
@@ -23,6 +23,8 @@ interface DocumentSidebarProps {
   onSwitchDocument: (id: string) => void;
   onDeleteDocument: (id: string) => void;
   onRenameDocument: (id: string, newTitle: string) => void;
+  notesFolder?: string;
+  onChangeNotesFolder?: () => void;
 }
 
 // Format a timestamp as a relative time string (e.g. "2m ago", "3h ago", "5d ago")
@@ -46,6 +48,8 @@ export default function DocumentSidebar({
   onSwitchDocument,
   onDeleteDocument,
   onRenameDocument,
+  notesFolder,
+  onChangeNotesFolder,
 }: DocumentSidebarProps) {
   const [search, setSearch] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -66,6 +70,12 @@ export default function DocumentSidebar({
 
   return (
     <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
+      {/* Drag region for the macOS overlay title bar — clears the traffic-light
+          buttons and lets the user move the window by dragging this strip. */}
+      <div
+        className="h-7 shrink-0"
+        style={{ ["WebkitAppRegion" as never]: "drag" }}
+      />
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-3 border-b border-sidebar-border">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -193,6 +203,22 @@ export default function DocumentSidebar({
           })}
         </div>
       </ScrollArea>
+
+      {/* Footer — shows the configured notes folder + a way to change it. */}
+      {notesFolder && (
+        <button
+          type="button"
+          onClick={onChangeNotesFolder}
+          className="flex items-center gap-2 px-3 py-2 border-t border-sidebar-border text-left text-[11px] text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+          title={notesFolder}
+        >
+          <FolderOpen className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate flex-1 min-w-0">
+            {notesFolder.split("/").pop() || notesFolder}
+          </span>
+          <span className="shrink-0 opacity-60">change</span>
+        </button>
+      )}
 
       {/* Delete confirmation dialog */}
       <AlertDialog

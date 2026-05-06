@@ -40,9 +40,21 @@ export function useEditorPreferences() {
     setPrefs((prev) => ({ ...prev, sizeId }));
   }, []);
 
+  const toggleFormattingCollapsed = useCallback(() => {
+    setPrefs((prev) => ({ ...prev, formattingCollapsed: !prev.formattingCollapsed }));
+  }, []);
+
   // Resolve current font/size objects
   const currentFont = FONT_OPTIONS.find((f) => f.id === prefs.fontId) ?? FONT_OPTIONS[0];
   const currentSize = SIZE_OPTIONS.find((s) => s.id === prefs.sizeId) ?? SIZE_OPTIONS[2];
 
-  return { prefs, currentFont, currentSize, setFont, setFontSize };
+  return {
+    prefs,
+    currentFont,
+    currentSize,
+    setFont,
+    setFontSize,
+    formattingCollapsed: prefs.formattingCollapsed,
+    toggleFormattingCollapsed,
+  };
 }

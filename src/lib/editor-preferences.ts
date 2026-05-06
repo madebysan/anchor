@@ -35,14 +35,17 @@ export const SIZE_OPTIONS: SizeOption[] = [
 export interface EditorPreferences {
   fontId: string;
   sizeId: string;
+  /** Hide the formatting cluster (B/I/H1.../font/size) — chrome buttons stay. */
+  formattingCollapsed: boolean;
 }
 
 export const DEFAULT_EDITOR_PREFS: EditorPreferences = {
   fontId: "geist",
   sizeId: "lg",
+  formattingCollapsed: true,
 };
 
-const STORAGE_KEY = "inlineai-editor-prefs";
+const STORAGE_KEY = "inline-md-editor-prefs";
 
 export function loadEditorPrefs(): EditorPreferences {
   if (typeof window === "undefined") return DEFAULT_EDITOR_PREFS;
@@ -60,8 +63,12 @@ export function loadEditorPrefs(): EditorPreferences {
       typeof parsed.sizeId === "string" && SIZE_OPTIONS.some((s) => s.id === parsed.sizeId)
         ? parsed.sizeId
         : DEFAULT_EDITOR_PREFS.sizeId;
+    const formattingCollapsed =
+      typeof parsed.formattingCollapsed === "boolean"
+        ? parsed.formattingCollapsed
+        : DEFAULT_EDITOR_PREFS.formattingCollapsed;
 
-    return { fontId, sizeId };
+    return { fontId, sizeId, formattingCollapsed };
   } catch {
     return DEFAULT_EDITOR_PREFS;
   }

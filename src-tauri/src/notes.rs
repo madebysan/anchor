@@ -152,3 +152,11 @@ pub fn delete_note(state: State<'_, ConfigState>, id: String) -> Result<(), Stri
     fs::remove_file(&target).map_err(|e| format!("remove: {e}"))?;
     Ok(())
 }
+
+// Write content to an arbitrary user-chosen path. The path comes from the
+// native save dialog (tauri-plugin-dialog), so the user has explicitly opted
+// in to that location — no folder-scope check required.
+#[tauri::command]
+pub fn write_export_file(path: String, content: String) -> Result<(), String> {
+    fs::write(&path, &content).map_err(|e| format!("write: {e}"))
+}

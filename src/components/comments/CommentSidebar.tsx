@@ -60,8 +60,13 @@ export default function CommentSidebar({
 
   if (activeThreads.length === 0 && resolvedThreads.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center px-6">
-        <MessageSquare className="h-10 w-10 text-muted-foreground/40 mb-3" />
+      <div className="flex flex-col h-full">
+        <div
+          className="h-7 shrink-0"
+          style={{ ["WebkitAppRegion" as never]: "drag" }}
+        />
+        <div className="flex flex-col items-center justify-center flex-1 text-center px-6">
+          <MessageSquare className="h-10 w-10 text-muted-foreground/40 mb-3" />
         <p className="text-sm font-medium text-muted-foreground mb-1">
           No comments yet
         </p>
@@ -75,12 +80,18 @@ export default function CommentSidebar({
             New Comment
           </Button>
         )}
+        </div>
       </div>
     );
   }
 
   return (
-    <ScrollArea className="h-full">
+    <div className="flex flex-col h-full">
+      <div
+        className="h-7 shrink-0"
+        style={{ ["WebkitAppRegion" as never]: "drag" }}
+      />
+      <ScrollArea className="flex-1 min-h-0">
       <div className="p-3 space-y-2">
         <div className="flex items-center justify-between px-1 mb-2">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -193,6 +204,7 @@ export default function CommentSidebar({
           </div>
         )}
       </div>
-    </ScrollArea>
+      </ScrollArea>
+    </div>
   );
 }

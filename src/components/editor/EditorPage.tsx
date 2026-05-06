@@ -78,7 +78,15 @@ function DragHandle({
   );
 }
 
-export default function EditorPage() {
+interface EditorPageProps {
+  notesFolder?: string;
+  onChangeNotesFolder?: () => void;
+}
+
+export default function EditorPage({
+  notesFolder,
+  onChangeNotesFolder,
+}: EditorPageProps = {}) {
   const editorRef = useRef<TiptapEditor | null>(null);
 
   // Document store — single source of truth for documents, threads, persistence.
@@ -109,7 +117,14 @@ export default function EditorPage() {
     removeTrigger,
   } = useAISettings();
 
-  const { currentFont, currentSize, setFont, setFontSize } = useEditorPreferences();
+  const {
+    currentFont,
+    currentSize,
+    setFont,
+    setFontSize,
+    formattingCollapsed,
+    toggleFormattingCollapsed,
+  } = useEditorPreferences();
 
   const triggerOptions = useMemo(
     () =>
@@ -501,6 +516,8 @@ export default function EditorPage() {
               onSwitchDocument={handleSwitchDocument}
               onDeleteDocument={handleDeleteDocument}
               onRenameDocument={handleRenameDocument}
+              notesFolder={notesFolder}
+              onChangeNotesFolder={onChangeNotesFolder}
             />
           </div>
           <DragHandle onDragStart={handleDocDragStart} onDrag={handleDocDrag} />
@@ -525,6 +542,8 @@ export default function EditorPage() {
           focusMode={focusMode}
           onToggleFocusMode={toggleFocusMode}
           onToggleShortcuts={toggleShortcuts}
+          formattingCollapsed={formattingCollapsed}
+          onToggleFormattingCollapsed={toggleFormattingCollapsed}
         />
       </div>
 
