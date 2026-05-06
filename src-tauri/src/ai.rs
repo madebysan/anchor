@@ -57,38 +57,32 @@ pub fn ai_check_claude_cli() -> bool {
     found.is_some()
 }
 
+// Same logic as notes.rs::ensure_inside — normalize without following
+// symlinks so files in Drive-synced subfolders (which symlink out of the
+// notes folder) still pass the prefix check.
+fn normalize(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for c in path.components() {
+        match c {
+            Component::ParentDir => {
+                out.pop();
+            }
+            Component::CurDir => {}
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
 fn ensure_inside(folder: &Path, target: &Path) -> Result<(), String> {
-    let folder_canon = folder
-        .canonicalize()
-        .map_err(|e| format!("notes folder canonicalize: {e}"))?;
-
-    let canon = if target.exists() {
-        target
-            .canonicalize()
-            .map_err(|e| format!("file canonicalize: {e}"))?
-    } else {
-        let parent = target
-            .parent()
-            .ok_or_else(|| "target has no parent".to_string())?;
-        let parent_canon = parent
-            .canonicalize()
-            .map_err(|e| format!("parent canonicalize: {e}"))?;
-        let filename = target
-            .file_name()
-            .ok_or_else(|| "target has no filename".to_string())?;
-        parent_canon.join(filename)
-    };
-
-    if !canon.starts_with(&folder_canon) {
-        log::warn!(
-            "ensure_inside reject: target_canon={} folder_canon={}",
-            canon.display(),
-            folder_canon.display()
-        );
+    let folder_norm = normalize(folder);
+    let target_norm = normalize(target);
+    if !target_norm.starts_with(&folder_norm) {
         return Err(format!(
             "File is outside notes folder (file: {}, folder: {})",
-            canon.display(),
-            folder_canon.display()
+            target_norm.display(),
+            folder_norm.display()
         ));
     }
     Ok(())
