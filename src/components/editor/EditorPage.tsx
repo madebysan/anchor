@@ -42,6 +42,7 @@ const SHORTCUTS = [
   { keys: "⌘ Z", desc: "Undo" },
   { keys: "⌘ ⇧ Z", desc: "Redo" },
   { keys: "⌘ N", desc: "New document" },
+  { keys: "⌘ ⇧ V", desc: "Comment on selection" },
   { keys: "⌘ ⇧ M", desc: "Toggle focus mode" },
   { keys: "⌘ /", desc: "Keyboard shortcuts" },
 ];
@@ -349,11 +350,13 @@ export default function EditorPage() {
     editor.chain().focus().setMark("comment", { commentId: threadId }).run();
   }, []);
 
-  // ⌘⇧M / Ctrl+Shift+M opens a comment on the current selection.
+  // ⌘⇧V / Ctrl+Shift+V opens a comment on the current selection (or a
+  // document-level comment if nothing is selected). ⌘⇧M is already taken
+  // by the maximize / hide-sidebars toggle.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.shiftKey && (e.key === "m" || e.key === "M")) {
+      if (mod && e.shiftKey && (e.key === "v" || e.key === "V")) {
         const editor = editorRef.current;
         if (!editor) return;
         const { from, to } = editor.state.selection;
