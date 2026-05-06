@@ -26,6 +26,7 @@ pub fn run() {
             config::get_notes_folder,
             config::set_notes_folder,
             notes::list_notes,
+            notes::list_note_tree,
             notes::read_note,
             notes::write_note,
             notes::rename_note,

@@ -8,6 +8,8 @@ import { useAIChat } from "@/hooks/useAIChat";
 import { useAISettings } from "@/hooks/useAISettings";
 import { useEditorPreferences } from "@/hooks/useEditorPreferences";
 import { useDocumentStore } from "@/lib/document-store";
+import { getNoteTree } from "@/lib/persistence";
+import type { NoteTreeNode } from "@/lib/notes-fs";
 import { parseTrigger, isPlainNote } from "@/lib/triggers";
 import type { DocumentSnapshot } from "@/lib/ai/context-router";
 import type { SuggestedEdit } from "@/types";
@@ -138,6 +140,32 @@ export default function EditorPage({
     const doc = documents.find((d) => d.id === activeDocId);
     return doc?.title || "Untitled";
   }, [documents, activeDocId]);
+
+  // Sidebar tree = the on-disk tree from boot, augmented with any documents
+  // we have in-memory that aren't on disk yet (just-created via the + button,
+  // before the first save). Those land at root.
+  const sidebarTree = useMemo<NoteTreeNode[]>(() => {
+    const onDisk = getNoteTree();
+    const seen = new Set<string>();
+    const collect = (nodes: NoteTreeNode[]) => {
+      for (const n of nodes) {
+        if (n.type === "file") seen.add(n.id);
+        else collect(n.children);
+      }
+    };
+    collect(onDisk);
+    const synthetics: NoteTreeNode[] = documents
+      .filter((d) => !seen.has(d.id))
+      .map((d) => ({
+        type: "file" as const,
+        id: d.id,
+        path: "",
+        title: d.title,
+        content: "",
+        modified: Math.floor(d.updatedAt / 1000),
+      }));
+    return [...onDisk, ...synthetics];
+  }, [documents]);
 
   // Initialize the store once the editor is ready. Tiptap mounts async
   // (immediatelyRender: false) so the ref isn't populated on EditorPage's first
@@ -512,6 +540,7 @@ export default function EditorPage({
             <DocumentSidebar
               documents={documents}
               activeDocId={activeDocId}
+              noteTree={sidebarTree}
               onCreateDocument={handleCreateDocument}
               onSwitchDocument={handleSwitchDocument}
               onDeleteDocument={handleDeleteDocument}

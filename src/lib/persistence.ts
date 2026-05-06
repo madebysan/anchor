@@ -1,10 +1,12 @@
 import type { CommentThread, DocumentMeta } from "@/types";
 import {
-  listNotes,
+  listNoteTree,
+  walkFiles,
   writeNote,
   deleteNote,
   sanitizeNoteId,
   type NoteFile,
+  type NoteTreeNode,
 } from "./notes-fs";
 import { markdownToHtml, htmlToMarkdown } from "./markdown";
 
@@ -14,6 +16,10 @@ import { markdownToHtml, htmlToMarkdown } from "./markdown";
 // the source of truth lives on the filesystem.
 const noteCache = new Map<string, NoteFile>();
 let bootCompleted = false;
+// The tree shape (with folders) is needed by the sidebar but not by the
+// store's id-keyed reads. Cached separately so a re-boot can replace it
+// without disturbing in-flight saves.
+let noteTreeCache: NoteTreeNode[] = [];
 
 // Threads continue to live in localStorage keyed by note id (file stem).
 // Phase 3 of the backlog moves them into sidecar files alongside the .md.
@@ -28,16 +34,29 @@ const KEY_ACTIVE_DOC = "inline-md-active-doc";
 // =====================
 
 export async function bootPersistence(): Promise<void> {
-  const notes = await listNotes();
+  const tree = await listNoteTree();
   noteCache.clear();
-  for (const n of notes) {
-    noteCache.set(n.id, n);
+  for (const file of walkFiles(tree)) {
+    noteCache.set(file.id, {
+      id: file.id,
+      path: file.path,
+      title: file.title,
+      content: file.content,
+      modified: file.modified,
+    });
   }
+  noteTreeCache = tree;
   bootCompleted = true;
 }
 
 export function isPersistenceReady(): boolean {
   return bootCompleted;
+}
+
+// Snapshot of the tree (folders + files) for the sidebar. Stable across
+// renders within a boot, replaced on the next bootPersistence() call.
+export function getNoteTree(): NoteTreeNode[] {
+  return noteTreeCache;
 }
 
 // =====================
