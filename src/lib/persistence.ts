@@ -59,6 +59,15 @@ export function getNoteTree(): NoteTreeNode[] {
   return noteTreeCache;
 }
 
+// Resolve a doc id to its absolute path on disk. Returns null if the doc
+// hasn't been written yet (e.g. a freshly created note before its first
+// disk write resolves). Callers should fall back to context-only flows
+// in that case.
+export function getDocPath(id: string): string | null {
+  const note = noteCache.get(id);
+  return note?.path && note.path.length > 0 ? note.path : null;
+}
+
 // =====================
 // Document index — derived from the cache.
 // =====================
