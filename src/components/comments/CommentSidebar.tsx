@@ -34,6 +34,8 @@ interface CommentSidebarProps {
   triggerConfigs?: Record<string, TriggerConfig>;
   /** Editor doc snapshot getter for the chip's char-count estimate. */
   getDocumentSnapshot?: () => DocumentSnapshot;
+  /** Default persona for the routing hint in CommentInput. */
+  defaultPersona?: string;
 }
 
 export default function CommentSidebar({
@@ -51,6 +53,7 @@ export default function CommentSidebar({
   triggerOptions,
   triggerConfigs,
   getDocumentSnapshot,
+  defaultPersona,
 }: CommentSidebarProps) {
   const [showResolved, setShowResolved] = useState(false);
   const activeThreads = threads.filter((t) => t.status === "active");
@@ -131,6 +134,7 @@ export default function CommentSidebar({
             triggerOptions={triggerOptions}
             triggerConfigs={triggerConfigs}
             getDocumentSnapshot={getDocumentSnapshot}
+            defaultPersona={defaultPersona}
           />
         ))}
 

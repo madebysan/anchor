@@ -10,7 +10,7 @@ import { useAIChat } from "@/hooks/useAIChat";
 import { useAISettings } from "@/hooks/useAISettings";
 import { useEditorPreferences } from "@/hooks/useEditorPreferences";
 import { useDocumentStore } from "@/lib/document-store";
-import { parseTrigger } from "@/lib/triggers";
+import { parseTrigger, isPlainNote } from "@/lib/triggers";
 import type { DocumentSnapshot } from "@/lib/ai/context-router";
 import type { SuggestedEdit } from "@/types";
 import type { Editor as TiptapEditor } from "@tiptap/react";
@@ -349,6 +349,26 @@ export default function EditorPage() {
     editor.chain().focus().setMark("comment", { commentId: threadId }).run();
   }, []);
 
+  // ⌘⇧M / Ctrl+Shift+M opens a comment on the current selection.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.shiftKey && (e.key === "m" || e.key === "M")) {
+        const editor = editorRef.current;
+        if (!editor) return;
+        const { from, to } = editor.state.selection;
+        if (from === to) {
+          handleAddDocumentComment();
+        } else {
+          handleAddComment();
+        }
+        e.preventDefault();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [handleAddComment]);
+
   const handleAddDocumentComment = useCallback(() => {
     useDocumentStore.getState().createThread("");
   }, []);
@@ -362,13 +382,33 @@ export default function EditorPage() {
       const enabledTriggerNames = Object.entries(settings.triggers)
         .filter(([, config]) => config.enabled)
         .map(([key]) => key);
-      const trigger = parseTrigger(text, enabledTriggerNames);
+
+      // Comment routing:
+      //   1. Explicit @trigger → that persona runs.
+      //   2. Plain-note prefix ("Note:", "TODO:", "// ", etc.) → no AI, save as note.
+      //   3. Existing AI history in thread → follow-up, AI continues.
+      //   4. Otherwise → default persona from settings (if configured), else plain note.
+      const explicitTrigger = parseTrigger(text, enabledTriggerNames);
+      const plainNote = isPlainNote(text);
+
+      let effectiveTrigger = explicitTrigger;
+      if (
+        !explicitTrigger &&
+        !plainNote &&
+        settings.defaultPersona &&
+        enabledTriggerNames.includes(settings.defaultPersona)
+      ) {
+        effectiveTrigger = {
+          type: settings.defaultPersona,
+          promptText: text.trim(),
+        };
+      }
 
       const store = useDocumentStore.getState();
       store.addMessage(threadId, {
         role: "user",
         content: text,
-        trigger: trigger ?? undefined,
+        trigger: effectiveTrigger ?? undefined,
       });
 
       const thread = store.threads.find((t) => t.id === threadId);
@@ -376,19 +416,29 @@ export default function EditorPage() {
 
       const hasAIHistory = thread.messages.some((m) => m.role === "assistant");
 
-      if (trigger || hasAIHistory) {
-        store.addMessage(threadId, { role: "assistant", content: "" });
+      const shouldRunAI = !plainNote && (effectiveTrigger || hasAIHistory);
+      if (!shouldRunAI) return;
 
-        try {
-          await sendAIMessage(threadId, thread, getDocumentSnapshot(), text, trigger);
-        } catch (err) {
-          // Surface the real error verbatim so model/key/network problems are
-          // diagnosable. Prefixed so it's visually distinct from a real reply.
-          const reason = err instanceof Error ? err.message : "Unknown error";
-          useDocumentStore
-            .getState()
-            .updateLastAssistantMessage(threadId, `⚠️ ${reason}`);
-        }
+      store.addMessage(threadId, { role: "assistant", content: "" });
+
+      // Yield once so React commits the new "thinking…" assistant message
+      // before we do the synchronous prompt build + invoke. Keeps the UI
+      // responsive (no spinning ball).
+      await new Promise((r) => setTimeout(r, 0));
+
+      try {
+        await sendAIMessage(
+          threadId,
+          thread,
+          getDocumentSnapshot(),
+          text,
+          effectiveTrigger,
+        );
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : "Unknown error";
+        useDocumentStore
+          .getState()
+          .updateLastAssistantMessage(threadId, `⚠️ ${reason}`);
       }
     },
     [sendAIMessage, getDocumentSnapshot, settings]
@@ -534,6 +584,7 @@ export default function EditorPage() {
               triggerOptions={triggerOptions}
               triggerConfigs={settings.triggers}
               getDocumentSnapshot={getDocumentSnapshot}
+              defaultPersona={settings.defaultPersona}
             />
           </div>
         </>
