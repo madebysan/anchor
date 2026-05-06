@@ -59,37 +59,38 @@ fn modified_secs(path: &Path) -> u64 {
         .unwrap_or(0)
 }
 
+// Resolve `.` and `..` segments without following symlinks. We don't use
+// Path::canonicalize because the user's notes folder may contain symlinks
+// (e.g. ~/Projects/foo → ~/Library/CloudStorage/...) — canonicalize would
+// resolve them into a path that no longer starts with the chosen folder.
+fn normalize(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for c in path.components() {
+        match c {
+            Component::ParentDir => {
+                out.pop();
+            }
+            Component::CurDir => {}
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
 // Verifies the target path is inside the notes folder (at any depth).
-// Handles both existing files and not-yet-created targets (for write_note).
+// Uses a literal-prefix match on normalized paths so symlinks inside the
+// notes folder (Google Drive sync, etc.) are treated as belonging to the
+// folder.
 fn ensure_inside(folder: &Path, target: &Path) -> Result<(), String> {
-    let folder_canon = folder
-        .canonicalize()
-        .map_err(|e| format!("notes folder canonicalize: {e}"))?;
+    let folder_norm = normalize(folder);
+    let target_norm = normalize(target);
 
-    let canon = if target.exists() {
-        target
-            .canonicalize()
-            .map_err(|e| format!("target canonicalize: {e}"))?
-    } else {
-        // File doesn't exist yet (e.g. first write of a new doc).
-        // Canonicalize the parent + join the file name.
-        let parent = target
-            .parent()
-            .ok_or_else(|| "target has no parent".to_string())?;
-        let parent_canon = parent
-            .canonicalize()
-            .map_err(|e| format!("parent canonicalize: {e}"))?;
-        let filename = target
-            .file_name()
-            .ok_or_else(|| "target has no filename".to_string())?;
-        parent_canon.join(filename)
-    };
-
-    if !canon.starts_with(&folder_canon) {
+    if !target_norm.starts_with(&folder_norm) {
         return Err(format!(
             "File is outside notes folder (file: {}, folder: {})",
-            canon.display(),
-            folder_canon.display()
+            target_norm.display(),
+            folder_norm.display()
         ));
     }
     Ok(())
