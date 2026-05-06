@@ -168,8 +168,10 @@ export default function DocumentSidebar({
         </div>
       )}
 
-      {/* Document list — search mode is flat, otherwise nested tree. */}
-      <ScrollArea className="flex-1">
+      {/* Document list — search mode is flat, otherwise nested tree.
+          min-h-0 is critical: without it, flex-1 grows to fit content
+          instead of constraining ScrollArea to the available height. */}
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-1.5 space-y-0.5">
           {search.trim()
             ? filteredDocs.map((doc) => (
