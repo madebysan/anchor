@@ -1,9 +1,11 @@
 use crate::config::ConfigState;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::env;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::Mutex;
 use tauri::State;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -32,6 +34,67 @@ struct ClaudeJsonResult {
     session_id: Option<String>,
     #[serde(default)]
     is_error: bool,
+}
+
+pub struct AiProcessState {
+    pids: Mutex<HashMap<String, u32>>,
+}
+
+impl AiProcessState {
+    pub fn new() -> Self {
+        Self {
+            pids: Mutex::new(HashMap::new()),
+        }
+    }
+}
+
+fn register_process(state: &State<'_, AiProcessState>, request_id: &Option<String>, pid: u32) {
+    if let Some(id) = request_id {
+        if let Ok(mut pids) = state.pids.lock() {
+            pids.insert(id.clone(), pid);
+        }
+    }
+}
+
+fn unregister_process(state: &State<'_, AiProcessState>, request_id: &Option<String>) {
+    if let Some(id) = request_id {
+        if let Ok(mut pids) = state.pids.lock() {
+            pids.remove(id);
+        }
+    }
+}
+
+#[tauri::command]
+pub fn ai_cancel_claude(
+    process_state: State<'_, AiProcessState>,
+    request_id: String,
+) -> Result<bool, String> {
+    let pid = {
+        let mut pids = process_state
+            .pids
+            .lock()
+            .map_err(|_| "ai process mutex poisoned".to_string())?;
+        pids.remove(&request_id)
+    };
+
+    let Some(pid) = pid else {
+        return Ok(false);
+    };
+
+    #[cfg(target_os = "windows")]
+    let status = Command::new("taskkill")
+        .arg("/PID")
+        .arg(pid.to_string())
+        .arg("/T")
+        .arg("/F")
+        .status();
+
+    #[cfg(not(target_os = "windows"))]
+    let status = Command::new("kill").arg("-TERM").arg(pid.to_string()).status();
+
+    status
+        .map(|s| s.success())
+        .map_err(|e| format!("cancel claude: {e}"))
 }
 
 // Resolve `claude` against PATH without actually running it. Avoids
@@ -100,7 +163,11 @@ fn notes_folder(state: &State<'_, ConfigState>) -> Result<PathBuf, String> {
 // Used while the comment-thread UX is still text-only (Phase 1). Phase 3
 // switches to file-based auto-apply via ai_execute_claude.
 #[tauri::command]
-pub fn ai_chat_claude(prompt: String) -> Result<AiExecutionResult, String> {
+pub fn ai_chat_claude(
+    process_state: State<'_, AiProcessState>,
+    prompt: String,
+    request_id: Option<String>,
+) -> Result<AiExecutionResult, String> {
     let mut child = Command::new("claude")
         .arg("--dangerously-skip-permissions")
         .arg("--print")
@@ -113,6 +180,7 @@ pub fn ai_chat_claude(prompt: String) -> Result<AiExecutionResult, String> {
                 "Failed to launch claude CLI: {e}. Install from https://claude.ai/code if missing."
             )
         })?;
+    register_process(&process_state, &request_id, child.id());
 
     if let Some(stdin) = child.stdin.as_mut() {
         stdin
@@ -121,9 +189,9 @@ pub fn ai_chat_claude(prompt: String) -> Result<AiExecutionResult, String> {
     }
     drop(child.stdin.take());
 
-    let output = child
-        .wait_with_output()
-        .map_err(|e| format!("wait for claude: {e}"))?;
+    let output = child.wait_with_output();
+    unregister_process(&process_state, &request_id);
+    let output = output.map_err(|e| format!("wait for claude: {e}"))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
@@ -158,9 +226,11 @@ pub fn ai_chat_claude(prompt: String) -> Result<AiExecutionResult, String> {
 #[tauri::command]
 pub fn ai_invoke_claude(
     state: State<'_, ConfigState>,
+    process_state: State<'_, AiProcessState>,
     file_path: Option<String>,
     session_id: Option<String>,
     prompt: String,
+    request_id: Option<String>,
 ) -> Result<AiSessionResult, String> {
     let mut cmd = Command::new("claude");
     cmd.arg("--dangerously-skip-permissions")
@@ -193,6 +263,7 @@ pub fn ai_invoke_claude(
                 "Failed to launch claude CLI: {e}. Install from https://claude.ai/code if missing."
             )
         })?;
+    register_process(&process_state, &request_id, child.id());
 
     if let Some(stdin) = child.stdin.as_mut() {
         stdin
@@ -201,9 +272,9 @@ pub fn ai_invoke_claude(
     }
     drop(child.stdin.take());
 
-    let output = child
-        .wait_with_output()
-        .map_err(|e| format!("wait for claude: {e}"))?;
+    let output = child.wait_with_output();
+    unregister_process(&process_state, &request_id);
+    let output = output.map_err(|e| format!("wait for claude: {e}"))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
@@ -257,8 +328,10 @@ pub fn ai_invoke_claude(
 #[tauri::command]
 pub fn ai_execute_claude(
     state: State<'_, ConfigState>,
+    process_state: State<'_, AiProcessState>,
     file_path: String,
     prompt: String,
+    request_id: Option<String>,
 ) -> Result<AiExecutionResult, String> {
     let folder = notes_folder(&state)?;
     let target = PathBuf::from(&file_path);
@@ -281,6 +354,7 @@ pub fn ai_execute_claude(
                 "Failed to launch claude CLI: {e}. Install from https://claude.ai/code if missing."
             )
         })?;
+    register_process(&process_state, &request_id, child.id());
 
     if let Some(stdin) = child.stdin.as_mut() {
         stdin
@@ -289,9 +363,9 @@ pub fn ai_execute_claude(
     }
     drop(child.stdin.take());
 
-    let output = child
-        .wait_with_output()
-        .map_err(|e| format!("wait for claude: {e}"))?;
+    let output = child.wait_with_output();
+    unregister_process(&process_state, &request_id);
+    let output = output.map_err(|e| format!("wait for claude: {e}"))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();

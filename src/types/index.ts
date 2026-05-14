@@ -10,9 +10,16 @@ export interface DocumentMeta {
 export interface CommentThread {
   id: string;
   selectedText: string;
+  anchor?: CommentAnchor;
   messages: ThreadMessage[];
   status: "active" | "resolved";
   createdAt: number;
+}
+
+export interface CommentAnchor {
+  text: string;
+  pmFrom: number;
+  pmTo: number;
 }
 
 export interface ThreadMessage {
@@ -54,6 +61,7 @@ export interface TriggerConfig {
   enabled: boolean;
   prompt: string;
   contextStrategy: ContextStrategy;
+  mode: "rewrite" | "feedback";
 }
 
 export interface AISettings {
@@ -64,4 +72,3 @@ export interface AISettings {
    */
   defaultPersona?: string;
 }
-

@@ -35,8 +35,10 @@ import {
 } from "@/lib/ai/context-router";
 import {
   FONT_OPTIONS,
+  LINE_HEIGHT_OPTIONS,
   SIZE_OPTIONS,
   type FontOption,
+  type LineHeightOption,
   type SizeOption,
 } from "@/lib/editor-preferences";
 
@@ -55,8 +57,10 @@ interface AISettingsDialogProps {
   onChangeNotesFolder?: () => void;
   currentFont?: FontOption;
   currentSize?: SizeOption;
+  currentLineHeight?: LineHeightOption;
   onFontChange?: (id: string) => void;
   onSizeChange?: (id: string) => void;
+  onLineHeightChange?: (id: string) => void;
 }
 
 export default function AISettingsDialog({
@@ -72,8 +76,10 @@ export default function AISettingsDialog({
   onChangeNotesFolder,
   currentFont,
   currentSize,
+  currentLineHeight,
   onFontChange,
   onSizeChange,
+  onLineHeightChange,
 }: AISettingsDialogProps) {
   const triggerEntries = Object.entries(settings.triggers);
   const enabledTriggers = triggerEntries.filter(([, c]) => c.enabled);
@@ -214,6 +220,26 @@ export default function AISettingsDialog({
                     {SIZE_OPTIONS.map((size) => (
                       <SelectItem key={size.id} value={size.id} className="text-xs">
                         {size.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-[140px_1fr] items-center gap-3">
+                <Label className="text-xs">Line height</Label>
+                <Select
+                  value={currentLineHeight?.id ?? LINE_HEIGHT_OPTIONS[1].id}
+                  onValueChange={(next) => onLineHeightChange?.(next)}
+                  disabled={!onLineHeightChange}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LINE_HEIGHT_OPTIONS.map((lineHeight) => (
+                      <SelectItem key={lineHeight.id} value={lineHeight.id} className="text-xs">
+                        {lineHeight.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -367,6 +393,30 @@ export default function AISettingsDialog({
                               </div>
                             </SelectItem>
                           ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid grid-cols-[100px_1fr] items-center gap-3">
+                      <Label className="text-xs text-muted-foreground">Mode</Label>
+                      <Select
+                        value={config.mode}
+                        onValueChange={(next) =>
+                          onUpdateTrigger(key, {
+                            mode: next === "feedback" ? "feedback" : "rewrite",
+                          })
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="rewrite" className="text-xs">
+                            Rewrite selected text
+                          </SelectItem>
+                          <SelectItem value="feedback" className="text-xs">
+                            Feedback only
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

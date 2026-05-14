@@ -61,6 +61,11 @@ export default function CommentMessage({
         {/* Suggestion card (if this message has one) */}
         {suggestion && onAcceptSuggestion && onRejectSuggestion && (
           <div className="mt-2">
+            {suggestion.reason && (
+              <p className="mb-1.5 text-xs leading-relaxed text-muted-foreground">
+                {suggestion.reason}
+              </p>
+            )}
             <SuggestedEditComponent
               suggestion={suggestion}
               onAccept={onAcceptSuggestion}

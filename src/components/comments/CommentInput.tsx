@@ -62,6 +62,7 @@ export default function CommentInput({
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [filteredTriggers, setFilteredTriggers] = useState<TriggerOption[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [contextPreviewOpen, setContextPreviewOpen] = useState(false);
   // Track the position in the string where the @ starts
   const [atStartPos, setAtStartPos] = useState<number | null>(null);
 
@@ -252,6 +253,9 @@ export default function CommentInput({
       strategy: STRATEGY_LABELS[config.contextStrategy],
       charCount: routed.charCount,
       truncated: routed.truncated,
+      mode: config.mode,
+      prompt: config.prompt,
+      context: routed.content,
     };
   }, [value, enabledTriggerKeys, triggerConfigs, selectedText, getDocumentSnapshot]);
 
@@ -281,11 +285,32 @@ export default function CommentInput({
   return (
     <div className="relative">
       {chipInfo && (
-        <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 mb-1.5 flex-wrap">
-          <span className="px-1.5 py-0.5 rounded bg-muted shrink-0">
+        <div className="mb-1.5">
+          <button
+            type="button"
+            onClick={() => setContextPreviewOpen((prev) => !prev)}
+            className="text-[10px] text-muted-foreground flex items-center gap-1.5 flex-wrap rounded px-1 -mx-1 hover:bg-muted hover:text-foreground transition-colors"
+          >
             @{chipInfo.personaKey} · {chipInfo.strategy} · {chipInfo.charCount.toLocaleString()} chars
-            {chipInfo.truncated && " · truncated"}
-          </span>
+            {chipInfo.truncated && " · truncated"} · {chipInfo.mode}
+            <ChevronDown
+              className={`h-2.5 w-2.5 transition-transform ${
+                contextPreviewOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+          {contextPreviewOpen && (
+            <div className="mt-1.5 max-h-48 overflow-auto rounded-md border bg-muted/30 p-2 text-[11px] text-muted-foreground">
+              <p className="mb-1 font-medium text-foreground">Persona prompt</p>
+              <pre className="mb-2 whitespace-pre-wrap break-words font-mono">
+                {chipInfo.prompt}
+              </pre>
+              <p className="mb-1 font-medium text-foreground">Context preview</p>
+              <pre className="whitespace-pre-wrap break-words font-mono">
+                {chipInfo.context || "(empty)"}
+              </pre>
+            </div>
+          )}
         </div>
       )}
       {!chipInfo && routingHint && (

@@ -34,8 +34,8 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useState, useEffect } from "react";
-import { FONT_OPTIONS, SIZE_OPTIONS } from "@/lib/editor-preferences";
-import type { FontOption, SizeOption } from "@/lib/editor-preferences";
+import { FONT_OPTIONS, LINE_HEIGHT_OPTIONS, SIZE_OPTIONS } from "@/lib/editor-preferences";
+import type { FontOption, LineHeightOption, SizeOption } from "@/lib/editor-preferences";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,8 +50,10 @@ interface EditorToolbarProps {
   onOpenSettings?: () => void;
   currentFont?: FontOption;
   currentSize?: SizeOption;
+  currentLineHeight?: LineHeightOption;
   onFontChange?: (fontId: string) => void;
   onSizeChange?: (sizeId: string) => void;
+  onLineHeightChange?: (lineHeightId: string) => void;
   documentTitle?: string;
   saveStatus?: SaveStatus;
   lastSavedAt?: number | null;
@@ -104,8 +106,10 @@ export default function EditorToolbar({
   onOpenSettings,
   currentFont,
   currentSize,
+  currentLineHeight,
   onFontChange,
   onSizeChange,
+  onLineHeightChange,
   documentTitle = "Untitled",
   saveStatus = "idle",
   lastSavedAt = null,
@@ -348,6 +352,21 @@ export default function EditorToolbar({
             {SIZE_OPTIONS.map((size) => (
               <SelectItem key={size.id} value={size.id}>
                 {size.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {currentLineHeight && onLineHeightChange && (
+        <Select value={currentLineHeight.id} onValueChange={onLineHeightChange}>
+          <SelectTrigger size="sm" className="h-7 w-[104px] text-xs border-none shadow-none bg-transparent hover:bg-muted">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {LINE_HEIGHT_OPTIONS.map((lineHeight) => (
+              <SelectItem key={lineHeight.id} value={lineHeight.id}>
+                {lineHeight.label}
               </SelectItem>
             ))}
           </SelectContent>

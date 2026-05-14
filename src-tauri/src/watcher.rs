@@ -69,10 +69,17 @@ fn handle_event(app: &AppHandle, state: &WatcherState, event: Event) {
     let now = Instant::now();
 
     for path in event.paths {
-        // Only .md files.
-        if path.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase())
-            != Some("md".to_string())
-        {
+        let extension = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_ascii_lowercase());
+        let is_markdown = extension.as_deref() == Some("md");
+        let is_structural = matches!(kind, "created" | "removed" | "renamed") && extension.is_none();
+
+        // Markdown file changes are always relevant. Directory create/remove/
+        // rename events are also relevant because they can move notes around
+        // without emitting a per-file event on every platform.
+        if !is_markdown && !is_structural {
             continue;
         }
 

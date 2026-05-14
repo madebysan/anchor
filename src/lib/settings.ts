@@ -50,24 +50,28 @@ export const DEFAULT_TRIGGERS: Record<string, TriggerConfig> = {
     enabled: true,
     prompt: DEFAULT_TRIGGER_PROMPTS.copywriter,
     contextStrategy: "local-section",
+    mode: "rewrite",
   },
   editor: {
     name: "Editor",
     enabled: true,
     prompt: DEFAULT_TRIGGER_PROMPTS.editor,
     contextStrategy: "passage-only",
+    mode: "rewrite",
   },
   researcher: {
     name: "Researcher",
     enabled: true,
     prompt: DEFAULT_TRIGGER_PROMPTS.researcher,
     contextStrategy: "local-section",
+    mode: "feedback",
   },
   challenger: {
     name: "Challenger",
     enabled: true,
     prompt: DEFAULT_TRIGGER_PROMPTS.challenger,
     contextStrategy: "full-document",
+    mode: "feedback",
   },
 };
 
@@ -128,6 +132,7 @@ function backfillTrigger(
         ? config.prompt
         : DEFAULT_TRIGGER_PROMPTS[key] ?? "",
     contextStrategy: finalStrategy,
+    mode: config.mode === "feedback" ? "feedback" : DEFAULT_TRIGGERS[key]?.mode ?? "rewrite",
   };
 }
 

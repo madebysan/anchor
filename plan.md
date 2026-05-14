@@ -36,22 +36,42 @@ Massive multi-phase day — fork stabilized, full AI integration shipped, multip
 
 ## Current state
 
-- Build: TS + Rust both clean. Vite production build clean. `.app` + `.dmg` bundles successfully.
-- Tests: none written for inline-md yet. Playwright is in devDeps but unused.
-- Working tree: clean (auto-checkpoint hooks committed everything).
-- Tauri dev process: stopped at end of session.
+- File watcher JS listener, Google Drive polling fallback, empty-folder sidebar,
+  feedback-mode personas, sidebar context menus v1, markdown paste formatting,
+  Claude subprocess cancellation, line-height control, expandable context chip,
+  suggestion reason display, and explicit Tiptap editor readiness have been
+  implemented.
+- Comment anchors now restore visual highlights after markdown reload on a
+  best-effort basis using stored ProseMirror positions plus text fallback.
+- Sidebar context menus v2 shipped: new note in folder, new subfolder,
+  duplicate, move to parent folder, and recursive folder delete.
+- Tests: Playwright is wired via `npm run test:e2e` with initial markdown and
+  persona settings smoke coverage.
+- Docs: `docs/distribution.md` captures the local build, notarization, and DMG
+  housekeeping checklist.
+- Startup default-note guard was added after manual testing showed the app could
+  create a root `Untitled.md` on boot/refresh. It now only auto-creates the
+  starter note when the selected notes folder is truly empty.
+- Tauri dev process was restarted after the boot fix. Latest dev session used
+  Vite on `http://localhost:1420/`.
+- Local ARM64 DMG was rebuilt at
+  `src-tauri/target/release/bundle/dmg/Inline MD_0.1.0_aarch64.dmg` and
+  verified with `hdiutil verify`. It is unsigned because there are `0 valid`
+  local Developer ID signing identities.
 
 ## Next steps
 
-Three discrete chunks queued in `backlog.md`:
+Highest-value chunks queued in `backlog.md`:
 
-- [ ] **File watcher JS listener** (Phase 2.3) — Rust scaffolding ready. App.tsx needs to call `start_watching_notes` after boot, listen for `notes-changed`, refresh cache, reload editor when active doc is clean. Required before re-enabling claude-Write/Edit flows.
-- [ ] **Sidebar context menus v1** — replace hover Pencil/Trash with right-click menu. File menu: Reveal in Finder, Copy filepath, Rename, Delete. Folder menu: Reveal in Finder, Rename. ~2h. Needs `shadcn/ui add context-menu`.
-- [ ] **Comment-mark roundtrip** (Phase 3) — turndown strips Tiptap CommentMark on save, so anchored comments don't survive doc reload. Need position-based comment storage in a sidecar `<note>.threads.json` file.
+- [ ] **Sidecar thread storage** — move threads out of localStorage into `<note>.md.threads.json` and store markdown-source offsets for stronger external-edit anchoring.
+- [ ] **Tests** — comment auto-apply round-trip with mocked claude, markdown-on-disk save/reload parity, persona override flow.
+- [ ] **Signed distribution** — Developer ID signing + notarization for the macOS `.app`/DMG.
+- [ ] **Lint config** — `npm run lint` still fails because ESLint 9 needs an
+  `eslint.config.*` flat config.
 
 ## Decisions & context
 
-- **Personas should NOT auto-rewrite for everything** — researcher/challenger arguably need a "feedback only, no auto-apply" mode. Open design question; not in v1.
+- **Personas should NOT auto-rewrite for everything** — shipped as per-persona `rewrite` / `feedback` mode. Researcher/challenger default to feedback.
 - **Pinning** the only sidebar feature considered "later" — needs sort-logic + persistence + visual indicator design.
 - **Branding** — "Inline MD" + pixel-mark icon are placeholders. Final naming + identity pass deferred until product is more stable.
 - **Tauri `--bare` won't help** with the global CLAUDE.md leak — it forces ANTHROPIC_API_KEY auth, defeating subscription-quota benefit. Prompt-level override + output stripper is the path.
@@ -70,4 +90,6 @@ npm run tauri dev      # dev window with hot reload
 npm run tauri build    # production .app + .dmg → src-tauri/target/release/bundle/
 ```
 
-For the production .dmg: ARM64 (Apple Silicon) build, ~7 MB. Unsigned — first launch needs right-click → Open.
+For the production .dmg: ARM64 (Apple Silicon) build, unsigned unless a
+Developer ID Application certificate is installed. First launch needs
+right-click → Open.

@@ -13,8 +13,12 @@ import {
   extractTitle,
   allocateNoteId,
   registerNewNote,
+  refreshPersistence,
+  getDocIdByPath,
+  hasNotesFolderContent,
 } from "./persistence";
-import type { DocumentMeta, CommentThread, ThreadMessage } from "@/types";
+import { readNote, renameNote, sanitizeNoteId, writeNote } from "./notes-fs";
+import type { CommentAnchor, DocumentMeta, CommentThread, ThreadMessage } from "@/types";
 
 export type SaveStatus = "idle" | "saving" | "saved";
 
@@ -42,21 +46,24 @@ interface DocumentStore {
 
   // ---- Lifecycle ----
   initialize: () => void;
+  refreshFromDisk: (changedPath?: string) => Promise<void>;
   acknowledgeContentLoad: () => void;
   cancelPendingSaves: () => void;
 
   // ---- Documents ----
-  createDocument: () => void;
+  createDocument: (parentFolderId?: string) => void;
   switchDocument: (id: string) => void;
   deleteDocument: (id: string) => void;
-  renameDocument: (id: string, title: string) => void;
+  renameDocument: (id: string, title: string) => Promise<void>;
+  duplicateDocument: (id: string) => Promise<void>;
+  moveDocumentToFolder: (id: string, targetFolderId: string | null) => Promise<void>;
 
   // ---- Content ----
   updateContent: (html: string) => void;
 
   // ---- Threads ----
   setActiveThreadId: (id: string | null) => void;
-  createThread: (selectedText: string) => string;
+  createThread: (selectedText: string, anchor?: CommentAnchor) => string;
   addMessage: (threadId: string, message: Omit<ThreadMessage, "id" | "createdAt">) => string;
   updateLastAssistantMessage: (threadId: string, content: string) => void;
   setLastAssistantSuggestion: (
@@ -71,8 +78,8 @@ interface DocumentStore {
 // Note ids are now filenames (sanitized titles). allocateNoteId returns a
 // collision-safe id like "Untitled" or "Untitled-2". registerNewNote adds
 // it to the persistence cache and writes an empty .md to disk.
-function newNote(suggestedTitle = "Untitled"): string {
-  const id = allocateNoteId(suggestedTitle);
+function newNote(suggestedTitle = "Untitled", parentFolderId?: string): string {
+  const id = allocateNoteId(suggestedTitle, parentFolderId);
   registerNewNote(id);
   return id;
 }
@@ -106,13 +113,27 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     if (get().initialized) return;
 
     let docs = loadDocIndex();
+    if (!docs) return;
 
-    if (!docs || docs.length === 0) {
+    if (docs.length === 0 && !hasNotesFolderContent()) {
       const id = newNote();
       const now = Date.now();
       docs = [{ id, title: "Untitled", createdAt: now, updatedAt: now }];
       saveDocIndex(docs);
       saveActiveDocId(id);
+    }
+
+    if (docs.length === 0) {
+      set({
+        documents: [],
+        activeDocId: null,
+        content: "",
+        pendingContentLoad: null,
+        threads: [],
+        activeThreadId: null,
+        initialized: true,
+      });
+      return;
     }
 
     let activeId = loadActiveDocId();
@@ -135,6 +156,84 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     });
   },
 
+  refreshFromDisk: async (changedPath) => {
+    const previous = get();
+    const previousActiveId = previous.activeDocId;
+    const previousActiveDoc = previous.documents.find((d) => d.id === previousActiveId);
+
+    await refreshPersistence();
+
+    const docs = loadDocIndex() ?? [];
+
+    if (docs.length === 0) {
+      get().cancelPendingSaves();
+      set({
+        documents: [],
+        activeDocId: null,
+        content: "",
+        pendingContentLoad: { docId: "", html: "" },
+        threads: [],
+        activeThreadId: null,
+        saveStatus: "idle",
+        lastSavedAt: Date.now(),
+      });
+      return;
+    }
+
+    const changedDocId = changedPath ? getDocIdByPath(changedPath) : null;
+    const currentActiveDoc = docs.find((d) => d.id === previousActiveId);
+    const activeDocChangedOnDisk =
+      Boolean(currentActiveDoc && previousActiveDoc) &&
+      currentActiveDoc?.updatedAt !== previousActiveDoc?.updatedAt &&
+      (!previous.lastSavedAt || Date.now() - previous.lastSavedAt > SAVED_RESET_MS);
+    const activeStillExists = Boolean(currentActiveDoc);
+    const changedActiveDoc = changedDocId !== null && changedDocId === previousActiveId;
+
+    if (previousActiveId && activeStillExists) {
+      if ((changedActiveDoc || activeDocChangedOnDisk) && previous.saveStatus !== "saving") {
+        const html = loadDocContent(previousActiveId) ?? "";
+        set({
+          documents: docs,
+          content: html,
+          pendingContentLoad: { docId: previousActiveId, html },
+          saveStatus: "idle",
+          lastSavedAt: Date.now(),
+        });
+        return;
+      }
+
+      set({ documents: docs });
+      return;
+    }
+
+    const movedActiveId =
+      changedDocId && docs.some((d) => d.id === changedDocId) ? changedDocId : null;
+    const sameTitleDoc = previousActiveDoc
+      ? docs.find((d) => d.title === previousActiveDoc.title)
+      : undefined;
+    const nextActiveId = movedActiveId ?? sameTitleDoc?.id ?? docs[0].id;
+    const html = loadDocContent(nextActiveId) ?? "";
+    const activeDocMoved = Boolean(previousActiveId && nextActiveId !== previousActiveId);
+    const movedThreads = activeDocMoved ? previous.threads : loadDocThreads(nextActiveId) ?? [];
+
+    get().cancelPendingSaves();
+    saveActiveDocId(nextActiveId);
+    if (activeDocMoved) {
+      saveDocThreads(nextActiveId, movedThreads);
+    }
+
+    set({
+      documents: docs,
+      activeDocId: nextActiveId,
+      content: html,
+      pendingContentLoad: { docId: nextActiveId, html },
+      threads: movedThreads,
+      activeThreadId: null,
+      saveStatus: "idle",
+      lastSavedAt: Date.now(),
+    });
+  },
+
   acknowledgeContentLoad: () => set({ pendingContentLoad: null }),
 
   cancelPendingSaves: () => {
@@ -154,14 +253,14 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   },
 
   // ---- Documents ----
-  createDocument: () => {
+  createDocument: (parentFolderId) => {
     const { activeDocId, content, threads } = get();
 
     // Flush current before transitioning.
     if (activeDocId) flushCurrent(activeDocId, content, threads);
     get().cancelPendingSaves();
 
-    const id = newNote();
+    const id = newNote("Untitled", parentFolderId);
     const now = Date.now();
     const newDoc: DocumentMeta = {
       id,
@@ -261,14 +360,86 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     });
   },
 
-  renameDocument: (id, title) => {
-    set((state) => {
-      const updated = state.documents.map((d) =>
-        d.id === id ? { ...d, title, updatedAt: Date.now() } : d
-      );
-      saveDocIndex(updated);
-      return { documents: updated };
-    });
+  renameDocument: async (id, title) => {
+    const sanitizedTitle = sanitizeNoteId(title);
+    const slashIndex = id.lastIndexOf("/");
+    const parentId = slashIndex === -1 ? "" : id.slice(0, slashIndex);
+    const nextId = parentId ? `${parentId}/${sanitizedTitle}` : sanitizedTitle;
+
+    if (nextId === id) return;
+
+    const { activeDocId, content, threads } = get();
+    if (activeDocId === id) {
+      flushCurrent(id, content, threads);
+      get().cancelPendingSaves();
+    }
+
+    await renameNote(id, nextId);
+    await refreshPersistence();
+
+    const docs = loadDocIndex() ?? [];
+    if (activeDocId === id) {
+      saveActiveDocId(nextId);
+      saveDocThreads(nextId, threads);
+      set({
+        documents: docs,
+        activeDocId: nextId,
+        content,
+        pendingContentLoad: null,
+        threads,
+        saveStatus: "idle",
+        lastSavedAt: Date.now(),
+      });
+      return;
+    }
+
+    set({ documents: docs });
+  },
+
+  duplicateDocument: async (id) => {
+    const source = await readNote(id);
+    const slashIndex = id.lastIndexOf("/");
+    const parentId = slashIndex === -1 ? undefined : id.slice(0, slashIndex);
+    const sourceName = slashIndex === -1 ? id : id.slice(slashIndex + 1);
+    const nextId = allocateNoteId(`${sourceName}-copy`, parentId);
+    await writeNote(nextId, source.content);
+    await refreshPersistence();
+    set({ documents: loadDocIndex() ?? [] });
+  },
+
+  moveDocumentToFolder: async (id, targetFolderId) => {
+    const slashIndex = id.lastIndexOf("/");
+    const filename = slashIndex === -1 ? id : id.slice(slashIndex + 1);
+    const nextId = targetFolderId ? `${targetFolderId}/${filename}` : filename;
+    if (nextId === id) return;
+
+    const { activeDocId, content, threads } = get();
+    if (activeDocId === id) {
+      flushCurrent(id, content, threads);
+      get().cancelPendingSaves();
+    }
+
+    await renameNote(id, nextId);
+    await refreshPersistence();
+    const docs = loadDocIndex() ?? [];
+
+    if (activeDocId === id) {
+      saveActiveDocId(nextId);
+      saveDocThreads(nextId, threads);
+      set({
+        documents: docs,
+        activeDocId: nextId,
+        content,
+        pendingContentLoad: null,
+        threads,
+        activeThreadId: null,
+        saveStatus: "idle",
+        lastSavedAt: Date.now(),
+      });
+      return;
+    }
+
+    set({ documents: docs });
   },
 
   // ---- Content ----
@@ -305,11 +476,12 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   // ---- Threads ----
   setActiveThreadId: (id) => set({ activeThreadId: id }),
 
-  createThread: (selectedText) => {
+  createThread: (selectedText, anchor) => {
     const id = makeThreadId();
     const thread: CommentThread = {
       id,
       selectedText,
+      anchor,
       messages: [],
       status: "active",
       createdAt: Date.now(),

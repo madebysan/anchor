@@ -1,14 +1,30 @@
 
 import { useEffect, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
+import { DOMParser as ProseMirrorDOMParser } from "@tiptap/pm/model";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import { CommentMark } from "@/extensions/comment-mark";
 import CommentBubbleMenu from "./CommentBubbleMenu";
 import EditorToolbar from "./EditorToolbar";
+import { markdownToHtml } from "@/lib/markdown";
 import type { FontOption, SizeOption } from "@/lib/editor-preferences";
 import type { SaveStatus } from "@/lib/document-store";
 import type { Editor as TiptapEditor } from "@tiptap/react";
+import type { LineHeightOption } from "@/lib/editor-preferences";
+
+function looksLikeMarkdown(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (/^#{1,6}\s+\S/m.test(trimmed)) return true;
+  if (/^[-*+]\s+\S/m.test(trimmed)) return true;
+  if (/^\d+\.\s+\S/m.test(trimmed)) return true;
+  if (/^>\s+\S/m.test(trimmed)) return true;
+  if (/```[\s\S]*```/.test(trimmed)) return true;
+  if (/\[[^\]]+\]\([^)]+\)/.test(trimmed)) return true;
+  if (/\*\*[^*\n]+\*\*/.test(trimmed)) return true;
+  return false;
+}
 
 // Self-contained word count bar that listens to editor updates
 function WordCount({ editor }: { editor: TiptapEditor }) {
@@ -38,6 +54,7 @@ function WordCount({ editor }: { editor: TiptapEditor }) {
 
 interface EditorProps {
   onAddComment?: () => void;
+  onReady?: () => void;
   onUpdate?: () => void;
   onOpenSettings?: () => void;
   editorRef?: React.MutableRefObject<ReturnType<typeof useEditor> | null>;
@@ -45,8 +62,10 @@ interface EditorProps {
   proseSize?: string;
   currentFont?: FontOption;
   currentSize?: SizeOption;
+  currentLineHeight?: LineHeightOption;
   onFontChange?: (fontId: string) => void;
   onSizeChange?: (sizeId: string) => void;
+  onLineHeightChange?: (lineHeightId: string) => void;
   documentTitle?: string;
   saveStatus?: SaveStatus;
   lastSavedAt?: number | null;
@@ -68,6 +87,7 @@ export const defaultContent = `<h1>Welcome to InlineAI</h1>
 
 export default function Editor({
   onAddComment,
+  onReady,
   onUpdate,
   onOpenSettings,
   editorRef,
@@ -75,8 +95,10 @@ export default function Editor({
   proseSize = "prose-lg",
   currentFont,
   currentSize,
+  currentLineHeight,
   onFontChange,
   onSizeChange,
+  onLineHeightChange,
   documentTitle,
   saveStatus,
   lastSavedAt,
@@ -100,6 +122,20 @@ export default function Editor({
       attributes: {
         class:
           `prose ${proseSize} dark:prose-invert max-w-none focus:outline-none min-h-[500px] px-12 py-8`,
+      },
+      handlePaste: (view, event) => {
+        const text = event.clipboardData?.getData("text/plain");
+        if (!text || !looksLikeMarkdown(text)) return false;
+
+        event.preventDefault();
+        const html = markdownToHtml(text);
+        const wrapper = document.createElement("div");
+        wrapper.innerHTML = html;
+        const slice = ProseMirrorDOMParser
+          .fromSchema(view.state.schema)
+          .parseSlice(wrapper);
+        view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView());
+        return true;
       },
     },
     onUpdate: () => {
@@ -126,10 +162,16 @@ export default function Editor({
     el.style.fontFamily = fontFamily;
   }, [editor, fontFamily]);
 
-  // Expose editor instance to parent
-  if (editorRef && editor) {
-    editorRef.current = editor;
-  }
+  useEffect(() => {
+    if (!editor || !currentLineHeight) return;
+    editor.view.dom.style.lineHeight = currentLineHeight.cssValue;
+  }, [editor, currentLineHeight]);
+
+  useEffect(() => {
+    if (!editor) return;
+    editorRef && (editorRef.current = editor);
+    onReady?.();
+  }, [editor, editorRef, onReady]);
 
   return (
     <div className="flex flex-col h-full">
@@ -143,8 +185,10 @@ export default function Editor({
         onOpenSettings={onOpenSettings}
         currentFont={currentFont}
         currentSize={currentSize}
+        currentLineHeight={currentLineHeight}
         onFontChange={onFontChange}
         onSizeChange={onSizeChange}
+        onLineHeightChange={onLineHeightChange}
         documentTitle={documentTitle}
         saveStatus={saveStatus}
         lastSavedAt={lastSavedAt}

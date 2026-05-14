@@ -27,16 +27,17 @@ Forked from inlineai 2026-05-06, then shipped as a working .app the same day.
 **What works:**
 - Tauri shell + Vite + React + Tiptap editor
 - Local Claude Code integration: per-doc sessions (token-cheap follow-ups across comments), prompt-injected today's date, `--resume` with auto-retry on session expiry
-- Hierarchical sidebar — folders + nested `.md` files, search, expand/collapse persistence
+- Hierarchical sidebar — folders + nested `.md` files, empty folders, search, expand/collapse persistence, context menus for common file/folder actions
 - Personas: editor / copywriter / researcher / challenger; default-persona setting; `Note:` opt-out for plain notes; per-comment persona override dropdown
 - Auto-apply UX — claude's response replaces the highlighted passage in the editor; ⌘Z reverts
+- Comment anchors restore visual highlights after markdown reload when the original passage can still be found
 - Settings dialog (General / Personas / Shortcuts) with notes folder, theme, default font/size, reset
 - Native save dialogs for export, native folder picker for notes location, Reveal in Finder
 - macOS `.app` bundle with PATH augmentation so it finds `claude` outside Finder's default PATH
 
 **Known limitations:**
-- No file watcher yet — external edits to `.md` files (vim, Obsidian, claude direct write) don't refresh the editor. JS listener is the next big task; Rust scaffolding is in place.
-- Comments don't survive doc reload: turndown strips Tiptap comment marks during HTML→markdown round-trip. Fix is position-based comment tracking.
+- Comment anchor restoration is still best-effort. If the anchored passage is heavily rewritten outside the app, Inline MD may not be able to reattach the visual highlight.
+- File moving is intentionally conservative: "Move to parent folder" is shipped; arbitrary destination moves still need a folder-picker UI.
 - Unsigned `.app` — first launch requires right-click → Open to bypass Gatekeeper.
 
 See [`backlog.md`](backlog.md) for the work list.

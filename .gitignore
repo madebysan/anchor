@@ -6,6 +6,7 @@
 # build outputs
 /dist
 /build
+/test-results
 
 # Rust / Tauri
 /src-tauri/target

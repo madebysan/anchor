@@ -50,6 +50,7 @@ pub fn run() {
             let initial = config::load_config(app.handle());
             app.manage(config::ConfigState(Mutex::new(initial)));
             app.manage(watcher::WatcherState::new());
+            app.manage(ai::AiProcessState::new());
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -68,11 +69,16 @@ pub fn run() {
             notes::read_note,
             notes::write_note,
             notes::rename_note,
+            notes::rename_folder,
+            notes::create_folder,
+            notes::delete_folder,
             notes::delete_note,
             notes::write_export_file,
             notes::open_path,
+            notes::reveal_path,
             watcher::start_watching_notes,
             ai::ai_check_claude_cli,
+            ai::ai_cancel_claude,
             ai::ai_chat_claude,
             ai::ai_invoke_claude,
             ai::ai_execute_claude,
