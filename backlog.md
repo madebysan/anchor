@@ -9,9 +9,10 @@ menus v1, markdown paste formatting, Claude cancellation, dead-code cleanup,
 settings, session reuse, app icon + DMG, comment anchor restore, sidebar
 file/folder management v2, arbitrary folder moves, sidecar thread storage,
 onboarding copy, distribution runbook + local DMG script, ESLint, accessibility
-fixes, font bundle trimming, initial Playwright smoke tests, and signed +
-notarized macOS distribution all shipped.** Remaining big chunks: deeper
-browser-level tests and final branding.
+fixes, font bundle trimming, initial Playwright smoke tests, browser-level
+auto-apply regression coverage, and signed + notarized macOS distribution all
+shipped.** Remaining big chunks: final branding and one optional multi-doc
+comment regression.
 
 ---
 
@@ -110,15 +111,12 @@ the product is stable enough to commit to identity:
 
 ### Tests (Playwright)
 - Initial Playwright smoke tests shipped for markdown conversion, persona
-  defaults, source-offset routing, and thread history formatting. Next targets:
+  defaults, source-offset routing, and thread history formatting.
+- Browser-level editor regression shipped for a mocked Tauri + Claude flow:
+  create a highlighted comment, submit a rewrite, verify the temporary edit
+  highlight, save to markdown, and reload from the saved markdown.
+- Next target:
   - Multi-doc switch preserves comments
-  - Comment + Claude round-trip with a mock CLI
-  - File save round-trips markdown without drift
-
-### Browser-level editor tests
-- Add a Tauri/Vite-backed browser test that creates a real highlighted comment,
-  submits a mocked Claude response, verifies the replacement, and confirms the
-  temporary edit highlight appears.
 
 ---
 
