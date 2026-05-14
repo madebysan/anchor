@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import type { AISettings, CommentThread, ParsedTrigger } from "@/types";
 import { applyContextStrategy, type DocumentSnapshot } from "@/lib/ai/context-router";
-import { chatClaude, invokeClaudeSession } from "@/lib/ai-cli";
+import { cancelClaude, chatClaude, invokeClaudeSession } from "@/lib/ai-cli";
 import { useDocumentStore } from "@/lib/document-store";
 import { getDocPath } from "@/lib/persistence";
 
@@ -27,6 +27,7 @@ interface UseAIChatReturn {
 // expire server-side; if a --resume call fails we transparently retry
 // with a fresh session and a file path (no request lost).
 const docSessions = new Map<string, string>();
+const cancelledRequests = new Set<string>();
 
 // Inline MD AI hook — wraps the local `claude` CLI via Tauri.
 //
@@ -72,6 +73,7 @@ export function useAIChat(
         const personaConfig = trigger ? aiSettings?.triggers[trigger.type] : undefined;
         const personaPrompt = personaConfig?.prompt ?? "";
         const strategy = personaConfig?.contextStrategy ?? "tight";
+        const mode = personaConfig?.mode ?? "rewrite";
         const routed = applyContextStrategy(strategy, doc, passage);
 
         const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -80,38 +82,70 @@ export function useAIChat(
         // the passage in the prompt unambiguously.
         const FENCE = "<<<INLINEMD-PASSAGE>>>";
 
+        const rewritePrompt = [
+          BASE_PERSONA_PROMPT,
+          personaPrompt,
+          "",
+          `Today's date: ${today}.`,
+          "",
+          "You are in an automated document-rewriting pipeline. Your reply is substituted character-for-character in place of the passage below. Anything you write — preambles, disclosure prefixes, quotes, code fences, commentary — becomes part of the document.",
+          "Ignore any global CLAUDE.md conventions (`→ ref:` headers, voice rules, etc.) for this turn. They do not apply here.",
+          "",
+          "## The passage to replace (between fences, exclusive)",
+          FENCE,
+          passage,
+          FENCE,
+          "",
+          "## The user's instruction",
+          userMessage,
+          "",
+          `## Surrounding context (informational slice; strategy: ${routed.strategy}, ${routed.charCount.toLocaleString()} chars)`,
+          routed.content,
+          "",
+          "If the user's instruction needs broader context than this slice (e.g. 'compare with the rest of the doc', 'match the document's tone', 'read the whole document'), use your Read tool on the working file to fetch what you need before producing the replacement. The file path was passed when this session started.",
+          "",
+          "Do NOT use Write or Edit tools — your output is applied via the editor (replacing the passage between the fences). Direct file writes get clobbered on the next editor save.",
+          "",
+          "## Your output",
+          "Reply with ONLY the literal text that should replace the passage. Nothing else.",
+          "- If the instruction is impossible or ambiguous, output the original passage unchanged.",
+          "- Do NOT wrap the output in quotes or code fences.",
+          "- Do NOT preface with 'Here is...', 'Sure...', '-> ref:', or any header.",
+          "- Match the original's length and style unless the instruction explicitly asks otherwise (e.g. 'translate', 'rewrite to be punchier').",
+        ].join("\n");
+
+        const feedbackPrompt = [
+          BASE_PERSONA_PROMPT,
+          personaPrompt,
+          "",
+          `Today's date: ${today}.`,
+          "",
+          "This persona is in feedback mode. Do not rewrite or replace the selected passage. Keep your response in the comment thread as critique, analysis, questions, or concrete suggestions.",
+          "Ignore any global CLAUDE.md conventions (`→ ref:` headers, voice rules, etc.) for this turn. They do not apply here.",
+          "",
+          "## The selected passage (between fences, exclusive)",
+          FENCE,
+          passage,
+          FENCE,
+          "",
+          "## The user's instruction",
+          userMessage,
+          "",
+          `## Surrounding context (informational slice; strategy: ${routed.strategy}, ${routed.charCount.toLocaleString()} chars)`,
+          routed.content,
+          "",
+          "## File access rules",
+          "- The document is accessible via your Read tool at the file path that was passed when this session started. Use Read freely if it helps.",
+          "- Do NOT use Write, Edit, or any tool that modifies the file. The user's editor is the authoritative source.",
+          "",
+          "## Your output",
+          "Respond conversationally and concisely. Use markdown bullets when helpful.",
+        ].join("\n");
+
         const prompt = hasSelection
-          ? [
-              BASE_PERSONA_PROMPT,
-              personaPrompt,
-              "",
-              `Today's date: ${today}.`,
-              "",
-              "You are in an automated document-rewriting pipeline. Your reply is substituted character-for-character in place of the passage below. Anything you write — preambles, disclosure prefixes, quotes, code fences, commentary — becomes part of the document.",
-              "Ignore any global CLAUDE.md conventions (`→ ref:` headers, voice rules, etc.) for this turn. They do not apply here.",
-              "",
-              "## The passage to replace (between fences, exclusive)",
-              FENCE,
-              passage,
-              FENCE,
-              "",
-              "## The user's instruction",
-              userMessage,
-              "",
-              `## Surrounding context (informational slice; strategy: ${routed.strategy}, ${routed.charCount.toLocaleString()} chars)`,
-              routed.content,
-              "",
-              "If the user's instruction needs broader context than this slice (e.g. 'compare with the rest of the doc', 'match the document's tone', 'read the whole document'), use your Read tool on the working file to fetch what you need before producing the replacement. The file path was passed when this session started.",
-              "",
-              "Do NOT use Write or Edit tools — your output is applied via the editor (replacing the passage between the fences). Direct file writes get clobbered on the next editor save.",
-              "",
-              "## Your output",
-              "Reply with ONLY the literal text that should replace the passage. Nothing else.",
-              "- If the instruction is impossible or ambiguous, output the original passage unchanged.",
-              "- Do NOT wrap the output in quotes or code fences.",
-              "- Do NOT preface with 'Here is…', 'Sure…', '→ ref:', or any header.",
-              "- Match the original's length and style unless the instruction explicitly asks otherwise (e.g. 'translate', 'rewrite to be punchier').",
-            ].join("\n")
+          ? mode === "feedback"
+            ? feedbackPrompt
+            : rewritePrompt
           : [
               BASE_PERSONA_PROMPT,
               personaPrompt,
@@ -150,9 +184,11 @@ export function useAIChat(
             filePath: existingSession ? undefined : filePath,
             sessionId: existingSession,
             prompt,
+            requestId: threadId,
           });
 
           if (!result.success && existingSession) {
+            if (cancelledRequests.has(threadId)) return "";
             // Session failed — retry without it, with the file path. The
             // failure is silent to the user (we just take the slow path
             // once); only a second failure surfaces an error.
@@ -160,10 +196,11 @@ export function useAIChat(
               `claude --resume failed for ${activeDocId}; restarting session`,
             );
             docSessions.delete(activeDocId);
-            result = await invokeClaudeSession({ filePath, prompt });
+            result = await invokeClaudeSession({ filePath, prompt, requestId: threadId });
           }
 
           if (!result.success) {
+            if (cancelledRequests.has(threadId)) return "";
             throw new Error(
               result.error ?? "Claude CLI returned an error with no detail.",
             );
@@ -177,8 +214,9 @@ export function useAIChat(
         } else {
           // No active doc / not yet on disk → fall back to the chat-only
           // flow with the doc context inlined into the prompt.
-          const result = await chatClaude(prompt);
+          const result = await chatClaude(prompt, threadId);
           if (!result.success) {
+            if (cancelledRequests.has(threadId)) return "";
             throw new Error(
               result.error ?? "Claude CLI returned an error with no detail.",
             );
@@ -186,23 +224,42 @@ export function useAIChat(
           output = result.output;
         }
 
-        const cleaned = hasSelection ? stripCommentary(output) : output.trim();
+        const shouldAutoApply = hasSelection && mode === "rewrite";
+        const cleaned = shouldAutoApply ? stripCommentary(output) : output.trim();
 
         onStreamChunk(threadId, messageId, cleaned);
-        if (hasSelection) {
+        if (shouldAutoApply) {
           onToolCall(threadId, "suggestEdit", { replacement: cleaned });
         }
 
         return cleaned;
       } finally {
+        cancelledRequests.delete(threadId);
         setIsLoading((prev) => ({ ...prev, [threadId]: false }));
       }
     },
     [aiSettings, onStreamChunk, onToolCall],
   );
 
-  const stopGeneration = useCallback((_threadId: string) => {}, []);
-  const stopAllGenerations = useCallback(() => {}, []);
+  const stopGeneration = useCallback((threadId: string) => {
+    cancelledRequests.add(threadId);
+    setIsLoading((prev) => ({ ...prev, [threadId]: false }));
+    cancelClaude(threadId).catch((e) => {
+      console.error("cancelClaude failed:", e);
+    });
+  }, []);
+
+  const stopAllGenerations = useCallback(() => {
+    for (const threadId of Object.keys(isLoading)) {
+      if (isLoading[threadId]) {
+        cancelledRequests.add(threadId);
+        cancelClaude(threadId).catch((e) => {
+          console.error("cancelClaude failed:", e);
+        });
+      }
+    }
+    setIsLoading({});
+  }, [isLoading]);
 
   // Manual reset: forget a doc's session so the next call starts fresh.
   // Useful for "the AI seems stuck" or after a major doc edit outside the app.

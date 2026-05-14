@@ -100,6 +100,22 @@ fn note_path(folder: &Path, id: &str) -> PathBuf {
     folder.join(format!("{id}.md"))
 }
 
+fn validate_folder_id(id: &str) -> Result<(), String> {
+    let trimmed = id.trim();
+    if trimmed.is_empty() {
+        return Err("Folder id cannot be empty".to_string());
+    }
+    if trimmed.split('/').any(|segment| {
+        segment.is_empty()
+            || segment == "."
+            || segment == ".."
+            || segment.contains('\\')
+    }) {
+        return Err("Folder id contains an invalid path segment".to_string());
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn list_notes(state: State<'_, ConfigState>) -> Result<Vec<NoteFile>, String> {
     let folder = notes_folder(&state)?;
@@ -159,6 +175,9 @@ pub fn write_note(
     let folder = notes_folder(&state)?;
     let target = note_path(&folder, &id);
     ensure_inside(&folder, &target)?;
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("create parent dirs: {e}"))?;
+    }
     fs::write(&target, &content).map_err(|e| format!("write: {e}"))?;
     // Mark this path as a self-write so the file watcher doesn't bounce
     // the change back to the editor as if it were external.
@@ -186,6 +205,9 @@ pub fn rename_note(
     if new_path.exists() {
         return Err(format!("A note named '{new_id}' already exists"));
     }
+    if let Some(parent) = new_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("create parent dirs: {e}"))?;
+    }
     fs::rename(&old_path, &new_path).map_err(|e| format!("rename: {e}"))?;
     let content = fs::read_to_string(&new_path).unwrap_or_default();
     Ok(NoteFile {
@@ -195,6 +217,58 @@ pub fn rename_note(
         content,
         modified: modified_secs(&new_path),
     })
+}
+
+#[tauri::command]
+pub fn rename_folder(
+    state: State<'_, ConfigState>,
+    old_id: String,
+    new_name: String,
+) -> Result<(), String> {
+    let trimmed = new_name.trim();
+    if trimmed.is_empty() {
+        return Err("Folder name cannot be empty".to_string());
+    }
+    if trimmed.contains('/') || trimmed.contains('\\') {
+        return Err("Folder name cannot contain path separators".to_string());
+    }
+
+    let folder = notes_folder(&state)?;
+    let old_path = folder.join(&old_id);
+    ensure_inside(&folder, &old_path)?;
+
+    let parent = old_path
+        .parent()
+        .ok_or_else(|| "Folder has no parent".to_string())?;
+    let new_path = parent.join(trimmed);
+    ensure_inside(&folder, &new_path)?;
+
+    if new_path.exists() {
+        return Err(format!("A folder named '{trimmed}' already exists"));
+    }
+
+    fs::rename(&old_path, &new_path).map_err(|e| format!("rename folder: {e}"))
+}
+
+#[tauri::command]
+pub fn create_folder(state: State<'_, ConfigState>, id: String) -> Result<(), String> {
+    validate_folder_id(&id)?;
+    let folder = notes_folder(&state)?;
+    let target = folder.join(&id);
+    ensure_inside(&folder, &target)?;
+    fs::create_dir_all(&target).map_err(|e| format!("create folder: {e}"))
+}
+
+#[tauri::command]
+pub fn delete_folder(state: State<'_, ConfigState>, id: String) -> Result<(), String> {
+    validate_folder_id(&id)?;
+    let folder = notes_folder(&state)?;
+    let target = folder.join(&id);
+    ensure_inside(&folder, &target)?;
+    if target == normalize(&folder) {
+        return Err("Cannot delete the notes folder".to_string());
+    }
+    fs::remove_dir_all(&target).map_err(|e| format!("delete folder: {e}"))
 }
 
 #[tauri::command]
@@ -233,6 +307,24 @@ pub fn open_path(path: String) -> Result<(), String> {
     cmd.map(|_| ()).map_err(|e| format!("open: {e}"))
 }
 
+#[tauri::command]
+pub fn reveal_path(path: String) -> Result<(), String> {
+    use std::process::Command;
+
+    #[cfg(target_os = "macos")]
+    let cmd = Command::new("open").arg("-R").arg(&path).spawn();
+
+    #[cfg(target_os = "windows")]
+    let cmd = Command::new("explorer").arg("/select,").arg(&path).spawn();
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let cmd = Command::new("xdg-open")
+        .arg(Path::new(&path).parent().unwrap_or_else(|| Path::new(&path)))
+        .spawn();
+
+    cmd.map(|_| ()).map_err(|e| format!("reveal: {e}"))
+}
+
 // Walk the notes folder recursively. Returns a tree of NoteTreeNode. The
 // `id` of each file is its relative path from the notes folder, with the
 // `.md` extension stripped — same convention as the flat list_notes command,
@@ -265,9 +357,6 @@ fn walk_dir(root: &Path, dir: &Path, depth: usize) -> Vec<NoteTreeNode> {
                 continue;
             }
             let children = walk_dir(root, &path, depth + 1);
-            if children.is_empty() {
-                continue; // hide folders that contain no .md files
-            }
             let rel = path
                 .strip_prefix(root)
                 .ok()

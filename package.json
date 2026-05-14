@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
+    "test:e2e": "playwright test",
     "tauri": "tauri"
   },
   "dependencies": {

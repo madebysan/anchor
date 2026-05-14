@@ -18,8 +18,18 @@ export async function checkClaudeCli(): Promise<boolean> {
   return invoke<boolean>("ai_check_claude_cli");
 }
 
-export async function chatClaude(prompt: string): Promise<AiExecutionResult> {
-  return invoke<AiExecutionResult>("ai_chat_claude", { prompt });
+export async function cancelClaude(requestId: string): Promise<boolean> {
+  return invoke<boolean>("ai_cancel_claude", { requestId });
+}
+
+export async function chatClaude(
+  prompt: string,
+  requestId?: string,
+): Promise<AiExecutionResult> {
+  return invoke<AiExecutionResult>("ai_chat_claude", {
+    prompt,
+    requestId: requestId ?? null,
+  });
 }
 
 // Session-aware claude call. Pass:
@@ -30,17 +40,24 @@ export async function invokeClaudeSession(args: {
   filePath?: string;
   sessionId?: string;
   prompt: string;
+  requestId?: string;
 }): Promise<AiSessionResult> {
   return invoke<AiSessionResult>("ai_invoke_claude", {
     filePath: args.filePath ?? null,
     sessionId: args.sessionId ?? null,
     prompt: args.prompt,
+    requestId: args.requestId ?? null,
   });
 }
 
 export async function executeClaudeEdit(
   filePath: string,
   prompt: string,
+  requestId?: string,
 ): Promise<AiExecutionResult> {
-  return invoke<AiExecutionResult>("ai_execute_claude", { filePath, prompt });
+  return invoke<AiExecutionResult>("ai_execute_claude", {
+    filePath,
+    prompt,
+    requestId: requestId ?? null,
+  });
 }

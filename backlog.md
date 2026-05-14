@@ -3,11 +3,13 @@
 inline-md roadmap. Forked from inlineai 2026-05-06.
 Organized by topic, not chronology.
 
-Status as of 2026-05-06 end-of-session: **Phases 1, 2.1, 2.2, 2.3 (Rust),
-core auto-apply UX, hierarchical sidebar, dead-code cleanup, settings,
-session reuse, app icon + DMG all shipped.** Remaining big chunks:
-file watcher JS listener, sidebar context menus, comment-mark round-trip,
-critic/feedback persona mode.
+Status as of 2026-05-08: **Phases 1, 2.1, 2.2, file watching, core
+auto-apply UX, feedback-mode personas, hierarchical sidebar, sidebar context
+menus v1, markdown paste formatting, Claude cancellation, dead-code cleanup,
+settings, session reuse, app icon + DMG, comment anchor restore, sidebar file/folder
+management v2, onboarding copy, distribution runbook, and initial Playwright
+smoke tests all shipped.** Remaining big chunks: deeper auto-apply polish,
+arbitrary file moves, signed distribution, and branding.
 
 ---
 
@@ -24,137 +26,51 @@ in Tiptap; ⌘Z reverts via the editor's history. What's still missing:
 - The snapshot is already captured by Tiptap's history extension; verify
   it consistently does so before our `replaceWith` dispatch.
 
-### Critic / feedback persona mode
-The current auto-apply contract substitutes claude's response for the
-highlighted passage. That works for editor/copywriter but breaks
-researcher/challenger — those are critique personas; their output is
-analysis, not a replacement.
-- Add a `mode: "rewrite" | "feedback"` field to TriggerConfig.
-- Feedback personas: response stays in the comment thread, no replacement.
-- Settings UI gets a toggle per persona.
-- Default modes: editor/copywriter = rewrite; researcher/challenger =
-  feedback.
-
 ### Drop the comment thread UI (deferred)
 **Files:** `src/components/comments/`.
 - Comments become single-message anchors, not threads.
 - Per-passage history log (collapsed by default) replaces the thread.
 - Coupled with comment-mark round-trip below.
 
-### Comment-mark round-trip (KNOWN BROKEN)
+### Comment-mark round-trip (best-effort shipped)
 **Files:** `src/extensions/comment-mark.ts`, `src/lib/markdown.ts`,
 `src/lib/persistence.ts`.
-- Phase 2 trade-off: turndown strips comment marks when converting HTML →
-  markdown. Threads in localStorage survive but their visual highlights in
-  the doc disappear on reload.
-- Fix: store passage positions per-thread (start/end offsets in the
-  markdown source), re-apply CommentMark on load by mapping those offsets
-  to ProseMirror positions.
-- Or: switch comment storage to a sidecar `<note>.md.threads.json` file
-  alongside each note, with positions captured at create time.
-
----
-
-## Phase 2.3 — File watching
-
-### Detect external file changes (JS listener — Rust side scaffolded)
-The Rust watcher is in place (`src-tauri/src/watcher.rs`, `notify` crate,
-emits `notes-changed` events with `{ path, kind }`, debounces per-path,
-self-write marker prevents bouncing our own saves). What's missing:
-
-**Files:** `src/App.tsx` (or new `src/hooks/useFileWatcher.ts`),
-`src/lib/persistence.ts`, `src/lib/document-store.ts`.
-
-- After `bootPersistence()` succeeds, call
-  `invoke("start_watching_notes")` to start the watcher.
-- Listen for `notes-changed` via `@tauri-apps/api/event`'s `listen()`.
-- On event:
-  - Resolve the `path` to a doc id by stripping `<notes-folder>/` prefix
-    and `.md` suffix.
-  - Re-fetch the file content (`readNote(id)`) and update `noteCache`.
-  - Update the sidebar tree cache so renames/creates/deletes show up.
-  - If the changed doc is the active doc:
-    - Editor clean (`saveStatus !== "saving"` and no pending content) →
-      reload the editor with the new content via `pendingContentLoad`.
-    - Editor dirty → log a warning and skip the reload. v2 adds a small
-      conflict toast ("file changed externally — [Reload] [Keep mine]").
-
-**Why this matters:** lets the user edit notes in vim/Obsidian/Bear and
-have Inline MD pick up changes. Also re-enables claude-writes-the-file
-flows (currently blocked via prompt because edits would get clobbered).
-
-**Trigger:** when the "claude can edit the file" workflow becomes
-worth re-enabling, OR when external editing is a regular workflow.
-
----
+- Shipped: threads now store a ProseMirror passage anchor and the editor
+  reapplies `CommentMark` on load. It falls back to matching the selected text
+  when positions drift.
+- Remaining: move thread storage from localStorage into a sidecar
+  `<note>.md.threads.json` file and track markdown-source offsets so anchors
+  survive heavier external rewrites.
 
 ## UX polish
-
-### Suggestion `reason` display
-- The new flow is auto-apply, but Claude's text response (the "why") is still
-  worth surfacing. Show under the comment, not as a card.
-
-### Click-to-expand context chip
-**File:** `src/components/comments/CommentInput.tsx`.
-- The chip already shows strategy + char count. Make it clickable to reveal
-  the actual prompt that will be sent to Claude. Full transparency.
 
 ### Multi-document drag-to-reorder
 - Sidebar already has the visual scaffold. Skip unless folder-of-files mode
   ends up needing manual ordering. (Filesystem mtime sort is probably enough.)
 
-### Rename note (file rename on disk) — folded into sidebar context menu v1
-- The Rust `rename_note` command exists; the store's `renameDocument`
-  currently just mutates state. Wire it up via the sidebar v1 work below.
-
 ---
 
 ## Sidebar context menus
 
-Replace the per-row hover icons (Pencil, Trash) with a right-click menu.
-Different actions per item kind (file vs folder). Reference: macOS Notes
-and Bear context-menu UX patterns.
+v1 and v2 shipped. Remaining work is arbitrary destination moves and pinning.
 
-### v1 — low-hanging set (~2 hours)
-**Files:** `src/components/documents/DocumentSidebar.tsx` (or new
-`SidebarContextMenu.tsx`), needs `shadcn/ui`'s `context-menu` component
-installed (`npx shadcn add context-menu`).
-
-- Wrap each FileRow and TreeNodeView folder header in `<ContextMenu>`.
-- File menu items:
-  - **Reveal in Finder** — call existing `open_path` Rust command on the
-    file's parent dir + select the file (`open -R <path>` reveals).
-  - **Copy filepath** — `navigator.clipboard.writeText(path)`.
-  - **Rename** — same flow as the current Pencil button (inline edit).
-    Wire renameDocument to also call the Rust `rename_note` command (the
-    folded "Rename note (file rename on disk)" task above).
-  - **Delete** — same flow as the current Trash button (existing
-    AlertDialog confirmation).
-- Folder menu items:
-  - **Reveal in Finder** — `open_path` on the folder.
-  - **Rename folder** — needs a small Rust `rename_folder(old, new)`
-    command (one `fs::rename` call). Update the tree cache.
-- Remove the hover Pencil/Trash icons from FileRow.
-
-### v2 — file/folder management (~1 day)
+### v2 — file/folder management (shipped 2026-05-08)
 
 **Folder actions:**
-- **New Note in this folder** — extend `allocateNoteId` to take a parent
+- ✓ **New Note in this folder** — extend `allocateNoteId` to take a parent
   folder id; have the Rust `write_note` create parent dirs as needed.
   The id becomes `<folder-id>/<sanitized-title>`.
-- **New Subfolder** — new Rust `create_folder(path)` command. Refresh
-  tree cache. Empty folders are currently hidden by `walk_dir` — change
-  that, or leave it (folders only appear once they have a `.md` inside).
-- **Delete Folder (recursive)** — new Rust `delete_folder(id)`. Big
+- ✓ **New Subfolder** — new Rust `create_folder(path)` command. Refresh
+  tree cache. Empty folders now show in the sidebar.
+- ✓ **Delete Folder (recursive)** — new Rust `delete_folder(id)`. Big
   confirmation dialog ("Delete X note files inside?"). Update tree.
 
 **File actions:**
-- **Duplicate** — read source content, allocate `<original>-copy` id
+- ✓ **Duplicate** — read source content, allocate `<original>-copy` id
   (with collision-safe suffixing — `allocateNoteId` already handles
   this), write new file. Persistence writeNote does the rest.
-- **Move to Parent Folder** — new Rust `move_note(id, target_dir)`
-  command (fs::rename across folders). Update cache id everywhere.
-  Active-doc id rewrite if needed.
+- ✓ **Move to Parent Folder** — implemented via the existing disk-backed
+  `rename_note` command. Updates cache id and active-doc id when needed.
 
 ### Later — needs separate design
 
@@ -194,24 +110,17 @@ the product is stable enough to commit to identity:
   user actually surfaces.
 
 ### Tests (Playwright)
-- Inherited from inlineai's backlog. `playwright` is in devDeps; no tests
-  written yet. Same suggested first targets:
+- Initial Playwright smoke tests shipped for markdown conversion and persona
+  defaults. Next targets:
   - Multi-doc switch preserves comments
   - Comment + Claude round-trip with a mock CLI
   - File save round-trips markdown without drift
 
-### Editor mount race
-- Inherited: 100ms `setTimeout` in `EditorPage.tsx` waits for Tiptap to mount.
-  Replace with an `onReady` callback prop on the Editor component.
-
 ### `findPassageParagraphIdx` substring brittleness
 - Inherited: `context-router.ts` finds the passage by substring match.
-  Fragile. Track passage position via the comment mark's range when the
-  comment is created, store it on the thread.
-
-### Subprocess cancellation
-- `useAIChat.stopGeneration()` is a no-op. Add a Rust command that kills
-  the running claude subprocess by pid (track per-thread).
+  Fragile. The comment thread now stores a passage anchor from the selected
+  range; next step is routing AI context from that anchor instead of substring
+  lookup.
 
 ---
 
@@ -225,13 +134,19 @@ the product is stable enough to commit to identity:
       overwriting the old DMG, so two are sitting on Desktop. A small
       `/release-dmg` workflow that handles "trash old, drop new" cleanly
       would be nicer.
-- [ ] Tests — Playwright is in devDeps but no tests yet. Backlog
+- [x] Tests — Playwright is wired with initial smoke tests. Backlog
       candidates already noted in `## Hygiene`. First targets: comment
       auto-apply round-trip with a mocked claude, markdown-on-disk
       save/reload parity, persona override flow.
-- [ ] First-run UX polish — the OnboardingScreen currently shows just
-      "Pick your notes folder." Could explain what Inline MD does in 1-2
-      lines. Worth thinking about when we revisit branding.
+- [x] First-run UX polish — OnboardingScreen now introduces the markdown-folder
+      and local-Claude workflow before asking for a notes folder.
+
+## Added 2026-05-06 (from Things triage)
+
+- [ ] **Tagged personas inherit the full thread.** When a comment thread reaches a follow-up that @-mentions a different persona, that persona currently gets only the new message as context. Pass the prior thread (claude's responses + user follow-ups) so the tagged persona can pick up mid-conversation without the user re-explaining. Files: `src/hooks/useAIChat.ts` (build prompt), thread-state lookup in comment store.
+- [ ] **Deep-refactor option: native Swift / Mac.** Decision-deferred exploratory item. Tauri is shipping fine, but the question is whether a native Swift rewrite (likely funded with Cape credits — engineering time budget, not API credits) would unlock things Tauri can't: real macOS document model, system services, sharper UI feel. Park until either (a) Tauri hits a real wall or (b) the app's value is proven enough to justify the rewrite cost. Reference: this is the "throw it away and rebuild" option, not an incremental change.
+
+---
 
 ## Future / exploratory
 

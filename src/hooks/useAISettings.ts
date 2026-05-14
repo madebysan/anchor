@@ -72,7 +72,7 @@ export function useAISettings() {
   );
 
   // Add a new trigger. Returns false if key already exists.
-  // New triggers default to the "tight" context strategy.
+  // New triggers default to passage-only rewrite behavior.
   const addTrigger = useCallback((name: string): boolean => {
     const key = name.toLowerCase().replace(/\s+/g, "-");
     setSettings((prev) => {
@@ -85,7 +85,8 @@ export function useAISettings() {
             name,
             enabled: true,
             prompt: `You are a ${name.toLowerCase()}. Help the user with the highlighted passage based on your expertise. Follow any specific instructions the user gave after the trigger.`,
-            contextStrategy: "tight",
+            contextStrategy: "passage-only",
+            mode: "rewrite",
           },
         },
       };

@@ -60,6 +60,18 @@ export async function renameNote(oldId: string, newId: string): Promise<NoteFile
   return invoke<NoteFile>("rename_note", { oldId, newId });
 }
 
+export async function renameFolder(oldId: string, newName: string): Promise<void> {
+  return invoke<void>("rename_folder", { oldId, newName });
+}
+
+export async function createFolder(id: string): Promise<void> {
+  return invoke<void>("create_folder", { id });
+}
+
+export async function deleteFolder(id: string): Promise<void> {
+  return invoke<void>("delete_folder", { id });
+}
+
 export async function deleteNote(id: string): Promise<void> {
   return invoke<void>("delete_note", { id });
 }

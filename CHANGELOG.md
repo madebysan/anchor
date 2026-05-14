@@ -5,6 +5,34 @@ Updated every session via `/save-session`.
 
 ---
 
+## 2026-05-08
+
+### Features
+- **External notes refresh** — frontend now starts the Rust watcher, listens for `notes-changed`, refreshes the note cache/sidebar tree, reloads clean active files after external edits, and polls every 3 seconds while visible for Google Drive/Finder cases where native events are missed.
+- **Empty folders in sidebar** — recursive tree walking now returns folders even before they contain `.md` files.
+- **Feedback-mode personas** — personas now support `rewrite` or `feedback` mode. Editor/copywriter rewrite selected text; researcher/challenger default to feedback-only responses that stay in the comment thread.
+- **Sidebar context menus** — file and folder rows now have right-click menus. Files support Reveal in Finder, Copy filepath, Rename, and Delete. Folders support Reveal in Finder and Rename folder.
+- **Markdown paste formatting** — markdown-looking pasted text is parsed through the existing markdown pipeline before insertion into Tiptap.
+- **Claude cancellation** — running Claude subprocesses are tracked per request, and Stop now terminates the active process instead of being a no-op.
+- **Line height control** — editor appearance preferences now include Tight, Normal, Relaxed, and Loose line-height options in the toolbar and settings.
+- **Expandable context chip** — persona context chips can expand to show the persona prompt and routed context preview before sending to Claude.
+- **Suggestion reasons** — suggested edit reasons now appear inline under the assistant message when present.
+- **Comment anchor restore** — comment threads now store passage anchors and reapply visual comment marks after markdown reload when the original passage can still be located.
+- **Sidebar management v2** — sidebar menus now support new notes inside folders, new subfolders, duplicate note, move note to parent folder, and recursive folder delete.
+- **First-run onboarding copy** — the folder picker now introduces Inline MD's markdown-folder + local-Claude workflow before asking for a folder.
+- **Playwright smoke tests** — added a Playwright test script and initial markdown/settings regression coverage.
+
+### Fixes
+- **Startup default-note guard** — app boot/refresh no longer creates a root `Untitled.md` just because the markdown cache is temporarily empty or the selected notes folder only contains folders.
+- **Disk-backed rename** — sidebar file rename now calls the Rust `rename_note` command and refreshes the document id/path instead of only mutating in-memory state.
+- **Editor mount readiness** — document-store initialization now waits for an explicit Tiptap `onReady` callback instead of a fixed 100ms timeout.
+- **Nested note writes** — `write_note` and `rename_note` create parent directories before writing or moving nested notes.
+
+### Docs
+- Added `docs/distribution.md` with the local build, signing/notarization, and DMG housekeeping checklist.
+
+---
+
 ## 2026-05-06
 
 ### Features
@@ -41,6 +69,8 @@ Updated every session via `/save-session`.
 - Settings dropdown collapsed from 7 context strategies to 3 (passage-only / local-section / full-document) with on-load migration of legacy values.
 
 ### Distribution
+- **Local release build preflight** — verified the icon set exists and confirmed there is no local Developer ID signing identity, so generated DMGs remain unsigned until signing is configured.
+- **DMG build** — built `src-tauri/target/release/bundle/dmg/Inline MD_0.1.0_aarch64.dmg` locally and verified the disk image checksum with `hdiutil verify`.
 - **`Inline MD 0.1.0 (path-fix).dmg`** built and on Desktop. ARM64, ~7 MB, unsigned. First launch: right-click → Open.
 
 ### Status: committed (working tree clean, dev server stopped)

@@ -11,10 +11,79 @@ import { useDocumentStore } from "@/lib/document-store";
 import { getNoteTree } from "@/lib/persistence";
 import type { NoteTreeNode } from "@/lib/notes-fs";
 import { parseTrigger, isPlainNote } from "@/lib/triggers";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { DocumentSnapshot } from "@/lib/ai/context-router";
-import type { SuggestedEdit } from "@/types";
+import type { CommentThread, SuggestedEdit } from "@/types";
 import type { Editor as TiptapEditor } from "@tiptap/react";
 import { GripVertical } from "lucide-react";
+
+interface NotesChangedPayload {
+  path: string;
+  kind: "modified" | "created" | "removed" | "renamed";
+}
+
+const NOTES_REFRESH_DEBOUNCE_MS = 250;
+const NOTES_POLL_INTERVAL_MS = 3000;
+
+function rangeHasCommentMark(
+  editor: TiptapEditor,
+  from: number,
+  to: number,
+  commentId: string
+): boolean {
+  let found = false;
+  editor.state.doc.nodesBetween(from, to, (node) => {
+    if (found) return false;
+    found = node.marks.some(
+      (mark) => mark.type.name === "comment" && mark.attrs.commentId === commentId
+    );
+    return !found;
+  });
+  return found;
+}
+
+function findThreadRange(editor: TiptapEditor, thread: CommentThread) {
+  const text = thread.anchor?.text || thread.selectedText;
+  if (!text.trim()) return null;
+
+  const anchor = thread.anchor;
+  if (anchor) {
+    const slice = editor.state.doc.textBetween(anchor.pmFrom, anchor.pmTo, " ");
+    if (slice === anchor.text || slice === thread.selectedText) {
+      return { from: anchor.pmFrom, to: anchor.pmTo };
+    }
+  }
+
+  let match: { from: number; to: number } | null = null;
+  editor.state.doc.descendants((node, pos) => {
+    if (match || !node.isText) return false;
+    const content = node.text ?? "";
+    const offset = content.indexOf(text);
+    if (offset === -1) return true;
+    match = { from: pos + offset, to: pos + offset + text.length };
+    return false;
+  });
+  return match;
+}
+
+function restoreCommentMarks(editor: TiptapEditor, threads: CommentThread[]): void {
+  const commentMark = editor.schema.marks.comment;
+  if (!commentMark) return;
+
+  let tr = editor.state.tr;
+  let modified = false;
+  for (const thread of threads) {
+    if (thread.status !== "active") continue;
+    const range = findThreadRange(editor, thread);
+    if (!range) continue;
+    if (rangeHasCommentMark(editor, range.from, range.to, thread.id)) continue;
+    tr = tr.addMark(range.from, range.to, commentMark.create({ commentId: thread.id }));
+    modified = true;
+  }
+
+  if (modified) editor.view.dispatch(tr);
+}
 
 function DragHandle({
   onDragStart,
@@ -101,8 +170,10 @@ export default function EditorPage({
   const {
     currentFont,
     currentSize,
+    currentLineHeight,
     setFont,
     setFontSize,
+    setLineHeight,
     formattingCollapsed,
     toggleFormattingCollapsed,
   } = useEditorPreferences();
@@ -146,17 +217,66 @@ export default function EditorPage({
     return [...onDisk, ...synthetics];
   }, [documents]);
 
-  // Initialize the store once the editor is ready. Tiptap mounts async
-  // (immediatelyRender: false) so the ref isn't populated on EditorPage's first
-  // render. A short delay lets it land before we trigger pendingContentLoad.
+  const handleEditorReady = useCallback(() => {
+    if (useDocumentStore.getState().initialized) return;
+    useDocumentStore.getState().initialize();
+  }, []);
+
   useEffect(() => {
-    if (initialized) return;
-    const timer = setTimeout(() => {
-      if (editorRef.current) {
-        useDocumentStore.getState().initialize();
+    if (!initialized) return;
+
+    let cancelled = false;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let latestChangedPath: string | undefined;
+    let unlisten: (() => void) | undefined;
+
+    const flushRefresh = () => {
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+        refreshTimer = null;
       }
-    }, 100);
-    return () => clearTimeout(timer);
+      const changedPath = latestChangedPath;
+      latestChangedPath = undefined;
+      useDocumentStore.getState().refreshFromDisk(changedPath).catch((e) => {
+        console.error("refreshFromDisk failed:", e);
+      });
+    };
+
+    invoke<void>("start_watching_notes").catch((e) => {
+      console.error("start_watching_notes failed:", e);
+    });
+
+    listen<NotesChangedPayload>("notes-changed", (event) => {
+      if (cancelled) return;
+      latestChangedPath = event.payload.path;
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(flushRefresh, NOTES_REFRESH_DEBOUNCE_MS);
+    })
+      .then((dispose) => {
+        if (cancelled) {
+          dispose();
+          return;
+        }
+        unlisten = dispose;
+      })
+      .catch((e) => {
+        console.error("notes-changed listener failed:", e);
+      });
+
+    pollTimer = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      useDocumentStore.getState().refreshFromDisk().catch((e) => {
+        console.error("refreshFromDisk poll failed:", e);
+      });
+    }, NOTES_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      if (refreshTimer) clearTimeout(refreshTimer);
+      if (pollTimer) clearInterval(pollTimer);
+      unlisten?.();
+    };
   }, [initialized]);
 
   // Apply pendingContentLoad to the editor without re-emitting an update
@@ -166,6 +286,7 @@ export default function EditorPage({
     const editor = editorRef.current;
     if (!editor) return;
     editor.commands.setContent(pendingContentLoad.html, { emitUpdate: false });
+    restoreCommentMarks(editor, useDocumentStore.getState().threads);
     useDocumentStore.getState().acknowledgeContentLoad();
   }, [pendingContentLoad]);
 
@@ -216,12 +337,18 @@ export default function EditorPage({
       const newText = editor.schema.text(replacement, [commentMark]);
       const tr = editor.state.tr.replaceWith(markFrom, markTo, newText);
       editor.view.dispatch(tr);
+      const anchorFrom = markFrom;
 
       // Update the thread's selectedText so subsequent follow-up messages
       // operate on the post-edit passage.
       useDocumentStore.getState().updateThread(threadId, (t) => ({
         ...t,
         selectedText: replacement,
+        anchor: {
+          text: replacement,
+          pmFrom: anchorFrom,
+          pmTo: anchorFrom + replacement.length,
+        },
       }));
     },
     settings
@@ -241,6 +368,30 @@ export default function EditorPage({
     useDocumentStore.getState().createDocument();
   }, [stopAllGenerations]);
 
+  const handleCreateDocumentInFolder = useCallback(
+    (folderId: string) => {
+      stopAllGenerations();
+      useDocumentStore.getState().createDocument(folderId);
+    },
+    [stopAllGenerations]
+  );
+
+  const handleDuplicateDocument = useCallback((id: string) => {
+    useDocumentStore.getState().duplicateDocument(id).catch((e) => {
+      console.error("duplicateDocument failed:", e);
+    });
+  }, []);
+
+  const handleMoveDocumentToFolder = useCallback(
+    (id: string, targetFolderId: string | null) => {
+      if (id === activeDocId) stopAllGenerations();
+      useDocumentStore.getState().moveDocumentToFolder(id, targetFolderId).catch((e) => {
+        console.error("moveDocumentToFolder failed:", e);
+      });
+    },
+    [activeDocId, stopAllGenerations]
+  );
+
   const handleDeleteDocument = useCallback(
     (id: string) => {
       // If we're deleting the active doc, the store will load a different one.
@@ -252,7 +403,9 @@ export default function EditorPage({
 
   const handleRenameDocument = useCallback(
     (id: string, title: string) => {
-      useDocumentStore.getState().renameDocument(id, title);
+      useDocumentStore.getState().renameDocument(id, title).catch((e) => {
+        console.error("renameDocument failed:", e);
+      });
     },
     []
   );
@@ -334,7 +487,11 @@ export default function EditorPage({
     if (from === to) return;
 
     const selectedText = editor.state.doc.textBetween(from, to, " ");
-    const threadId = useDocumentStore.getState().createThread(selectedText);
+    const threadId = useDocumentStore.getState().createThread(selectedText, {
+      text: selectedText,
+      pmFrom: from,
+      pmTo: to,
+    });
 
     editor.chain().focus().setMark("comment", { commentId: threadId }).run();
   }, []);
@@ -478,6 +635,14 @@ export default function EditorPage({
       useDocumentStore.getState().updateThread(threadId, (t) => ({
         ...t,
         selectedText: suggestion.suggestedText,
+        anchor:
+          markFrom !== null
+            ? {
+                text: suggestion.suggestedText,
+                pmFrom: markFrom,
+                pmTo: markFrom + suggestion.suggestedText.length,
+              }
+            : t.anchor,
         messages: t.messages.map((m) =>
           m.id === messageId
             ? { ...m, suggestedEdit: { ...suggestion, status: "accepted" as const } }
@@ -534,9 +699,12 @@ export default function EditorPage({
               activeDocId={activeDocId}
               noteTree={sidebarTree}
               onCreateDocument={handleCreateDocument}
+              onCreateDocumentInFolder={handleCreateDocumentInFolder}
               onSwitchDocument={handleSwitchDocument}
               onDeleteDocument={handleDeleteDocument}
               onRenameDocument={handleRenameDocument}
+              onDuplicateDocument={handleDuplicateDocument}
+              onMoveDocumentToFolder={handleMoveDocumentToFolder}
               notesFolder={notesFolder}
               onChangeNotesFolder={onChangeNotesFolder}
             />
@@ -548,6 +716,7 @@ export default function EditorPage({
       <div className="flex-1 min-w-0 h-full">
         <Editor
           editorRef={editorRef}
+          onReady={handleEditorReady}
           onAddComment={handleAddComment}
           onUpdate={handleEditorUpdate}
           onOpenSettings={() => setSettingsOpen(true)}
@@ -555,8 +724,10 @@ export default function EditorPage({
           proseSize={currentSize.proseClass}
           currentFont={currentFont}
           currentSize={currentSize}
+          currentLineHeight={currentLineHeight}
           onFontChange={setFont}
           onSizeChange={setFontSize}
+          onLineHeightChange={setLineHeight}
           documentTitle={documentTitle}
           saveStatus={saveStatus}
           lastSavedAt={lastSavedAt}
@@ -605,8 +776,10 @@ export default function EditorPage({
         onChangeNotesFolder={onChangeNotesFolder}
         currentFont={currentFont}
         currentSize={currentSize}
+        currentLineHeight={currentLineHeight}
         onFontChange={setFont}
         onSizeChange={setFontSize}
+        onLineHeightChange={setLineHeight}
       />
 
     </div>

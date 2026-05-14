@@ -30,12 +30,12 @@ export default function OnboardingScreen({ onFolderChosen }: OnboardingScreenPro
   return (
     <div className="flex h-screen w-screen flex-col items-center justify-center gap-8 bg-background p-8 text-center">
       <div className="max-w-md space-y-4">
-        <h1 className="text-3xl font-semibold tracking-tight">Pick your notes folder</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Inline MD</h1>
         <p className="text-base text-muted-foreground">
-          Inline MD reads and writes plain markdown files. Choose a folder where your notes live, or a fresh empty folder to start.
+          Work directly in a folder of markdown files. Highlight text, leave an instruction, and local Claude Code can edit that passage in place.
         </p>
         <p className="text-sm text-muted-foreground">
-          You can change this later in Settings.
+          Choose an existing notes folder or start with an empty one. You can change it later in Settings.
         </p>
       </div>
       <Button onClick={handlePick} size="lg" disabled={busy}>

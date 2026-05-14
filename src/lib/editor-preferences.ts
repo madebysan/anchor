@@ -12,6 +12,12 @@ export interface SizeOption {
   proseClass: string;
 }
 
+export interface LineHeightOption {
+  id: string;
+  label: string;
+  cssValue: string;
+}
+
 export const FONT_OPTIONS: FontOption[] = [
   { id: "geist", label: "Geist Sans", cssVar: "var(--font-geist-sans)" },
   { id: "inter", label: "Inter", cssVar: "var(--font-inter)" },
@@ -32,9 +38,17 @@ export const SIZE_OPTIONS: SizeOption[] = [
   { id: "xl", label: "X-Large", proseClass: "prose-xl" },
 ];
 
+export const LINE_HEIGHT_OPTIONS: LineHeightOption[] = [
+  { id: "tight", label: "Tight", cssValue: "1.45" },
+  { id: "normal", label: "Normal", cssValue: "1.65" },
+  { id: "relaxed", label: "Relaxed", cssValue: "1.85" },
+  { id: "loose", label: "Loose", cssValue: "2" },
+];
+
 export interface EditorPreferences {
   fontId: string;
   sizeId: string;
+  lineHeightId: string;
   /** Hide the formatting cluster (B/I/H1.../font/size) — chrome buttons stay. */
   formattingCollapsed: boolean;
 }
@@ -42,6 +56,7 @@ export interface EditorPreferences {
 export const DEFAULT_EDITOR_PREFS: EditorPreferences = {
   fontId: "geist",
   sizeId: "lg",
+  lineHeightId: "normal",
   formattingCollapsed: true,
 };
 
@@ -67,8 +82,13 @@ export function loadEditorPrefs(): EditorPreferences {
       typeof parsed.formattingCollapsed === "boolean"
         ? parsed.formattingCollapsed
         : DEFAULT_EDITOR_PREFS.formattingCollapsed;
+    const lineHeightId =
+      typeof parsed.lineHeightId === "string" &&
+      LINE_HEIGHT_OPTIONS.some((l) => l.id === parsed.lineHeightId)
+        ? parsed.lineHeightId
+        : DEFAULT_EDITOR_PREFS.lineHeightId;
 
-    return { fontId, sizeId, formattingCollapsed };
+    return { fontId, sizeId, lineHeightId, formattingCollapsed };
   } catch {
     return DEFAULT_EDITOR_PREFS;
   }

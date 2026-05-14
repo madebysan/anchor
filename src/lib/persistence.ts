@@ -34,6 +34,11 @@ const KEY_ACTIVE_DOC = "inline-md-active-doc";
 // =====================
 
 export async function bootPersistence(): Promise<void> {
+  await refreshPersistence();
+  bootCompleted = true;
+}
+
+export async function refreshPersistence(): Promise<void> {
   const tree = await listNoteTree();
   noteCache.clear();
   for (const file of walkFiles(tree)) {
@@ -46,7 +51,6 @@ export async function bootPersistence(): Promise<void> {
     });
   }
   noteTreeCache = tree;
-  bootCompleted = true;
 }
 
 export function isPersistenceReady(): boolean {
@@ -59,6 +63,10 @@ export function getNoteTree(): NoteTreeNode[] {
   return noteTreeCache;
 }
 
+export function hasNotesFolderContent(): boolean {
+  return noteTreeCache.length > 0;
+}
+
 // Resolve a doc id to its absolute path on disk. Returns null if the doc
 // hasn't been written yet (e.g. a freshly created note before its first
 // disk write resolves). Callers should fall back to context-only flows
@@ -68,13 +76,26 @@ export function getDocPath(id: string): string | null {
   return note?.path && note.path.length > 0 ? note.path : null;
 }
 
+export function getDocIdByPath(path: string): string | null {
+  const normalizedPath = normalizePath(path);
+  for (const note of noteCache.values()) {
+    if (normalizePath(note.path) === normalizedPath) {
+      return note.id;
+    }
+  }
+  return null;
+}
+
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, "/");
+}
+
 // =====================
 // Document index — derived from the cache.
 // =====================
 
 export function loadDocIndex(): DocumentMeta[] | null {
   if (!bootCompleted) return null;
-  if (noteCache.size === 0) return null;
   return Array.from(noteCache.values()).map(toMeta);
 }
 
@@ -202,8 +223,9 @@ export function extractTitle(html: string): string {
 // New-note id allocation — sanitized title with collision-safe suffixing.
 // =====================
 
-export function allocateNoteId(suggestedTitle = "Untitled"): string {
-  const base = sanitizeNoteId(suggestedTitle);
+export function allocateNoteId(suggestedTitle = "Untitled", parentFolderId?: string): string {
+  const baseName = sanitizeNoteId(suggestedTitle);
+  const base = parentFolderId ? `${parentFolderId}/${baseName}` : baseName;
   if (!noteCache.has(base)) return base;
   let n = 2;
   while (noteCache.has(`${base}-${n}`)) n += 1;
@@ -214,10 +236,11 @@ export function allocateNoteId(suggestedTitle = "Untitled"): string {
 // note survives reload even if the user never types into it.
 export function registerNewNote(id: string): void {
   const now = Math.floor(Date.now() / 1000);
+  const title = id.split("/").pop() ?? id;
   noteCache.set(id, {
     id,
     path: "",
-    title: id,
+    title,
     content: "",
     modified: now,
   });

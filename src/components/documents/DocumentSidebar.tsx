@@ -1,10 +1,25 @@
 
 import { useState, useMemo, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import type { DocumentMeta } from "@/types";
-import type { NoteTreeNode } from "@/lib/notes-fs";
+import {
+  createFolder,
+  deleteFolder,
+  renameFolder,
+  sanitizeNoteId,
+  type NoteTreeNode,
+} from "@/lib/notes-fs";
+import { useDocumentStore } from "@/lib/document-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,10 +33,13 @@ import {
 import {
   ChevronDown,
   ChevronRight,
+  Clipboard,
+  Copy,
+  CornerUpLeft,
   FileText,
   Folder,
+  FolderPlus,
   FolderOpen,
-  Pencil,
   Plus,
   Search,
   Trash2,
@@ -32,9 +50,12 @@ interface DocumentSidebarProps {
   activeDocId: string | null;
   noteTree: NoteTreeNode[];
   onCreateDocument: () => void;
+  onCreateDocumentInFolder: (folderId: string) => void;
   onSwitchDocument: (id: string) => void;
   onDeleteDocument: (id: string) => void;
   onRenameDocument: (id: string, newTitle: string) => void;
+  onDuplicateDocument: (id: string) => void;
+  onMoveDocumentToFolder: (id: string, targetFolderId: string | null) => void;
   notesFolder?: string;
   onChangeNotesFolder?: () => void;
 }
@@ -60,6 +81,13 @@ function saveExpanded(set: Set<string>) {
   }
 }
 
+function countFiles(nodes: NoteTreeNode[]): number {
+  return nodes.reduce((count, node) => {
+    if (node.type === "file") return count + 1;
+    return count + countFiles(node.children);
+  }, 0);
+}
+
 // Format a timestamp as a relative time string (e.g. "2m ago", "3h ago", "5d ago")
 function formatRelativeTime(timestamp: number): string {
   const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -79,9 +107,12 @@ export default function DocumentSidebar({
   activeDocId,
   noteTree,
   onCreateDocument,
+  onCreateDocumentInFolder,
   onSwitchDocument,
   onDeleteDocument,
   onRenameDocument,
+  onDuplicateDocument,
+  onMoveDocumentToFolder,
   notesFolder,
   onChangeNotesFolder,
 }: DocumentSidebarProps) {
@@ -89,6 +120,8 @@ export default function DocumentSidebar({
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(() => loadExpanded());
 
   // Auto-expand folders that contain the active doc so the user always sees
@@ -118,6 +151,72 @@ export default function DocumentSidebar({
     });
   };
 
+  const revealPath = (path: string) => {
+    invoke<void>("reveal_path", { path }).catch((e) => {
+      console.error("reveal_path failed:", e);
+    });
+  };
+
+  const openPath = (path: string) => {
+    invoke<void>("open_path", { path }).catch((e) => {
+      console.error("open_path failed:", e);
+    });
+  };
+
+  const copyPath = (path: string) => {
+    navigator.clipboard.writeText(path).catch((e) => {
+      console.error("copy filepath failed:", e);
+    });
+  };
+
+  const createSubfolder = (parentId?: string) => {
+    const name = window.prompt("Folder name");
+    if (!name) return;
+    const sanitized = sanitizeNoteId(name);
+    const nextId = parentId ? `${parentId}/${sanitized}` : sanitized;
+    createFolder(nextId)
+      .then(() => {
+        setExpanded((prev) => {
+          const next = new Set(prev);
+          if (parentId) next.add(parentId);
+          next.add(nextId);
+          saveExpanded(next);
+          return next;
+        });
+        return useDocumentStore.getState().refreshFromDisk();
+      })
+      .catch((e) => {
+        console.error("createFolder failed:", e);
+      });
+  };
+
+  const deleteFolderRecursive = (node: Extract<NoteTreeNode, { type: "folder" }>) => {
+    const fileCount = countFiles(node.children);
+    const suffix = fileCount === 1 ? "1 note" : `${fileCount} notes`;
+    if (!window.confirm(`Delete "${node.name}" and ${suffix}?`)) return;
+    deleteFolder(node.id)
+      .then(() => useDocumentStore.getState().refreshFromDisk())
+      .catch((e) => {
+        console.error("deleteFolder failed:", e);
+      });
+  };
+
+  const commitFolderRename = (id: string) => {
+    const trimmed = editingFolderName.trim();
+    if (!trimmed) {
+      setEditingFolderId(null);
+      return;
+    }
+    renameFolder(id, trimmed)
+      .then(() => useDocumentStore.getState().refreshFromDisk())
+      .catch((e) => {
+        console.error("renameFolder failed:", e);
+      })
+      .finally(() => {
+        setEditingFolderId(null);
+      });
+  };
+
   // Look up the title for the document pending deletion
   const pendingDeleteTitle = useMemo(() => {
     if (!pendingDeleteId) return "";
@@ -129,6 +228,21 @@ export default function DocumentSidebar({
     const q = search.toLowerCase();
     return documents.filter((d) => d.title.toLowerCase().includes(q));
   }, [documents, search]);
+
+  const pathByDocId = useMemo(() => {
+    const paths = new Map<string, string>();
+    const collect = (nodes: NoteTreeNode[]) => {
+      for (const node of nodes) {
+        if (node.type === "file") {
+          paths.set(node.id, node.path);
+        } else {
+          collect(node.children);
+        }
+      }
+    };
+    collect(noteTree);
+    return paths;
+  }, [noteTree]);
 
   return (
     <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
@@ -143,14 +257,24 @@ export default function DocumentSidebar({
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Documents
         </h2>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={onCreateDocument}
-          title="New document"
-        >
-          <Plus className="size-3.5" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => createSubfolder()}
+            title="New folder"
+          >
+            <FolderPlus className="size-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={onCreateDocument}
+            title="New document"
+          >
+            <Plus className="size-3.5" />
+          </Button>
+        </div>
       </div>
 
       {/* Search filter */}
@@ -178,6 +302,7 @@ export default function DocumentSidebar({
                 <FileRow
                   key={doc.id}
                   id={doc.id}
+                  path={pathByDocId.get(doc.id) ?? ""}
                   title={doc.title}
                   updatedAt={doc.updatedAt}
                   depth={0}
@@ -199,6 +324,10 @@ export default function DocumentSidebar({
                   onCancelRename={() => setEditingDocId(null)}
                   onChangeEditingTitle={setEditingTitle}
                   onDelete={(id) => setPendingDeleteId(id)}
+                  onDuplicate={onDuplicateDocument}
+                  onMoveToParent={onMoveDocumentToFolder}
+                  onReveal={revealPath}
+                  onCopyPath={copyPath}
                 />
               ))
             : noteTree.map((node) => (
@@ -227,6 +356,23 @@ export default function DocumentSidebar({
                   onCancelRename={() => setEditingDocId(null)}
                   onChangeEditingTitle={setEditingTitle}
                   onDelete={(id) => setPendingDeleteId(id)}
+                  onDuplicate={onDuplicateDocument}
+                  onMoveToParent={onMoveDocumentToFolder}
+                  onReveal={revealPath}
+                  onOpenFolder={openPath}
+                  onCopyPath={copyPath}
+                  onCreateDocumentInFolder={onCreateDocumentInFolder}
+                  onCreateSubfolder={createSubfolder}
+                  onDeleteFolder={deleteFolderRecursive}
+                  editingFolderId={editingFolderId}
+                  editingFolderName={editingFolderName}
+                  onStartRenameFolder={(id, name) => {
+                    setEditingFolderId(id);
+                    setEditingFolderName(name);
+                  }}
+                  onCommitRenameFolder={commitFolderRename}
+                  onCancelRenameFolder={() => setEditingFolderId(null)}
+                  onChangeEditingFolderName={setEditingFolderName}
                 />
               ))}
         </div>
@@ -287,6 +433,7 @@ export default function DocumentSidebar({
 
 interface FileRowProps {
   id: string;
+  path: string;
   title: string;
   updatedAt: number;
   depth: number;
@@ -299,10 +446,15 @@ interface FileRowProps {
   onCancelRename: () => void;
   onChangeEditingTitle: (next: string) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onMoveToParent: (id: string, targetFolderId: string | null) => void;
+  onReveal: (path: string) => void;
+  onCopyPath: (path: string) => void;
 }
 
 function FileRow({
   id,
+  path,
   title,
   updatedAt,
   depth,
@@ -315,80 +467,99 @@ function FileRow({
   onCancelRename,
   onChangeEditingTitle,
   onDelete,
+  onDuplicate,
+  onMoveToParent,
+  onReveal,
+  onCopyPath,
 }: FileRowProps) {
+  const parentId = id.includes("/") ? id.slice(0, id.lastIndexOf("/")) : null;
+  const grandparentId = parentId?.includes("/")
+    ? parentId.slice(0, parentId.lastIndexOf("/"))
+    : null;
+
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => {
-        if (!isEditing) onSwitch(id);
-      }}
-      onKeyDown={(e) => {
-        if (!isEditing && (e.key === "Enter" || e.key === " ")) {
-          e.preventDefault();
-          onSwitch(id);
-        }
-      }}
-      style={{ paddingLeft: 8 + depth * 14 }}
-      className={`group w-full flex items-start gap-2 pr-2 py-1.5 rounded-md text-left text-sm cursor-pointer transition-colors ${
-        isActive
-          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-          : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
-      }`}
-    >
-      <FileText className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
-      <div className="flex-1 min-w-0">
-        {isEditing ? (
-          <input
-            autoFocus
-            value={editingTitle}
-            onChange={(e) => onChangeEditingTitle(e.target.value)}
-            onBlur={() => onCommitRename(id)}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === "Enter") {
-                e.preventDefault();
-                onCommitRename(id);
-              }
-              if (e.key === "Escape") onCancelRename();
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full bg-transparent border border-border rounded px-1 py-0 text-[13px] font-medium leading-tight outline-none focus:border-primary"
-          />
-        ) : (
-          <div className="truncate font-medium text-[13px] leading-tight">
-            {title}
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => {
+            if (!isEditing) onSwitch(id);
+          }}
+          onKeyDown={(e) => {
+            if (!isEditing && (e.key === "Enter" || e.key === " ")) {
+              e.preventDefault();
+              onSwitch(id);
+            }
+          }}
+          style={{ paddingLeft: 8 + depth * 14 }}
+          className={`group w-full flex items-start gap-2 pr-2 py-1.5 rounded-md text-left text-sm cursor-pointer transition-colors ${
+            isActive
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
+          }`}
+        >
+          <FileText className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+          <div className="flex-1 min-w-0">
+            {isEditing ? (
+              <input
+                autoFocus
+                value={editingTitle}
+                onChange={(e) => onChangeEditingTitle(e.target.value)}
+                onBlur={() => onCommitRename(id)}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    onCommitRename(id);
+                  }
+                  if (e.key === "Escape") onCancelRename();
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full bg-transparent border border-border rounded px-1 py-0 text-[13px] font-medium leading-tight outline-none focus:border-primary"
+              />
+            ) : (
+              <div className="truncate font-medium text-[13px] leading-tight">
+                {title}
+              </div>
+            )}
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              {formatRelativeTime(updatedAt)}
+            </div>
           </div>
-        )}
-        <div className="text-[11px] text-muted-foreground mt-0.5">
-          {formatRelativeTime(updatedAt)}
         </div>
-      </div>
-      {!isEditing && (
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onStartRename(id, title);
-            }}
-            className="p-0.5 rounded hover:bg-accent hover:text-accent-foreground"
-            title="Rename document"
-          >
-            <Pencil className="size-3.5" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(id);
-            }}
-            className="p-0.5 rounded hover:bg-destructive/10 hover:text-destructive"
-            title="Delete document"
-          >
-            <Trash2 className="size-3.5" />
-          </button>
-        </div>
-      )}
-    </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-44">
+        <ContextMenuItem disabled={!path} onSelect={() => onReveal(path)}>
+          <FolderOpen className="size-4" />
+          Reveal in Finder
+        </ContextMenuItem>
+        <ContextMenuItem disabled={!path} onSelect={() => onCopyPath(path)}>
+          <Clipboard className="size-4" />
+          Copy filepath
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={() => onDuplicate(id)}>
+          <Copy className="size-4" />
+          Duplicate
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={!parentId}
+          onSelect={() => onMoveToParent(id, grandparentId)}
+        >
+          <CornerUpLeft className="size-4" />
+          Move to parent folder
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={() => onStartRename(id, title)}>
+          Rename
+        </ContextMenuItem>
+        <ContextMenuItem variant="destructive" onSelect={() => onDelete(id)}>
+          <Trash2 className="size-4" />
+          Delete
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
@@ -407,6 +578,20 @@ interface TreeNodeViewProps {
   onCancelRename: () => void;
   onChangeEditingTitle: (next: string) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onMoveToParent: (id: string, targetFolderId: string | null) => void;
+  onReveal: (path: string) => void;
+  onOpenFolder: (path: string) => void;
+  onCopyPath: (path: string) => void;
+  onCreateDocumentInFolder: (folderId: string) => void;
+  onCreateSubfolder: (parentId?: string) => void;
+  onDeleteFolder: (node: Extract<NoteTreeNode, { type: "folder" }>) => void;
+  editingFolderId: string | null;
+  editingFolderName: string;
+  onStartRenameFolder: (id: string, name: string) => void;
+  onCommitRenameFolder: (id: string) => void;
+  onCancelRenameFolder: () => void;
+  onChangeEditingFolderName: (next: string) => void;
 }
 
 function TreeNodeView(props: TreeNodeViewProps) {
@@ -420,6 +605,7 @@ function TreeNodeView(props: TreeNodeViewProps) {
     return (
       <FileRow
         id={node.id}
+        path={node.path}
         title={docMeta?.title || node.title}
         updatedAt={docMeta?.updatedAt ?? node.modified * 1000}
         depth={depth}
@@ -432,32 +618,88 @@ function TreeNodeView(props: TreeNodeViewProps) {
         onCancelRename={props.onCancelRename}
         onChangeEditingTitle={props.onChangeEditingTitle}
         onDelete={props.onDelete}
+        onDuplicate={props.onDuplicate}
+        onMoveToParent={props.onMoveToParent}
+        onReveal={props.onReveal}
+        onCopyPath={props.onCopyPath}
       />
     );
   }
 
   // Folder node
   const isOpen = expanded.has(node.id);
+  const isEditing = props.editingFolderId === node.id;
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => onToggleExpanded(node.id)}
-        style={{ paddingLeft: 4 + depth * 14 }}
-        className="group w-full flex items-center gap-1 pr-2 py-1.5 rounded-md text-left text-[13px] text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
-      >
-        {isOpen ? (
-          <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
-        )}
-        {isOpen ? (
-          <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
-        ) : (
-          <Folder className="size-3.5 shrink-0 text-muted-foreground" />
-        )}
-        <span className="truncate font-medium">{node.name}</span>
-      </button>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <button
+            type="button"
+            onClick={() => {
+              if (!isEditing) onToggleExpanded(node.id);
+            }}
+            style={{ paddingLeft: 4 + depth * 14 }}
+            className="group w-full flex items-center gap-1 pr-2 py-1.5 rounded-md text-left text-[13px] text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
+          >
+            {isOpen ? (
+              <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+            )}
+            {isOpen ? (
+              <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
+            ) : (
+              <Folder className="size-3.5 shrink-0 text-muted-foreground" />
+            )}
+            {isEditing ? (
+              <input
+                autoFocus
+                value={props.editingFolderName}
+                onChange={(e) => props.onChangeEditingFolderName(e.target.value)}
+                onBlur={() => props.onCommitRenameFolder(node.id)}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    props.onCommitRenameFolder(node.id);
+                  }
+                  if (e.key === "Escape") props.onCancelRenameFolder();
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="min-w-0 flex-1 bg-transparent border border-border rounded px-1 py-0 text-[13px] font-medium leading-tight outline-none focus:border-primary"
+              />
+            ) : (
+              <span className="truncate font-medium">{node.name}</span>
+            )}
+          </button>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-44">
+          <ContextMenuItem onSelect={() => props.onOpenFolder(node.path)}>
+            <FolderOpen className="size-4" />
+            Reveal in Finder
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={() => props.onCreateDocumentInFolder(node.id)}>
+            <FileText className="size-4" />
+            New note in folder
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => props.onCreateSubfolder(node.id)}>
+            <FolderPlus className="size-4" />
+            New subfolder
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={() => props.onStartRenameFolder(node.id, node.name)}>
+            Rename folder
+          </ContextMenuItem>
+          <ContextMenuItem
+            variant="destructive"
+            onSelect={() => props.onDeleteFolder(node)}
+          >
+            <Trash2 className="size-4" />
+            Delete folder
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
       {isOpen && (
         <div>
           {node.children.map((child) => (
