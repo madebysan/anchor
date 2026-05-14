@@ -693,7 +693,11 @@ export default function EditorPage({
     <div className="flex h-screen bg-background">
       {!focusMode && (
         <>
-          <div style={{ width: docWidth }} className="shrink-0 h-full">
+          <aside
+            aria-label="Documents"
+            style={{ width: docWidth }}
+            className="shrink-0 h-full"
+          >
             <DocumentSidebar
               documents={documents}
               activeDocId={activeDocId}
@@ -708,12 +712,12 @@ export default function EditorPage({
               notesFolder={notesFolder}
               onChangeNotesFolder={onChangeNotesFolder}
             />
-          </div>
+          </aside>
           <DragHandle onDragStart={handleDocDragStart} onDrag={handleDocDrag} />
         </>
       )}
 
-      <div className="flex-1 min-w-0 h-full">
+      <main className="flex-1 min-w-0 h-full">
         <Editor
           editorRef={editorRef}
           onReady={handleEditorReady}
@@ -736,12 +740,16 @@ export default function EditorPage({
           formattingCollapsed={formattingCollapsed}
           onToggleFormattingCollapsed={toggleFormattingCollapsed}
         />
-      </div>
+      </main>
 
       {!focusMode && (
         <>
           <DragHandle onDragStart={handleCommentDragStart} onDrag={handleCommentDrag} />
-          <div style={{ width: commentWidth }} className="shrink-0 h-full bg-muted/30">
+          <aside
+            aria-label="Comments"
+            style={{ width: commentWidth }}
+            className="shrink-0 h-full bg-muted/30"
+          >
             <CommentSidebar
               threads={threads}
               activeThreadId={activeThreadId}
@@ -759,7 +767,7 @@ export default function EditorPage({
               getDocumentSnapshot={getDocumentSnapshot}
               defaultPersona={settings.defaultPersona}
             />
-          </div>
+          </aside>
         </>
       )}
 

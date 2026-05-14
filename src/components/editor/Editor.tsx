@@ -169,7 +169,7 @@ export default function Editor({
 
   useEffect(() => {
     if (!editor) return;
-    editorRef && (editorRef.current = editor);
+    if (editorRef) editorRef.current = editor;
     onReady?.();
   }, [editor, editorRef, onReady]);
 

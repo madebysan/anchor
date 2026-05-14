@@ -70,7 +70,7 @@ export default function CommentSidebar({
         <p className="text-sm font-medium text-muted-foreground mb-1">
           No comments yet
         </p>
-        <p className="text-xs text-muted-foreground/70 mb-4">
+        <p className="text-xs text-muted-foreground mb-4">
           Select text and click &quot;Comment&quot; to comment on a passage,
           or add a document-level comment below.
         </p>

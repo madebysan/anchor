@@ -390,7 +390,7 @@ export default function DocumentSidebar({
           <span className="truncate flex-1 min-w-0">
             {notesFolder.split("/").pop() || notesFolder}
           </span>
-          <span className="shrink-0 opacity-60">change</span>
+          <span className="shrink-0 text-foreground/70">change</span>
         </button>
       )}
 
