@@ -203,10 +203,8 @@ export default function EditorPage({
   } = useAISettings();
 
   const {
-    currentFont,
     currentSize,
     currentLineHeight,
-    setFont,
     setFontSize,
     setLineHeight,
     formattingCollapsed,
@@ -709,12 +707,9 @@ export default function EditorPage({
           onAddComment={handleAddComment}
           onUpdate={handleEditorUpdate}
           onOpenSettings={() => setSettingsOpen(true)}
-          fontFamily={currentFont.cssVar}
           proseSize={currentSize.proseClass}
-          currentFont={currentFont}
           currentSize={currentSize}
           currentLineHeight={currentLineHeight}
-          onFontChange={setFont}
           onSizeChange={setFontSize}
           onLineHeightChange={setLineHeight}
           documentTitle={documentTitle}
@@ -769,10 +764,8 @@ export default function EditorPage({
             onRemoveTrigger={removeTrigger}
             notesFolder={notesFolder}
             onChangeNotesFolder={onChangeNotesFolder}
-            currentFont={currentFont}
             currentSize={currentSize}
             currentLineHeight={currentLineHeight}
-            onFontChange={setFont}
             onSizeChange={setFontSize}
             onLineHeightChange={setLineHeight}
           />

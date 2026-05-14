@@ -3,13 +3,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   type EditorPreferences,
   DEFAULT_EDITOR_PREFS,
-  FONT_OPTIONS,
   LINE_HEIGHT_OPTIONS,
   SIZE_OPTIONS,
   loadEditorPrefs,
   saveEditorPrefs,
 } from "@/lib/editor-preferences";
-import { loadEditorFont } from "@/lib/font-loader";
 
 export function useEditorPreferences() {
   const [prefs, setPrefs] = useState<EditorPreferences>(DEFAULT_EDITOR_PREFS);
@@ -21,10 +19,6 @@ export function useEditorPreferences() {
     setPrefs(loadEditorPrefs());
     setLoaded(true);
   }, []);
-
-  useEffect(() => {
-    loadEditorFont(prefs.fontId);
-  }, [prefs.fontId]);
 
   // Debounced save whenever prefs change (skip initial load)
   useEffect(() => {
@@ -38,10 +32,6 @@ export function useEditorPreferences() {
     };
   }, [prefs, loaded]);
 
-  const setFont = useCallback((fontId: string) => {
-    setPrefs((prev) => ({ ...prev, fontId }));
-  }, []);
-
   const setFontSize = useCallback((sizeId: string) => {
     setPrefs((prev) => ({ ...prev, sizeId }));
   }, []);
@@ -54,18 +44,15 @@ export function useEditorPreferences() {
     setPrefs((prev) => ({ ...prev, formattingCollapsed: !prev.formattingCollapsed }));
   }, []);
 
-  // Resolve current font/size objects
-  const currentFont = FONT_OPTIONS.find((f) => f.id === prefs.fontId) ?? FONT_OPTIONS[0];
+  // Resolve current size and line-height objects.
   const currentSize = SIZE_OPTIONS.find((s) => s.id === prefs.sizeId) ?? SIZE_OPTIONS[2];
   const currentLineHeight =
     LINE_HEIGHT_OPTIONS.find((l) => l.id === prefs.lineHeightId) ?? LINE_HEIGHT_OPTIONS[1];
 
   return {
     prefs,
-    currentFont,
     currentSize,
     currentLineHeight,
-    setFont,
     setFontSize,
     setLineHeight,
     formattingCollapsed: prefs.formattingCollapsed,

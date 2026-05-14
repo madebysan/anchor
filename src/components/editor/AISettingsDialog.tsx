@@ -34,10 +34,8 @@ import {
   VISIBLE_STRATEGIES,
 } from "@/lib/ai/context-router";
 import {
-  FONT_OPTIONS,
   LINE_HEIGHT_OPTIONS,
   SIZE_OPTIONS,
-  type FontOption,
   type LineHeightOption,
   type SizeOption,
 } from "@/lib/editor-preferences";
@@ -55,10 +53,8 @@ interface AISettingsDialogProps {
   onRemoveTrigger: (key: string) => void;
   notesFolder?: string;
   onChangeNotesFolder?: () => void;
-  currentFont?: FontOption;
   currentSize?: SizeOption;
   currentLineHeight?: LineHeightOption;
-  onFontChange?: (id: string) => void;
   onSizeChange?: (id: string) => void;
   onLineHeightChange?: (id: string) => void;
 }
@@ -74,10 +70,8 @@ export default function AISettingsDialog({
   onRemoveTrigger,
   notesFolder,
   onChangeNotesFolder,
-  currentFont,
   currentSize,
   currentLineHeight,
-  onFontChange,
   onSizeChange,
   onLineHeightChange,
 }: AISettingsDialogProps) {
@@ -182,26 +176,6 @@ export default function AISettingsDialog({
                     <SelectItem value="system" className="text-xs">System</SelectItem>
                     <SelectItem value="light" className="text-xs">Light</SelectItem>
                     <SelectItem value="dark" className="text-xs">Dark</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-[140px_1fr] items-center gap-3">
-                <Label className="text-xs">Default font</Label>
-                <Select
-                  value={currentFont?.id ?? FONT_OPTIONS[0].id}
-                  onValueChange={(next) => onFontChange?.(next)}
-                  disabled={!onFontChange}
-                >
-                  <SelectTrigger className="h-8 text-xs" aria-label="Default font">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FONT_OPTIONS.map((font) => (
-                      <SelectItem key={font.id} value={font.id} className="text-xs">
-                        {font.label}
-                      </SelectItem>
-                    ))}
                   </SelectContent>
                 </Select>
               </div>

@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { DOMParser as ProseMirrorDOMParser } from "@tiptap/pm/model";
 import StarterKit from "@tiptap/starter-kit";
@@ -9,12 +9,9 @@ import { EditHighlight } from "@/extensions/edit-highlight";
 import CommentBubbleMenu from "./CommentBubbleMenu";
 import EditorToolbar from "./EditorToolbar";
 import { markdownToHtml } from "@/lib/markdown";
-import type { FontOption, SizeOption } from "@/lib/editor-preferences";
+import type { SizeOption } from "@/lib/editor-preferences";
 import type { SaveStatus } from "@/lib/document-store";
-import type { Editor as TiptapEditor } from "@tiptap/react";
 import type { LineHeightOption } from "@/lib/editor-preferences";
-
-const WORD_COUNT_DEBOUNCE_MS = 250;
 
 function looksLikeMarkdown(text: string): boolean {
   const trimmed = text.trim();
@@ -29,55 +26,15 @@ function looksLikeMarkdown(text: string): boolean {
   return false;
 }
 
-// Self-contained word count bar that listens to editor updates
-function WordCount({ editor }: { editor: TiptapEditor }) {
-  const [stats, setStats] = useState({ words: 0, chars: 0 });
-
-  useEffect(() => {
-    let updateTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const updateNow = () => {
-      const text = editor.state.doc.textContent;
-      const words = text.split(/\s+/).filter(Boolean).length;
-      setStats({ words, chars: text.length });
-    };
-
-    const scheduleUpdate = () => {
-      if (updateTimer) clearTimeout(updateTimer);
-      updateTimer = setTimeout(updateNow, WORD_COUNT_DEBOUNCE_MS);
-    };
-
-    updateNow();
-    editor.on("update", scheduleUpdate);
-    return () => {
-      if (updateTimer) clearTimeout(updateTimer);
-      editor.off("update", scheduleUpdate);
-    };
-  }, [editor]);
-
-  const readTime = Math.max(1, Math.ceil(stats.words / 200));
-
-  return (
-    <div className="flex items-center gap-3 px-4 py-1.5 border-t border-border text-[11px] text-muted-foreground bg-background">
-      <span>{stats.words} words</span>
-      <span>{stats.chars} characters</span>
-      <span>{readTime} min read</span>
-    </div>
-  );
-}
-
 interface EditorProps {
   onAddComment?: () => void;
   onReady?: () => void;
   onUpdate?: () => void;
   onOpenSettings?: () => void;
   editorRef?: React.MutableRefObject<ReturnType<typeof useEditor> | null>;
-  fontFamily?: string;
   proseSize?: string;
-  currentFont?: FontOption;
   currentSize?: SizeOption;
   currentLineHeight?: LineHeightOption;
-  onFontChange?: (fontId: string) => void;
   onSizeChange?: (sizeId: string) => void;
   onLineHeightChange?: (lineHeightId: string) => void;
   documentTitle?: string;
@@ -105,12 +62,9 @@ export default function Editor({
   onUpdate,
   onOpenSettings,
   editorRef,
-  fontFamily,
   proseSize = "prose-lg",
-  currentFont,
   currentSize,
   currentLineHeight,
-  onFontChange,
   onSizeChange,
   onLineHeightChange,
   documentTitle,
@@ -170,13 +124,6 @@ export default function Editor({
     });
   }, [editor, proseSize]);
 
-  // Dynamically update font-family via inline style on the editor element
-  useEffect(() => {
-    if (!editor || !fontFamily) return;
-    const el = editor.view.dom;
-    el.style.fontFamily = fontFamily;
-  }, [editor, fontFamily]);
-
   useEffect(() => {
     if (!editor || !currentLineHeight) return;
     editor.view.dom.style.lineHeight = currentLineHeight.cssValue;
@@ -198,10 +145,8 @@ export default function Editor({
       <EditorToolbar
         editor={editor}
         onOpenSettings={onOpenSettings}
-        currentFont={currentFont}
         currentSize={currentSize}
         currentLineHeight={currentLineHeight}
-        onFontChange={onFontChange}
         onSizeChange={onSizeChange}
         onLineHeightChange={onLineHeightChange}
         documentTitle={documentTitle}
@@ -221,7 +166,6 @@ export default function Editor({
         )}
         <EditorContent editor={editor} />
       </div>
-      {editor && <WordCount editor={editor} />}
     </div>
   );
 }
