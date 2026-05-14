@@ -13,7 +13,7 @@ interface UseAIChatReturn {
   sendMessage: (
     threadId: string,
     thread: CommentThread,
-    doc: DocumentSnapshot,
+    getDocumentSnapshot: () => DocumentSnapshot,
     userMessage: string,
     trigger: ParsedTrigger | null,
   ) => Promise<string>;
@@ -29,6 +29,18 @@ interface UseAIChatReturn {
 // with a fresh session and a file path (no request lost).
 const docSessions = new Map<string, string>();
 const cancelledRequests = new Set<string>();
+
+function yieldForLoadingPaint(): Promise<void> {
+  if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => {
+      window.setTimeout(resolve, 0);
+    });
+  });
+}
 
 // Inline MD AI hook — wraps the local `claude` CLI via Tauri.
 //
@@ -58,7 +70,7 @@ export function useAIChat(
     async (
       threadId: string,
       thread: CommentThread,
-      doc: DocumentSnapshot,
+      getDocumentSnapshot: () => DocumentSnapshot,
       userMessage: string,
       trigger: ParsedTrigger | null,
     ): Promise<string> => {
@@ -66,6 +78,10 @@ export function useAIChat(
       const messageId = `ai-${threadId}`;
 
       try {
+        await yieldForLoadingPaint();
+        if (cancelledRequests.has(threadId)) return "";
+
+        const doc = getDocumentSnapshot();
         const hasSelection = !!thread.selectedText && thread.selectedText.trim() !== "";
         const passage = thread.selectedText ?? "";
 

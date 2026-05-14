@@ -5,7 +5,7 @@ use std::env;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::State;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -36,19 +36,20 @@ struct ClaudeJsonResult {
     is_error: bool,
 }
 
+#[derive(Clone)]
 pub struct AiProcessState {
-    pids: Mutex<HashMap<String, u32>>,
+    pids: Arc<Mutex<HashMap<String, u32>>>,
 }
 
 impl AiProcessState {
     pub fn new() -> Self {
         Self {
-            pids: Mutex::new(HashMap::new()),
+            pids: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
 
-fn register_process(state: &State<'_, AiProcessState>, request_id: &Option<String>, pid: u32) {
+fn register_process(state: &AiProcessState, request_id: &Option<String>, pid: u32) {
     if let Some(id) = request_id {
         if let Ok(mut pids) = state.pids.lock() {
             pids.insert(id.clone(), pid);
@@ -56,7 +57,7 @@ fn register_process(state: &State<'_, AiProcessState>, request_id: &Option<Strin
     }
 }
 
-fn unregister_process(state: &State<'_, AiProcessState>, request_id: &Option<String>) {
+fn unregister_process(state: &AiProcessState, request_id: &Option<String>) {
     if let Some(id) = request_id {
         if let Ok(mut pids) = state.pids.lock() {
             pids.remove(id);
@@ -169,8 +170,21 @@ fn claude_failure_message(status: ExitStatus, stderr: &str) -> String {
 // One-shot chat with claude — no file argument, just a prompt on stdin.
 // Used for chat-only requests when no document context is needed.
 #[tauri::command]
-pub fn ai_chat_claude(
+pub async fn ai_chat_claude(
     process_state: State<'_, AiProcessState>,
+    prompt: String,
+    request_id: Option<String>,
+) -> Result<AiExecutionResult, String> {
+    let process_state = process_state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        ai_chat_claude_blocking(process_state, prompt, request_id)
+    })
+    .await
+    .map_err(|e| format!("claude chat task failed: {e}"))?
+}
+
+fn ai_chat_claude_blocking(
+    process_state: AiProcessState,
     prompt: String,
     request_id: Option<String>,
 ) -> Result<AiExecutionResult, String> {
@@ -226,9 +240,37 @@ pub fn ai_chat_claude(
 // Uses `--output-format json` so we can parse out the session_id for
 // stitching follow-ups together. The prompt is piped via stdin.
 #[tauri::command]
-pub fn ai_invoke_claude(
+pub async fn ai_invoke_claude(
     state: State<'_, ConfigState>,
     process_state: State<'_, AiProcessState>,
+    file_path: Option<String>,
+    session_id: Option<String>,
+    prompt: String,
+    request_id: Option<String>,
+) -> Result<AiSessionResult, String> {
+    let notes_folder = {
+        let guard = state.0.lock().expect("config mutex poisoned");
+        guard.notes_folder.clone()
+    };
+    let process_state = process_state.inner().clone();
+
+    tauri::async_runtime::spawn_blocking(move || {
+        ai_invoke_claude_blocking(
+            notes_folder,
+            process_state,
+            file_path,
+            session_id,
+            prompt,
+            request_id,
+        )
+    })
+    .await
+    .map_err(|e| format!("claude invoke task failed: {e}"))?
+}
+
+fn ai_invoke_claude_blocking(
+    notes_folder: Option<PathBuf>,
+    process_state: AiProcessState,
     file_path: Option<String>,
     session_id: Option<String>,
     prompt: String,
@@ -243,13 +285,7 @@ pub fn ai_invoke_claude(
     if let Some(sid) = &session_id {
         cmd.arg("--resume").arg(sid);
     } else if let Some(fp) = &file_path {
-        let folder = {
-            let guard = state.0.lock().expect("config mutex poisoned");
-            guard
-                .notes_folder
-                .clone()
-                .ok_or_else(|| "Notes folder not set".to_string())?
-        };
+        let folder = notes_folder.ok_or_else(|| "Notes folder not set".to_string())?;
         let target = PathBuf::from(fp);
         ensure_inside(&folder, &target)?;
         cmd.arg(target);
