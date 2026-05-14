@@ -7,6 +7,7 @@ import AISettingsDialog from "./AISettingsDialog";
 import { useAIChat } from "@/hooks/useAIChat";
 import { useAISettings } from "@/hooks/useAISettings";
 import { useEditorPreferences } from "@/hooks/useEditorPreferences";
+import { createAiErrorMessage } from "@/lib/ai-errors";
 import {
   buildAnchorForRange,
   buildDocumentSnapshot,
@@ -577,24 +578,10 @@ export default function EditorPage({
           effectiveTrigger,
         );
       } catch (err) {
-        // Tauri invoke rejections come through as strings (Rust Result::Err),
-        // not Error instances. Normalize so the user sees the real message.
         console.error("AI call failed:", err);
-        const reason =
-          err instanceof Error
-            ? err.message
-            : typeof err === "string"
-              ? err
-              : (() => {
-                  try {
-                    return JSON.stringify(err);
-                  } catch {
-                    return "Unknown error";
-                  }
-                })();
         useDocumentStore
           .getState()
-          .updateLastAssistantMessage(threadId, `⚠️ ${reason}`);
+          .updateLastAssistantMessage(threadId, createAiErrorMessage(err));
       }
     },
     [sendAIMessage, getDocumentSnapshot, settings]

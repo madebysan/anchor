@@ -6,9 +6,23 @@ const SECOND_NOTE_TITLE = "Second Note";
 const SECOND_NOTE_TEXT = "This is another note.";
 const STORAGE_KEY = "inline-md-browser-test-state";
 
-async function installTauriMock(page: Page): Promise<void> {
+interface TauriMockOptions {
+  aiFailure?: string;
+}
+
+async function installTauriMock(
+  page: Page,
+  options: TauriMockOptions = {},
+): Promise<void> {
   await page.addInitScript(
-    ({ originalText, replacementText, secondNoteTitle, secondNoteText, storageKey }) => {
+    ({
+      originalText,
+      replacementText,
+      secondNoteTitle,
+      secondNoteText,
+      storageKey,
+      aiFailure,
+    }) => {
       interface MockNote {
         id: string;
         path: string;
@@ -201,8 +215,19 @@ async function installTauriMock(page: Page): Promise<void> {
             case "ai_cancel_claude":
               return true;
             case "ai_chat_claude":
+              if (aiFailure) {
+                return { success: false, output: "", error: aiFailure };
+              }
               return { success: true, output: replacementText, error: null };
             case "ai_invoke_claude":
+              if (aiFailure) {
+                return {
+                  success: false,
+                  output: "",
+                  error: aiFailure,
+                  session_id: null,
+                };
+              }
               return {
                 success: true,
                 output: replacementText,
@@ -240,6 +265,7 @@ async function installTauriMock(page: Page): Promise<void> {
       secondNoteTitle: SECOND_NOTE_TITLE,
       secondNoteText: SECOND_NOTE_TEXT,
       storageKey: STORAGE_KEY,
+      aiFailure: options.aiFailure,
     },
   );
 }
@@ -326,6 +352,30 @@ test("comment rewrite auto-applies, highlights, and survives markdown reload", a
   await page.reload();
   await expect(page.locator(".ProseMirror")).toContainText(REPLACEMENT_TEXT);
   await expect(page.locator(".ProseMirror")).not.toContainText(ORIGINAL_TEXT);
+});
+
+test("Claude CLI failures render as actionable sidebar alerts", async ({ page }) => {
+  await installTauriMock(page, {
+    aiFailure: "claude exited with status exit status: 1",
+  });
+  await page.goto("/");
+
+  await expect(page.locator(".ProseMirror")).toContainText(ORIGINAL_TEXT);
+  await selectEditorText(page, ORIGINAL_TEXT);
+  await dispatchCommentShortcut(page);
+
+  const messageInput = page.getByLabel("Comment message");
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("Make this clearer");
+  await page.getByLabel("Send comment").click();
+
+  const alert = page.getByRole("alert");
+  await expect(alert).toContainText("Claude Code stopped before finishing");
+  await expect(alert).toContainText(
+    "Claude Code exited with code 1 before returning a response.",
+  );
+  await expect(alert).toContainText("Open Claude Code in Terminal");
+  await expect(alert).not.toContainText("exit status exit status");
 });
 
 test("document switches restore sidecar comments and visual marks", async ({ page }) => {
