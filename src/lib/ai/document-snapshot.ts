@@ -5,8 +5,18 @@ import type { DocumentSnapshot } from "./context-router";
 
 const TEXT_SEPARATOR = " ";
 
-export function buildDocumentSnapshot(editor: TiptapEditor): DocumentSnapshot {
-  const sourceMarkdown = docToMarkdown(editor.state.doc);
+interface BuildDocumentSnapshotOptions {
+  includeSourceMarkdown?: boolean;
+}
+
+export function buildDocumentSnapshot(
+  editor: TiptapEditor,
+  options: BuildDocumentSnapshotOptions = {},
+): DocumentSnapshot {
+  const includeSourceMarkdown = options.includeSourceMarkdown ?? true;
+  const sourceMarkdown = includeSourceMarkdown
+    ? docToMarkdown(editor.state.doc)
+    : undefined;
   const paragraphs: string[] = [];
   const headings: { level: number; text: string }[] = [];
   const blocks: NonNullable<DocumentSnapshot["blocks"]> = [];
@@ -16,10 +26,15 @@ export function buildDocumentSnapshot(editor: TiptapEditor): DocumentSnapshot {
     const text = node.textContent;
     if (!text) return;
 
-    const sourceFrom = sourceMarkdown.indexOf(text, sourceCursor);
-    const sourceTo = sourceFrom === -1 ? null : sourceFrom + text.length;
-    if (sourceTo !== null) {
-      sourceCursor = sourceTo;
+    let sourceFrom: number | null = null;
+    let sourceTo: number | null = null;
+    if (sourceMarkdown) {
+      const matchFrom = sourceMarkdown.indexOf(text, sourceCursor);
+      sourceFrom = matchFrom === -1 ? null : matchFrom;
+      sourceTo = matchFrom === -1 ? null : matchFrom + text.length;
+      if (sourceTo !== null) {
+        sourceCursor = sourceTo;
+      }
     }
 
     paragraphs.push(text);
@@ -27,7 +42,7 @@ export function buildDocumentSnapshot(editor: TiptapEditor): DocumentSnapshot {
       text,
       pmFrom: offset + 1,
       pmTo: offset + node.nodeSize - 1,
-      sourceFrom: sourceFrom === -1 ? null : sourceFrom,
+      sourceFrom,
       sourceTo,
     });
 

@@ -470,7 +470,7 @@ export default function EditorPage({
   const getDocumentSnapshot = useCallback((): DocumentSnapshot => {
     const editor = editorRef.current;
     if (!editor) return { fullText: "", sourceMarkdown: "", paragraphs: [], blocks: [], headings: [] };
-    return buildDocumentSnapshot(editor);
+    return buildDocumentSnapshot(editor, { includeSourceMarkdown: false });
   }, []);
 
   const handleAddComment = useCallback(() => {
@@ -564,16 +564,11 @@ export default function EditorPage({
 
       store.addMessage(threadId, { role: "assistant", content: "" });
 
-      // Yield once so React commits the new "thinking…" assistant message
-      // before we do the synchronous prompt build + invoke. Keeps the UI
-      // responsive (no spinning ball).
-      await new Promise((r) => setTimeout(r, 0));
-
       try {
         await sendAIMessage(
           threadId,
           thread,
-          getDocumentSnapshot(),
+          getDocumentSnapshot,
           text,
           effectiveTrigger,
         );

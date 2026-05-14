@@ -8,6 +8,7 @@ const STORAGE_KEY = "inline-md-browser-test-state";
 
 interface TauriMockOptions {
   aiFailure?: string;
+  aiDelayMs?: number;
 }
 
 async function installTauriMock(
@@ -22,6 +23,7 @@ async function installTauriMock(
       secondNoteText,
       storageKey,
       aiFailure,
+      aiDelayMs,
     }) => {
       interface MockNote {
         id: string;
@@ -130,6 +132,7 @@ async function installTauriMock(
       };
 
       const findNote = (id: string) => state.notes.find((note) => note.id === id);
+      const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
       const upsertNote = (id: string, content: string): MockNote => {
         const title = id.split("/").pop() ?? id;
@@ -215,11 +218,13 @@ async function installTauriMock(
             case "ai_cancel_claude":
               return true;
             case "ai_chat_claude":
+              if (aiDelayMs) await delay(aiDelayMs);
               if (aiFailure) {
                 return { success: false, output: "", error: aiFailure };
               }
               return { success: true, output: replacementText, error: null };
             case "ai_invoke_claude":
+              if (aiDelayMs) await delay(aiDelayMs);
               if (aiFailure) {
                 return {
                   success: false,
@@ -266,6 +271,7 @@ async function installTauriMock(
       secondNoteText: SECOND_NOTE_TEXT,
       storageKey: STORAGE_KEY,
       aiFailure: options.aiFailure,
+      aiDelayMs: options.aiDelayMs,
     },
   );
 }
@@ -352,6 +358,25 @@ test("comment rewrite auto-applies, highlights, and survives markdown reload", a
   await page.reload();
   await expect(page.locator(".ProseMirror")).toContainText(REPLACEMENT_TEXT);
   await expect(page.locator(".ProseMirror")).not.toContainText(ORIGINAL_TEXT);
+});
+
+test("comment submit shows loading controls while Claude is pending", async ({ page }) => {
+  await installTauriMock(page, { aiDelayMs: 500 });
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+  await selectEditorText(page, ORIGINAL_TEXT);
+  await dispatchCommentShortcut(page);
+
+  const messageInput = page.getByLabel("Comment message");
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("Make this punchier");
+  await page.getByLabel("Send comment").click();
+
+  await expect(page.getByRole("button", { name: "Stop" })).toBeVisible();
+  await expect(messageInput).toBeDisabled();
+  await expect(editor).toContainText(REPLACEMENT_TEXT);
 });
 
 test("Claude CLI failures render as actionable sidebar alerts", async ({ page }) => {
