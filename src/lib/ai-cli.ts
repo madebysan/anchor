@@ -49,15 +49,3 @@ export async function invokeClaudeSession(args: {
     requestId: args.requestId ?? null,
   });
 }
-
-export async function executeClaudeEdit(
-  filePath: string,
-  prompt: string,
-  requestId?: string,
-): Promise<AiExecutionResult> {
-  return invoke<AiExecutionResult>("ai_execute_claude", {
-    filePath,
-    prompt,
-    requestId: requestId ?? null,
-  });
-}

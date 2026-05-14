@@ -90,7 +90,10 @@ pub fn ai_cancel_claude(
         .status();
 
     #[cfg(not(target_os = "windows"))]
-    let status = Command::new("kill").arg("-TERM").arg(pid.to_string()).status();
+    let status = Command::new("kill")
+        .arg("-TERM")
+        .arg(pid.to_string())
+        .status();
 
     status
         .map(|s| s.success())
@@ -151,17 +154,8 @@ fn ensure_inside(folder: &Path, target: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn notes_folder(state: &State<'_, ConfigState>) -> Result<PathBuf, String> {
-    let guard = state.0.lock().expect("config mutex poisoned");
-    guard
-        .notes_folder
-        .clone()
-        .ok_or_else(|| "Notes folder not set".to_string())
-}
-
 // One-shot chat with claude — no file argument, just a prompt on stdin.
-// Used while the comment-thread UX is still text-only (Phase 1). Phase 3
-// switches to file-based auto-apply via ai_execute_claude.
+// Used for chat-only requests when no document context is needed.
 #[tauri::command]
 pub fn ai_chat_claude(
     process_state: State<'_, AiProcessState>,
@@ -320,71 +314,4 @@ pub fn ai_invoke_claude(
         error: None,
         session_id: parsed.session_id,
     })
-}
-
-// Spawns `claude <file> --dangerously-skip-permissions --print` with the
-// user's prompt piped to stdin. Captures stdout/stderr. The `--print` flag
-// makes claude write the response and exit instead of staying interactive.
-#[tauri::command]
-pub fn ai_execute_claude(
-    state: State<'_, ConfigState>,
-    process_state: State<'_, AiProcessState>,
-    file_path: String,
-    prompt: String,
-    request_id: Option<String>,
-) -> Result<AiExecutionResult, String> {
-    let folder = notes_folder(&state)?;
-    let target = PathBuf::from(&file_path);
-
-    if target.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()) != Some("md".to_string()) {
-        return Err("AI editing is only supported for markdown files".to_string());
-    }
-    ensure_inside(&folder, &target)?;
-
-    let mut child = Command::new("claude")
-        .arg(&target)
-        .arg("--dangerously-skip-permissions")
-        .arg("--print")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| {
-            format!(
-                "Failed to launch claude CLI: {e}. Install from https://claude.ai/code if missing."
-            )
-        })?;
-    register_process(&process_state, &request_id, child.id());
-
-    if let Some(stdin) = child.stdin.as_mut() {
-        stdin
-            .write_all(prompt.as_bytes())
-            .map_err(|e| format!("write stdin: {e}"))?;
-    }
-    drop(child.stdin.take());
-
-    let output = child.wait_with_output();
-    unregister_process(&process_state, &request_id);
-    let output = output.map_err(|e| format!("wait for claude: {e}"))?;
-
-    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-
-    if output.status.success() {
-        Ok(AiExecutionResult {
-            success: true,
-            output: stdout,
-            error: None,
-        })
-    } else {
-        Ok(AiExecutionResult {
-            success: false,
-            output: stdout,
-            error: Some(if stderr.is_empty() {
-                format!("claude exited with status {}", output.status)
-            } else {
-                stderr
-            }),
-        })
-    }
 }

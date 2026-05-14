@@ -34,13 +34,7 @@ pub enum NoteTreeNode {
 
 // Folder/file names we never traverse into. Hidden dirs (starting with `.`)
 // are also skipped via a separate check.
-const SKIP_DIRS: &[&str] = &[
-    "node_modules",
-    "target",
-    ".git",
-    "dist",
-    "build",
-];
+const SKIP_DIRS: &[&str] = &["node_modules", "target", ".git", "dist", "build"];
 
 fn notes_folder(state: &State<'_, ConfigState>) -> Result<PathBuf, String> {
     let guard = state.0.lock().expect("config mutex poisoned");
@@ -106,48 +100,11 @@ fn validate_folder_id(id: &str) -> Result<(), String> {
         return Err("Folder id cannot be empty".to_string());
     }
     if trimmed.split('/').any(|segment| {
-        segment.is_empty()
-            || segment == "."
-            || segment == ".."
-            || segment.contains('\\')
+        segment.is_empty() || segment == "." || segment == ".." || segment.contains('\\')
     }) {
         return Err("Folder id contains an invalid path segment".to_string());
     }
     Ok(())
-}
-
-#[tauri::command]
-pub fn list_notes(state: State<'_, ConfigState>) -> Result<Vec<NoteFile>, String> {
-    let folder = notes_folder(&state)?;
-    let entries = fs::read_dir(&folder).map_err(|e| format!("read dir: {e}"))?;
-    let mut notes = Vec::new();
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
-        if path.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()) != Some("md".to_string()) {
-            continue;
-        }
-        let stem = match path.file_stem().and_then(|s| s.to_str()) {
-            Some(s) if !s.is_empty() => s.to_string(),
-            _ => continue,
-        };
-        // Skip dotfile-style sidecars (e.g. .DS_Store equivalents).
-        if stem.starts_with('.') {
-            continue;
-        }
-        let content = fs::read_to_string(&path).unwrap_or_default();
-        notes.push(NoteFile {
-            id: stem.clone(),
-            path: path.to_string_lossy().to_string(),
-            title: stem,
-            content,
-            modified: modified_secs(&path),
-        });
-    }
-    notes.sort_by(|a, b| b.modified.cmp(&a.modified));
-    Ok(notes)
 }
 
 #[tauri::command]
@@ -319,7 +276,11 @@ pub fn reveal_path(path: String) -> Result<(), String> {
 
     #[cfg(all(unix, not(target_os = "macos")))]
     let cmd = Command::new("xdg-open")
-        .arg(Path::new(&path).parent().unwrap_or_else(|| Path::new(&path)))
+        .arg(
+            Path::new(&path)
+                .parent()
+                .unwrap_or_else(|| Path::new(&path)),
+        )
         .spawn();
 
     cmd.map(|_| ()).map_err(|e| format!("reveal: {e}"))
@@ -327,9 +288,8 @@ pub fn reveal_path(path: String) -> Result<(), String> {
 
 // Walk the notes folder recursively. Returns a tree of NoteTreeNode. The
 // `id` of each file is its relative path from the notes folder, with the
-// `.md` extension stripped — same convention as the flat list_notes command,
-// just with `/` separators in subfolder cases. read_note/write_note still
-// take this id and resolve it correctly.
+// `.md` extension stripped. read_note/write_note take this id and resolve it
+// correctly across subfolders.
 fn walk_dir(root: &Path, dir: &Path, depth: usize) -> Vec<NoteTreeNode> {
     if depth > 20 {
         return Vec::new(); // pathological symlink loop guard
@@ -370,7 +330,10 @@ fn walk_dir(root: &Path, dir: &Path, depth: usize) -> Vec<NoteTreeNode> {
                 children,
             });
         } else if path.is_file() {
-            let ext = path.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase());
+            let ext = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.to_ascii_lowercase());
             if ext.as_deref() != Some("md") {
                 continue;
             }

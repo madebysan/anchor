@@ -53,10 +53,6 @@ export async function refreshPersistence(): Promise<void> {
   noteTreeCache = tree;
 }
 
-export function isPersistenceReady(): boolean {
-  return bootCompleted;
-}
-
 // Snapshot of the tree (folders + files) for the sidebar. Stable across
 // renders within a boot, replaced on the next bootPersistence() call.
 export function getNoteTree(): NoteTreeNode[] {
