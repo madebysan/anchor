@@ -10,9 +10,8 @@ settings, session reuse, app icon + DMG, comment anchor restore, sidebar
 file/folder management v2, arbitrary folder moves, sidecar thread storage,
 onboarding copy, distribution runbook + local DMG script, ESLint, accessibility
 fixes, font bundle trimming, initial Playwright smoke tests, browser-level
-auto-apply regression coverage, and signed + notarized macOS distribution all
-shipped.** Remaining big chunks: final branding and one optional multi-doc
-comment regression.
+auto-apply and multi-document comment regression coverage, and signed +
+notarized macOS distribution all shipped.** Remaining big chunk: final branding.
 
 ---
 
@@ -115,8 +114,10 @@ the product is stable enough to commit to identity:
 - Browser-level editor regression shipped for a mocked Tauri + Claude flow:
   create a highlighted comment, submit a rewrite, verify the temporary edit
   highlight, save to markdown, and reload from the saved markdown.
-- Next target:
-  - Multi-doc switch preserves comments
+- Multi-document browser regression shipped for switching between notes and
+  restoring sidecar-backed comments plus visual comment marks.
+- Current concrete Playwright targets are covered. Add new tests when a risky
+  editor, persistence, or sidebar flow changes.
 
 ---
 

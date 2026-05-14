@@ -2,11 +2,13 @@ import { expect, test, type Page } from "playwright/test";
 
 const ORIGINAL_TEXT = "The original sentence needs work.";
 const REPLACEMENT_TEXT = "A sharper sentence.";
+const SECOND_NOTE_TITLE = "Second Note";
+const SECOND_NOTE_TEXT = "This is another note.";
 const STORAGE_KEY = "inline-md-browser-test-state";
 
 async function installTauriMock(page: Page): Promise<void> {
   await page.addInitScript(
-    ({ originalText, replacementText, storageKey }) => {
+    ({ originalText, replacementText, secondNoteTitle, secondNoteText, storageKey }) => {
       interface MockNote {
         id: string;
         path: string;
@@ -60,6 +62,13 @@ async function installTauriMock(page: Page): Promise<void> {
               "",
               "Second paragraph remains.",
             ].join("\n"),
+            modified: nowSeconds(),
+          },
+          {
+            id: secondNoteTitle,
+            path: notePath(secondNoteTitle),
+            title: secondNoteTitle,
+            content: [`# ${secondNoteTitle}`, "", secondNoteText].join("\n"),
             modified: nowSeconds(),
           },
         ],
@@ -225,7 +234,13 @@ async function installTauriMock(page: Page): Promise<void> {
 
       publish();
     },
-    { originalText: ORIGINAL_TEXT, replacementText: REPLACEMENT_TEXT, storageKey: STORAGE_KEY },
+    {
+      originalText: ORIGINAL_TEXT,
+      replacementText: REPLACEMENT_TEXT,
+      secondNoteTitle: SECOND_NOTE_TITLE,
+      secondNoteText: SECOND_NOTE_TEXT,
+      storageKey: STORAGE_KEY,
+    },
   );
 }
 
@@ -311,4 +326,36 @@ test("comment rewrite auto-applies, highlights, and survives markdown reload", a
   await page.reload();
   await expect(page.locator(".ProseMirror")).toContainText(REPLACEMENT_TEXT);
   await expect(page.locator(".ProseMirror")).not.toContainText(ORIGINAL_TEXT);
+});
+
+test("document switches restore sidecar comments and visual marks", async ({ page }) => {
+  await installTauriMock(page);
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+
+  await selectEditorText(page, ORIGINAL_TEXT);
+  await dispatchCommentShortcut(page);
+
+  const noteText = "Note: keep this claim grounded";
+  const messageInput = page.getByLabel("Comment message");
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill(noteText);
+  await page.getByLabel("Send comment").click();
+
+  await expect(page.getByText(noteText)).toBeVisible();
+  await expect(page.locator("mark.comment-highlight")).toHaveCount(1);
+
+  await page.getByRole("button", { name: new RegExp(SECOND_NOTE_TITLE) }).click();
+  await expect(editor).toContainText(SECOND_NOTE_TEXT);
+  await expect(page.getByText("No comments yet")).toBeVisible();
+
+  await page.getByRole("button", { name: /Browser Test/ }).click();
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+  const comments = page.locator('aside[aria-label="Comments"]');
+  await expect(comments.getByText(ORIGINAL_TEXT)).toBeVisible();
+  await expect(page.locator("mark.comment-highlight")).toHaveCount(1);
+  await comments.getByText(ORIGINAL_TEXT).click();
+  await expect(comments.getByText(noteText)).toBeVisible();
 });
