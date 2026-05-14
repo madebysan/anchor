@@ -9,9 +9,9 @@ menus v1, markdown paste formatting, Claude cancellation, dead-code cleanup,
 settings, session reuse, app icon + DMG, comment anchor restore, sidebar
 file/folder management v2, arbitrary folder moves, sidecar thread storage,
 onboarding copy, distribution runbook + local DMG script, ESLint, accessibility
-fixes, font bundle trimming, and initial Playwright smoke tests all shipped.**
-Remaining big chunks: signed/notarized distribution, deeper browser-level tests,
-and final branding.
+fixes, font bundle trimming, initial Playwright smoke tests, and signed +
+notarized macOS distribution all shipped.** Remaining big chunks: deeper
+browser-level tests and final branding.
 
 ---
 
@@ -121,16 +121,6 @@ the product is stable enough to commit to identity:
   temporary edit highlight appears.
 
 ---
-
-## Added 2026-05-06 (session housekeeping)
-
-- [ ] Sign + notarize the macOS `.app` bundle for distribution. A Developer ID
-      Application identity is now present locally. Next release pass is Tauri
-      signing verification, `notarytool --keychain-profile "notarytool"`, stapling,
-      and Gatekeeper verification.
-- [ ] Release polish: decide whether the plain `hdiutil` DMG from
-      `npm run release:dmg` is good enough for v0.1 distribution, or whether
-      branded DMG layout is worth revisiting later.
 
 ## Added 2026-05-06 (from Things triage)
 

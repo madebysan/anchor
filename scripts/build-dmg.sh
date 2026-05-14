@@ -6,6 +6,7 @@ cd "$ROOT"
 
 PRODUCT_NAME="$(node -e "const fs = require('fs'); const c = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')); process.stdout.write(c.productName);")"
 VERSION="$(node -e "const fs = require('fs'); const c = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')); process.stdout.write(c.version);")"
+SIGNING_IDENTITY="$(node -e "const fs = require('fs'); const c = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')); process.stdout.write(c.bundle?.macOS?.signingIdentity || '');")"
 ARCH="$(uname -m)"
 if [ "$ARCH" = "arm64" ]; then
   BUNDLE_ARCH="aarch64"
@@ -45,6 +46,10 @@ hdiutil create \
   -format UDZO \
   -ov \
   "$DMG_PATH"
+
+if [ "${INLINE_MD_NO_SIGN:-0}" != "1" ] && [ -n "$SIGNING_IDENTITY" ]; then
+  codesign --force --sign "$SIGNING_IDENTITY" --timestamp "$DMG_PATH"
+fi
 
 hdiutil verify "$DMG_PATH"
 echo "$DMG_PATH"

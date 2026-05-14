@@ -33,6 +33,10 @@
     "category": "Productivity",
     "shortDescription": "AI instructions anchored to your text.",
     "longDescription": "Inline MD is a desktop markdown editor where AI instructions are anchored to passages. Uses Claude Code locally — no API keys.",
+    "macOS": {
+      "signingIdentity": "Developer ID Application: Santiago Alonso Alexandre (QAMM2A6WRQ)",
+      "providerShortName": "QAMM2A6WRQ"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
