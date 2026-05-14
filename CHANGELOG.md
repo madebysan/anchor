@@ -39,6 +39,9 @@ Updated every session via `/save-session`.
   reduced to Latin subsets.
 - **Routing tests:** added regression coverage for source-offset routing and
   thread history prompt formatting.
+- **Browser-level editor regression:** Playwright now boots the Vite app with
+  mocked Tauri and Claude commands, auto-applies a comment rewrite, checks the
+  temporary edit highlight, and confirms the saved markdown reloads cleanly.
 - **Notarized release artifact:** Apple accepted the ARM64 DMG submission
   `c8ac8c64-dce1-47ab-bd62-eddb55cb685e`; the stapled DMG and bundled app both
   pass Gatekeeper assessment.
