@@ -379,6 +379,21 @@ test("comment submit shows loading controls while Claude is pending", async ({ p
   await expect(editor).toContainText(REPLACEMENT_TEXT);
 });
 
+test("document switch flushes pending editor content", async ({ page }) => {
+  await installTauriMock(page);
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+
+  await editor.click();
+  await page.keyboard.type(" Fresh unsaved sentence.");
+  await page.getByRole("button", { name: new RegExp(SECOND_NOTE_TITLE) }).click();
+
+  await expect(editor).toContainText(SECOND_NOTE_TEXT);
+  await expect.poll(() => savedMarkdown(page)).toContain("Fresh unsaved sentence.");
+});
+
 test("Claude CLI failures render as actionable sidebar alerts", async ({ page }) => {
   await installTauriMock(page, {
     aiFailure: "claude exited with status exit status: 1",
