@@ -23,6 +23,9 @@ Updated every session via `/save-session`.
 - **Reliable local DMG script:** added `npm run release:dmg`, which builds the
   app bundle and creates a verified DMG through `hdiutil` instead of Tauri's
   Finder/AppleScript DMG layout path.
+- **Signed macOS release workflow:** Tauri now uses the local Developer ID
+  Application identity, the DMG script signs the generated image, and
+  `npm run release:notarize` submits, staples, and Gatekeeper-checks the DMG.
 
 ### Fixes
 - **Thread file lifecycle:** note rename, move, and delete now carry sidecar
@@ -36,6 +39,9 @@ Updated every session via `/save-session`.
   reduced to Latin subsets.
 - **Routing tests:** added regression coverage for source-offset routing and
   thread history prompt formatting.
+- **Notarized release artifact:** Apple accepted the ARM64 DMG submission
+  `c8ac8c64-dce1-47ab-bd62-eddb55cb685e`; the stapled DMG and bundled app both
+  pass Gatekeeper assessment.
 
 ### Docs
 - Updated `backlog.md`, `plan.md`, and `docs/distribution.md` so open work

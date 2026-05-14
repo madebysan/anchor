@@ -1,10 +1,10 @@
 # Distribution Runbook
 
-Inline MD builds a working macOS app bundle and DMG. Use the local script for
-DMGs because it avoids Tauri's Finder/AppleScript DMG layout step, which has
+Inline MD builds a signed macOS app bundle and a signed DMG. Use the local DMG
+script because it avoids Tauri's Finder/AppleScript DMG layout step, which has
 hung on this machine before.
 
-## Local Build
+## Unsigned Local Build
 
 ```bash
 npm run tauri build -- --bundles app --no-sign
@@ -13,36 +13,74 @@ npm run tauri build -- --bundles app --no-sign
 The macOS app lands at
 `src-tauri/target/release/bundle/macos/Inline MD.app`.
 
-## Local DMG
+## Unsigned Local DMG
 
 ```bash
 INLINE_MD_NO_SIGN=1 npm run release:dmg
 ```
 
-The script builds the app bundle, stages it with an Applications symlink, creates
-a compressed DMG with `hdiutil`, and verifies it before printing the artifact
-path. The output path is:
+Use this for quick local checks only. The script builds the app bundle, stages
+it with an Applications symlink, creates a compressed DMG with `hdiutil`, and
+verifies it before printing the artifact path.
+
+## Signed Release DMG
+
+```bash
+npm run release:dmg
+```
+
+This builds the app bundle with the configured Developer ID Application
+identity, creates the DMG, signs the DMG, verifies the image checksum, and
+prints the artifact path:
 
 ```text
 src-tauri/target/release/bundle/dmg/Inline MD_0.1.0_aarch64.dmg
 ```
 
-## Signing + Notarization Checklist
-
-Current local preflight: `security find-identity -v -p codesigning` now finds a
-valid Developer ID Application identity:
+Current signing identity:
 
 ```text
 Developer ID Application: Santiago Alonso Alexandre (QAMM2A6WRQ)
 ```
 
-Next release pass:
+## Notarization
 
-1. Confirm Tauri uses the Developer ID Application identity for the `.app`.
-2. Build the app and DMG with `npm run release:dmg`.
-3. Submit the DMG with `xcrun notarytool submit --keychain-profile "notarytool" --wait`.
-4. Staple the notarization ticket with `xcrun stapler staple`.
-5. Verify Gatekeeper with `spctl --assess --type open --verbose`.
+```bash
+npm run release:notarize
+```
+
+This submits the DMG through the existing local `notarytool` keychain profile,
+waits for Apple to finish processing it, staples the notarization ticket, and
+runs a Gatekeeper check on the DMG.
+
+Use this combined command for a full Mac release pass:
+
+```bash
+npm run release:mac
+```
+
+Expected validation commands:
+
+```bash
+spctl --assess --type open --context context:primary-signature --verbose=4 "src-tauri/target/release/bundle/dmg/Inline MD_0.1.0_aarch64.dmg"
+spctl --assess --type execute --verbose=4 "src-tauri/target/release/bundle/macos/Inline MD.app"
+codesign --verify --deep --strict --verbose=4 "src-tauri/target/release/bundle/macos/Inline MD.app"
+hdiutil verify "src-tauri/target/release/bundle/dmg/Inline MD_0.1.0_aarch64.dmg"
+```
+
+Latest verified notarization:
+
+```text
+Status: Accepted
+Submission ID: c8ac8c64-dce1-47ab-bd62-eddb55cb685e
+SHA-256: 024b999b6e2f5f17c68e992e40b99170670aef721043ba0ae2ddc6ee97515284
+```
+
+## DMG Design
+
+The plain `hdiutil` DMG is the v0.1 distribution path. It is signed,
+notarized, stapled, and accepted by Gatekeeper. A branded DMG layout can wait
+for the final branding pass.
 
 ## DMG Housekeeping
 

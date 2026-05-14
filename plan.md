@@ -62,9 +62,10 @@ Massive multi-phase day — fork stabilized, full AI integration shipped, multip
   starter note when the selected notes folder is truly empty.
 - Tauri dev process was restarted after the boot fix. Latest dev session used
   Vite on `http://localhost:1420/`.
-- Local Keychain now has a valid Developer ID Application identity. The reliable
-  unsigned DMG path is `INLINE_MD_NO_SIGN=1 npm run release:dmg`; signed and
-  notarized distribution still needs a release pass.
+- Local Keychain has a valid Developer ID Application identity. `npm run
+  release:dmg` builds and signs the app/DMG, and `npm run release:notarize`
+  submits, staples, and Gatekeeper-checks the DMG. The latest accepted Apple
+  submission is `c8ac8c64-dce1-47ab-bd62-eddb55cb685e`.
 
 ## Next steps
 
@@ -72,8 +73,6 @@ Highest-value chunks queued in `backlog.md`:
 
 - [ ] **Browser-level editor tests** - comment auto-apply round-trip with mocked
   claude, markdown-on-disk save/reload parity, persona override flow.
-- [ ] **Signed distribution** - Developer ID signing + notarization for the
-  macOS `.app`/DMG.
 - [ ] **Branding** - final name, icon, README hero, and release identity.
 
 ## Decisions & context
@@ -95,7 +94,9 @@ Highest-value chunks queued in `backlog.md`:
 npm install
 npm run tauri dev      # dev window with hot reload
 npm run tauri build -- --bundles app
-npm run release:dmg    # production .app + simple verified DMG via hdiutil
+npm run release:dmg    # production .app + signed verified DMG via hdiutil
+npm run release:notarize
+npm run release:mac    # signed DMG + notarization + stapling
 ```
 
 For unsigned local DMGs, use `INLINE_MD_NO_SIGN=1 npm run release:dmg`.

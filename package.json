@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "test:e2e": "playwright test",
     "tauri": "tauri",
-    "release:dmg": "bash scripts/build-dmg.sh"
+    "release:dmg": "bash scripts/build-dmg.sh",
+    "release:notarize": "bash scripts/notarize-dmg.sh",
+    "release:mac": "npm run release:dmg && npm run release:notarize"
   },
   "dependencies": {
     "@fontsource/geist-mono": "^5.2.5",
