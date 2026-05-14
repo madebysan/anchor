@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import type { AISettings, CommentThread, ParsedTrigger } from "@/types";
 import { applyContextStrategy, type DocumentSnapshot } from "@/lib/ai/context-router";
+import { formatThreadHistory } from "@/lib/ai/thread-history";
 import { cancelClaude, chatClaude, invokeClaudeSession } from "@/lib/ai-cli";
 import { useDocumentStore } from "@/lib/document-store";
 import { getDocPath } from "@/lib/persistence";
@@ -74,7 +75,9 @@ export function useAIChat(
         const personaPrompt = personaConfig?.prompt ?? "";
         const strategy = personaConfig?.contextStrategy ?? "tight";
         const mode = personaConfig?.mode ?? "rewrite";
-        const routed = applyContextStrategy(strategy, doc, passage);
+        const routed = applyContextStrategy(strategy, doc, passage, thread.anchor);
+        const priorThreadMessages = thread.messages.slice(0, -1);
+        const threadHistory = formatThreadHistory(priorThreadMessages);
 
         const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
@@ -98,6 +101,9 @@ export function useAIChat(
           "",
           "## The user's instruction",
           userMessage,
+          "",
+          "## Prior thread context",
+          threadHistory,
           "",
           `## Surrounding context (informational slice; strategy: ${routed.strategy}, ${routed.charCount.toLocaleString()} chars)`,
           routed.content,
@@ -131,6 +137,9 @@ export function useAIChat(
           "## The user's instruction",
           userMessage,
           "",
+          "## Prior thread context",
+          threadHistory,
+          "",
           `## Surrounding context (informational slice; strategy: ${routed.strategy}, ${routed.charCount.toLocaleString()} chars)`,
           routed.content,
           "",
@@ -161,6 +170,9 @@ export function useAIChat(
               "",
               "## The user's question",
               userMessage,
+              "",
+              "## Prior thread context",
+              threadHistory,
               "",
               "## Your output",
               "Respond conversationally and concisely. Use markdown when helpful.",

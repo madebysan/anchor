@@ -10,23 +10,16 @@ settings, session reuse, app icon + DMG, comment anchor restore, sidebar
 file/folder management v2, arbitrary folder moves, sidecar thread storage,
 onboarding copy, distribution runbook + local DMG script, ESLint, accessibility
 fixes, font bundle trimming, and initial Playwright smoke tests all shipped.**
-Remaining big chunks: diff highlight polish, stronger source-offset anchoring,
-signed/notarized distribution, deeper tests, and final branding.
+Remaining big chunks: signed/notarized distribution, deeper browser-level tests,
+and final branding.
 
 ---
 
-## Phase 3 — Auto-apply polish (core shipped)
+## Phase 3 — Auto-apply polish (shipped)
 
-The auto-apply UX shipped. Claude's reply replaces the highlighted passage
-in Tiptap; ⌘Z reverts via the editor's history. What's still missing:
-
-### Diff highlight + auto-fade
-**Files:** new `src/extensions/edit-highlight.ts`, integration in
-`src/components/editor/Editor.tsx`.
-- Custom Tiptap mark applied to the changed range right after a claude
-  edit. Fades over ~3s.
-- The snapshot is already captured by Tiptap's history extension; verify
-  it consistently does so before our `replaceWith` dispatch.
+Claude's reply replaces the highlighted passage in Tiptap; ⌘Z reverts via the
+editor's history. Auto-applied edits now get a temporary highlight that fades
+out after the replacement lands.
 
 ### Keep the comment thread UI (decision)
 **Files:** `src/components/comments/`.
@@ -44,8 +37,8 @@ in Tiptap; ⌘Z reverts via the editor's history. What's still missing:
 - Shipped: thread storage moved from localStorage into sidecar
   `<note>.md.threads.json` files next to each markdown note. Existing
   localStorage threads migrate on boot.
-- Remaining: track markdown-source offsets so anchors survive heavier external
-  rewrites.
+- Shipped: anchors now also store approximate markdown-source offsets. The
+  context router uses those offsets to disambiguate duplicate highlighted text.
 
 ## UX polish
 
@@ -116,17 +109,16 @@ the product is stable enough to commit to identity:
   user actually surfaces.
 
 ### Tests (Playwright)
-- Initial Playwright smoke tests shipped for markdown conversion and persona
-  defaults. Next targets:
+- Initial Playwright smoke tests shipped for markdown conversion, persona
+  defaults, source-offset routing, and thread history formatting. Next targets:
   - Multi-doc switch preserves comments
   - Comment + Claude round-trip with a mock CLI
   - File save round-trips markdown without drift
 
-### `findPassageParagraphIdx` substring brittleness
-- Inherited: `context-router.ts` finds the passage by substring match.
-  Fragile. The comment thread now stores a passage anchor from the selected
-  range; next step is routing AI context from that anchor instead of substring
-  lookup.
+### Browser-level editor tests
+- Add a Tauri/Vite-backed browser test that creates a real highlighted comment,
+  submits a mocked Claude response, verifies the replacement, and confirms the
+  temporary edit highlight appears.
 
 ---
 
@@ -142,7 +134,6 @@ the product is stable enough to commit to identity:
 
 ## Added 2026-05-06 (from Things triage)
 
-- [ ] **Tagged personas inherit the full thread.** When a comment thread reaches a follow-up that @-mentions a different persona, that persona currently gets only the new message as context. Pass the prior thread (claude's responses + user follow-ups) so the tagged persona can pick up mid-conversation without the user re-explaining. Files: `src/hooks/useAIChat.ts` (build prompt), thread-state lookup in comment store.
 - [ ] **Deep-refactor option: native Swift / Mac.** Decision-deferred exploratory item. Tauri is shipping fine, but the question is whether a native Swift rewrite (likely funded with Cape credits — engineering time budget, not API credits) would unlock things Tauri can't: real macOS document model, system services, sharper UI feel. Park until either (a) Tauri hits a real wall or (b) the app's value is proven enough to justify the rewrite cost. Reference: this is the "throw it away and rebuild" option, not an incremental change.
 
 ---

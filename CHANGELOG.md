@@ -10,6 +10,14 @@ Updated every session via `/save-session`.
 ### Features
 - **Thread sidecar files:** comment threads now persist beside each markdown file
   as `<note>.md.threads.json`; existing localStorage thread data migrates on boot.
+- **Edit highlight fade:** auto-applied Claude edits and accepted suggestions now
+  briefly highlight the changed range, then fade out.
+- **Source-offset anchors:** comment anchors now store approximate markdown-source
+  offsets and use them to route context when highlighted text appears more than
+  once in a document.
+- **Thread-aware persona switches:** follow-up messages include prior thread
+  context, so a later `@researcher` or `@challenger` mention can pick up the
+  conversation instead of seeing only the latest message.
 - **Move to folder:** file context menus now include a folder submenu for moving
   a note directly into any existing folder or back to root.
 - **Reliable local DMG script:** added `npm run release:dmg`, which builds the
@@ -26,6 +34,8 @@ Updated every session via `/save-session`.
 - **Lint and optimization pass:** ESLint 9 flat config is in place, lint passes,
   accessibility issues from the QA audit were fixed, and font imports were
   reduced to Latin subsets.
+- **Routing tests:** added regression coverage for source-offset routing and
+  thread history prompt formatting.
 
 ### Docs
 - Updated `backlog.md`, `plan.md`, and `docs/distribution.md` so open work

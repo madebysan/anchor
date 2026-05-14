@@ -260,7 +260,10 @@ function isCommentAnchor(value: unknown): value is NonNullable<CommentThread["an
     isRecord(value) &&
     typeof value.text === "string" &&
     typeof value.pmFrom === "number" &&
-    typeof value.pmTo === "number"
+    typeof value.pmTo === "number" &&
+    (value.sourceText === undefined || typeof value.sourceText === "string") &&
+    (value.sourceFrom === undefined || typeof value.sourceFrom === "number") &&
+    (value.sourceTo === undefined || typeof value.sourceTo === "number")
   );
 }
 

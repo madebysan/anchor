@@ -20,6 +20,9 @@ export interface CommentAnchor {
   text: string;
   pmFrom: number;
   pmTo: number;
+  sourceText?: string;
+  sourceFrom?: number;
+  sourceTo?: number;
 }
 
 export interface ThreadMessage {

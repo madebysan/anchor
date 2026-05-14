@@ -6,8 +6,18 @@ import type { ContextStrategy } from "@/types";
 export interface DocumentSnapshot {
   /** Plain text of the entire document, paragraphs separated by `\n\n`. */
   fullText: string;
+  /** Markdown serialization of the current editor doc. */
+  sourceMarkdown?: string;
   /** Block-level paragraphs in order, no separators. */
   paragraphs: string[];
+  /** Block ranges that map editor positions to approximate markdown offsets. */
+  blocks?: {
+    text: string;
+    pmFrom: number;
+    pmTo: number;
+    sourceFrom: number | null;
+    sourceTo: number | null;
+  }[];
   /** Headings in document order (h1-h6). */
   headings: { level: number; text: string }[];
 }
@@ -29,7 +39,38 @@ const MAX_CHARS = 60_000;
 
 // Find the index of the paragraph containing the passage. Substring match,
 // first hit wins. Returns -1 if not found (e.g. user comment on doc-level).
-function findPassageParagraphIdx(paragraphs: string[], passage: string): number {
+interface PassageAnchorHint {
+  pmFrom?: number;
+  sourceFrom?: number;
+  sourceTo?: number;
+}
+
+function findPassageParagraphIdx(
+  doc: DocumentSnapshot,
+  passage: string,
+  anchor?: PassageAnchorHint,
+): number {
+  if (anchor && doc.blocks?.length) {
+    const blockIdx = doc.blocks.findIndex((block) => {
+      if (
+        typeof anchor.sourceFrom === "number" &&
+        block.sourceFrom !== null &&
+        block.sourceTo !== null &&
+        anchor.sourceFrom >= block.sourceFrom &&
+        anchor.sourceFrom <= block.sourceTo
+      ) {
+        return true;
+      }
+      return (
+        typeof anchor.pmFrom === "number" &&
+        anchor.pmFrom >= block.pmFrom &&
+        anchor.pmFrom <= block.pmTo
+      );
+    });
+    if (blockIdx !== -1) return blockIdx;
+  }
+
+  const paragraphs = doc.paragraphs;
   if (!passage) return -1;
   const trimmed = passage.trim();
   if (!trimmed) return -1;
@@ -96,7 +137,8 @@ function formatOutline(headings: { level: number; text: string }[]): string {
 export function applyContextStrategy(
   strategy: ContextStrategy,
   doc: DocumentSnapshot,
-  passage: string
+  passage: string,
+  anchor?: PassageAnchorHint,
 ): RoutedContext {
   const passageBlock = passage.trim()
     ? `## Highlighted Passage\n"${passage}"`
@@ -112,7 +154,7 @@ export function applyContextStrategy(
     }
 
     case "tight": {
-      const idx = findPassageParagraphIdx(doc.paragraphs, passage);
+      const idx = findPassageParagraphIdx(doc, passage, anchor);
       if (idx === -1) {
         // No matchable passage (e.g. doc-level comment) — fall back to outline.
         body = `## Document Outline\n${formatOutline(doc.headings)}\n\n${passageBlock}`;
@@ -126,7 +168,7 @@ export function applyContextStrategy(
     }
 
     case "local-section": {
-      const idx = findPassageParagraphIdx(doc.paragraphs, passage);
+      const idx = findPassageParagraphIdx(doc, passage, anchor);
       if (idx === -1) {
         body = `## Document\n${doc.fullText}\n\n${passageBlock}`;
       } else {
@@ -141,7 +183,7 @@ export function applyContextStrategy(
 
     case "tight-plus-thesis": {
       const thesis = doc.paragraphs[0] ?? "";
-      const idx = findPassageParagraphIdx(doc.paragraphs, passage);
+      const idx = findPassageParagraphIdx(doc, passage, anchor);
       if (idx === -1) {
         body = `## Document Opening\n${thesis}\n\n${passageBlock}`;
       } else {
