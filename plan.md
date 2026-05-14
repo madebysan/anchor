@@ -1,5 +1,23 @@
 # plan
 
+## Done this session (2026-05-14)
+
+Focused release-hardening pass after the sidebar/file-watching work stabilized.
+
+- Claude failures now show clearer user-facing errors instead of only
+  `claude exited with status exit status: 1`.
+- Comment submission no longer blocks the UI while Claude is running. The
+  command runs off the main thread, the sidebar keeps responding, and loading
+  state stays visible until the reply or error lands.
+- Editor bundle and chrome were trimmed. Removed the optional font picker,
+  dynamic font loader, nine unused font packages, and the live word-count footer.
+  Size and line-height controls remain.
+- Performance/QA passes ran cleanly: lint, build, `cargo check`, and the
+  Playwright browser suite with 15 tests passing.
+- Rebuilt the macOS DMG, signed it with Developer ID, notarized it, stapled it,
+  verified the checksum, and copied it to Desktop:
+  `/Users/san/Desktop/Inline MD_0.1.0_aarch64-20260514-172119.dmg`.
+
 ## Done this session (2026-05-06)
 
 Massive multi-phase day — fork stabilized, full AI integration shipped, multiple fix passes.
@@ -68,7 +86,10 @@ Massive multi-phase day — fork stabilized, full AI integration shipped, multip
 - Local Keychain has a valid Developer ID Application identity. `npm run
   release:dmg` builds and signs the app/DMG, and `npm run release:notarize`
   submits, staples, and Gatekeeper-checks the DMG. The latest accepted Apple
-  submission is `c8ac8c64-dce1-47ab-bd62-eddb55cb685e`.
+  submission is `7c9d0db2-0a06-4559-8428-87a1426b6960`.
+- Recent performance work removed optional editor font switching, unused font
+  assets, and the live word-count footer. The editor keeps the expected
+  formatting, size, line-height, markdown paste, export, and comment workflows.
 
 ## Next steps
 
@@ -86,6 +107,11 @@ Highest-value chunks queued in `backlog.md`:
 ## Dependencies added (this session)
 
 - npm: (none new — actually removed: `zod`, `@tiptap/extension-bubble-menu`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-shell`)
+- npm removed in the latest cleanup: optional editor font packages
+  `@fontsource/inter`, `@fontsource/lora`, `@fontsource/merriweather`,
+  `@fontsource/nunito`, `@fontsource/open-sans`,
+  `@fontsource/playfair-display`, `@fontsource/roboto`,
+  `@fontsource/source-serif-4`, and `@fontsource/ibm-plex-sans`.
 - Cargo: `notify = "8"` (file watcher), removed `tauri-plugin-fs`, `tauri-plugin-shell`
 - macOS: nothing system-level
 

@@ -10,8 +10,10 @@ settings, session reuse, app icon + DMG, comment anchor restore, sidebar
 file/folder management v2, arbitrary folder moves, sidecar thread storage,
 onboarding copy, distribution runbook + local DMG script, ESLint, accessibility
 fixes, font bundle trimming, initial Playwright smoke tests, browser-level
-auto-apply and multi-document comment regression coverage, and signed +
-notarized macOS distribution all shipped.** Remaining big chunk: final branding.
+auto-apply and multi-document comment regression coverage, clearer Claude
+failure states, non-blocking comment loading, editor chrome trimming, and signed
+and notarized macOS distribution all shipped.** Remaining big chunk: final
+branding.
 
 ---
 

@@ -28,12 +28,20 @@ Updated every session via `/save-session`.
   `npm run release:notarize` submits, staples, and Gatekeeper-checks the DMG.
 
 ### Fixes
+- **Clearer Claude failures:** Claude CLI failures now surface specific,
+  actionable messages instead of a generic exit-status line.
+- **Responsive comment loading:** comment submission now keeps the UI responsive
+  while Claude runs, so the editor no longer feels frozen during the loading
+  window.
 - **Thread file lifecycle:** note rename, move, and delete now carry sidecar
   thread files with the markdown file.
 - **Active-note move safety:** active note moves and renames now flush content
   and thread data before changing the file id.
 
 ### QA
+- **Editor chrome cleanup:** removed the optional font picker, dynamic font
+  loader, nine unused font packages, and the live word-count footer. Size and
+  line-height controls remain.
 - **Lint and optimization pass:** ESLint 9 flat config is in place, lint passes,
   accessibility issues from the QA audit were fixed, and font imports were
   reduced to Latin subsets.
@@ -44,9 +52,9 @@ Updated every session via `/save-session`.
   temporary edit highlight, and confirms the saved markdown reloads cleanly.
 - **Multi-document comment regression:** browser coverage now switches between
   notes and confirms sidecar-backed comments plus visual marks restore on return.
-- **Notarized release artifact:** Apple accepted the ARM64 DMG submission
-  `c8ac8c64-dce1-47ab-bd62-eddb55cb685e`; the stapled DMG and bundled app both
-  pass Gatekeeper assessment.
+- **Notarized release artifact:** Apple accepted the latest ARM64 DMG submission
+  `7c9d0db2-0a06-4559-8428-87a1426b6960`; the stapled Desktop DMG passes
+  Gatekeeper assessment.
 
 ### Docs
 - Updated `backlog.md`, `plan.md`, and `docs/distribution.md` so open work
