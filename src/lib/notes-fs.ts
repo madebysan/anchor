@@ -52,6 +52,18 @@ export async function writeNote(id: string, content: string): Promise<NoteFile> 
   return invoke<NoteFile>("write_note", { id, content });
 }
 
+export async function readNoteThreads(id: string): Promise<string | null> {
+  return invoke<string | null>("read_note_threads", { id });
+}
+
+export async function writeNoteThreads(id: string, content: string): Promise<void> {
+  return invoke<void>("write_note_threads", { id, content });
+}
+
+export async function deleteNoteThreads(id: string): Promise<void> {
+  return invoke<void>("delete_note_threads", { id });
+}
+
 export async function renameNote(oldId: string, newId: string): Promise<NoteFile> {
   return invoke<NoteFile>("rename_note", { oldId, newId });
 }

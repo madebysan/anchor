@@ -5,6 +5,32 @@ Updated every session via `/save-session`.
 
 ---
 
+## 2026-05-14
+
+### Features
+- **Thread sidecar files:** comment threads now persist beside each markdown file
+  as `<note>.md.threads.json`; existing localStorage thread data migrates on boot.
+- **Move to folder:** file context menus now include a folder submenu for moving
+  a note directly into any existing folder or back to root.
+- **Reliable local DMG script:** added `npm run release:dmg`, which builds the
+  app bundle and creates a verified DMG through `hdiutil` instead of Tauri's
+  Finder/AppleScript DMG layout path.
+
+### Fixes
+- **Thread file lifecycle:** note rename, move, and delete now carry sidecar
+  thread files with the markdown file.
+- **Active-note move safety:** active note moves and renames now flush content
+  and thread data before changing the file id.
+
+### QA
+- **Lint and optimization pass:** ESLint 9 flat config is in place, lint passes,
+  accessibility issues from the QA audit were fixed, and font imports were
+  reduced to Latin subsets.
+
+### Docs
+- Updated `backlog.md`, `plan.md`, and `docs/distribution.md` so open work
+  matches the current app state.
+
 ## 2026-05-08
 
 ### Features

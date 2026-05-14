@@ -94,8 +94,8 @@ function makeMessageId() {
 
 // Save the current doc + threads immediately.
 function flushCurrent(docId: string, content: string, threads: CommentThread[]): void {
-  saveDocContent(docId, content);
-  saveDocThreads(docId, threads);
+  void saveDocContent(docId, content);
+  void saveDocThreads(docId, threads);
 }
 
 export const useDocumentStore = create<DocumentStore>((set, get) => ({
@@ -219,7 +219,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     get().cancelPendingSaves();
     saveActiveDocId(nextActiveId);
     if (activeDocMoved) {
-      saveDocThreads(nextActiveId, movedThreads);
+      await saveDocThreads(nextActiveId, movedThreads);
     }
 
     set({
@@ -370,8 +370,9 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
 
     const { activeDocId, content, threads } = get();
     if (activeDocId === id) {
-      flushCurrent(id, content, threads);
       get().cancelPendingSaves();
+      await saveDocContent(id, content);
+      await saveDocThreads(id, threads);
     }
 
     await renameNote(id, nextId);
@@ -380,7 +381,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     const docs = loadDocIndex() ?? [];
     if (activeDocId === id) {
       saveActiveDocId(nextId);
-      saveDocThreads(nextId, threads);
+      await saveDocThreads(nextId, threads);
       set({
         documents: docs,
         activeDocId: nextId,
@@ -415,8 +416,9 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
 
     const { activeDocId, content, threads } = get();
     if (activeDocId === id) {
-      flushCurrent(id, content, threads);
       get().cancelPendingSaves();
+      await saveDocContent(id, content);
+      await saveDocThreads(id, threads);
     }
 
     await renameNote(id, nextId);
@@ -425,7 +427,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
 
     if (activeDocId === id) {
       saveActiveDocId(nextId);
-      saveDocThreads(nextId, threads);
+      await saveDocThreads(nextId, threads);
       set({
         documents: docs,
         activeDocId: nextId,
@@ -456,7 +458,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       const { activeDocId: docId, content: latest } = get();
       if (!docId) return;
 
-      saveDocContent(docId, latest);
+      void saveDocContent(docId, latest);
       const newTitle = extractTitle(latest);
       set((state) => {
         const updated = state.documents.map((d) =>
@@ -579,6 +581,6 @@ function scheduleThreadSave() {
   threadSaveTimer = setTimeout(() => {
     const { activeDocId, threads } = useDocumentStore.getState();
     if (!activeDocId) return;
-    saveDocThreads(activeDocId, threads);
+    void saveDocThreads(activeDocId, threads);
   }, SAVE_DEBOUNCE_MS);
 }

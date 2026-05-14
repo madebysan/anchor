@@ -18,6 +18,9 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
@@ -62,6 +65,11 @@ interface DocumentSidebarProps {
 
 const EXPANDED_KEY = "inline-md-expanded-folders";
 
+interface FolderOption {
+  id: string;
+  label: string;
+}
+
 function loadExpanded(): Set<string> {
   try {
     const raw = localStorage.getItem(EXPANDED_KEY);
@@ -86,6 +94,20 @@ function countFiles(nodes: NoteTreeNode[]): number {
     if (node.type === "file") return count + 1;
     return count + countFiles(node.children);
   }, 0);
+}
+
+function collectFolderOptions(
+  nodes: NoteTreeNode[],
+  parentLabel = "",
+): FolderOption[] {
+  return nodes.flatMap((node) => {
+    if (node.type === "file") return [];
+    const label = parentLabel ? `${parentLabel} / ${node.name}` : node.name;
+    return [
+      { id: node.id, label },
+      ...collectFolderOptions(node.children, label),
+    ];
+  });
 }
 
 // Format a timestamp as a relative time string (e.g. "2m ago", "3h ago", "5d ago")
@@ -244,6 +266,8 @@ export default function DocumentSidebar({
     return paths;
   }, [noteTree]);
 
+  const folderOptions = useMemo(() => collectFolderOptions(noteTree), [noteTree]);
+
   return (
     <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
       {/* Drag region for the macOS overlay title bar — clears the traffic-light
@@ -325,7 +349,8 @@ export default function DocumentSidebar({
                   onChangeEditingTitle={setEditingTitle}
                   onDelete={(id) => setPendingDeleteId(id)}
                   onDuplicate={onDuplicateDocument}
-                  onMoveToParent={onMoveDocumentToFolder}
+                  folderOptions={folderOptions}
+                  onMoveToFolder={onMoveDocumentToFolder}
                   onReveal={revealPath}
                   onCopyPath={copyPath}
                 />
@@ -357,7 +382,8 @@ export default function DocumentSidebar({
                   onChangeEditingTitle={setEditingTitle}
                   onDelete={(id) => setPendingDeleteId(id)}
                   onDuplicate={onDuplicateDocument}
-                  onMoveToParent={onMoveDocumentToFolder}
+                  folderOptions={folderOptions}
+                  onMoveToFolder={onMoveDocumentToFolder}
                   onReveal={revealPath}
                   onOpenFolder={openPath}
                   onCopyPath={copyPath}
@@ -447,7 +473,8 @@ interface FileRowProps {
   onChangeEditingTitle: (next: string) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
-  onMoveToParent: (id: string, targetFolderId: string | null) => void;
+  folderOptions: FolderOption[];
+  onMoveToFolder: (id: string, targetFolderId: string | null) => void;
   onReveal: (path: string) => void;
   onCopyPath: (path: string) => void;
 }
@@ -468,14 +495,14 @@ function FileRow({
   onChangeEditingTitle,
   onDelete,
   onDuplicate,
-  onMoveToParent,
+  folderOptions,
+  onMoveToFolder,
   onReveal,
   onCopyPath,
 }: FileRowProps) {
   const parentId = id.includes("/") ? id.slice(0, id.lastIndexOf("/")) : null;
-  const grandparentId = parentId?.includes("/")
-    ? parentId.slice(0, parentId.lastIndexOf("/"))
-    : null;
+  const moveTargets = folderOptions.filter((folder) => folder.id !== parentId);
+  const showMoveMenu = parentId !== null || moveTargets.length > 0;
 
   return (
     <ContextMenu>
@@ -543,13 +570,29 @@ function FileRow({
           <Copy className="size-4" />
           Duplicate
         </ContextMenuItem>
-        <ContextMenuItem
-          disabled={!parentId}
-          onSelect={() => onMoveToParent(id, grandparentId)}
-        >
-          <CornerUpLeft className="size-4" />
-          Move to parent folder
-        </ContextMenuItem>
+        {showMoveMenu && (
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>
+              <CornerUpLeft className="size-4" />
+              Move to folder
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="w-56">
+              {parentId && (
+                <ContextMenuItem onSelect={() => onMoveToFolder(id, null)}>
+                  Root
+                </ContextMenuItem>
+              )}
+              {moveTargets.map((folder) => (
+                <ContextMenuItem
+                  key={folder.id}
+                  onSelect={() => onMoveToFolder(id, folder.id)}
+                >
+                  {folder.label}
+                </ContextMenuItem>
+              ))}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem onSelect={() => onStartRename(id, title)}>
           Rename
@@ -579,7 +622,8 @@ interface TreeNodeViewProps {
   onChangeEditingTitle: (next: string) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
-  onMoveToParent: (id: string, targetFolderId: string | null) => void;
+  folderOptions: FolderOption[];
+  onMoveToFolder: (id: string, targetFolderId: string | null) => void;
   onReveal: (path: string) => void;
   onOpenFolder: (path: string) => void;
   onCopyPath: (path: string) => void;
@@ -619,7 +663,8 @@ function TreeNodeView(props: TreeNodeViewProps) {
         onChangeEditingTitle={props.onChangeEditingTitle}
         onDelete={props.onDelete}
         onDuplicate={props.onDuplicate}
-        onMoveToParent={props.onMoveToParent}
+        folderOptions={props.folderOptions}
+        onMoveToFolder={props.onMoveToFolder}
         onReveal={props.onReveal}
         onCopyPath={props.onCopyPath}
       />
