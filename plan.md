@@ -44,30 +44,38 @@ Massive multi-phase day — fork stabilized, full AI integration shipped, multip
 - Comment anchors now restore visual highlights after markdown reload on a
   best-effort basis using stored ProseMirror positions plus text fallback.
 - Sidebar context menus v2 shipped: new note in folder, new subfolder,
-  duplicate, move to parent folder, and recursive folder delete.
+  duplicate, move to parent folder, move to arbitrary folder, and recursive
+  folder delete.
+- Comment threads now persist in `<note>.md.threads.json` sidecar files next to
+  the markdown note. Existing localStorage thread data migrates on boot.
 - Tests: Playwright is wired via `npm run test:e2e` with initial markdown and
   persona settings smoke coverage.
-- Docs: `docs/distribution.md` captures the local build, notarization, and DMG
-  housekeeping checklist.
+- QA: ESLint 9 flat config is present, lint passes, accessibility fixes from
+  the QA pass are in place, and font imports were trimmed to Latin subsets.
+- Docs: `docs/distribution.md` captures the local app build, the reliable
+  `npm run release:dmg` path, notarization, and DMG housekeeping checklist.
 - Startup default-note guard was added after manual testing showed the app could
   create a root `Untitled.md` on boot/refresh. It now only auto-creates the
   starter note when the selected notes folder is truly empty.
 - Tauri dev process was restarted after the boot fix. Latest dev session used
   Vite on `http://localhost:1420/`.
-- Local ARM64 DMG was rebuilt at
-  `src-tauri/target/release/bundle/dmg/Inline MD_0.1.0_aarch64.dmg` and
-  verified with `hdiutil verify`. It is unsigned because there are `0 valid`
-  local Developer ID signing identities.
+- Local Keychain now has a valid Developer ID Application identity. The reliable
+  unsigned DMG path is `INLINE_MD_NO_SIGN=1 npm run release:dmg`; signed and
+  notarized distribution still needs a release pass.
 
 ## Next steps
 
 Highest-value chunks queued in `backlog.md`:
 
-- [ ] **Sidecar thread storage** — move threads out of localStorage into `<note>.md.threads.json` and store markdown-source offsets for stronger external-edit anchoring.
-- [ ] **Tests** — comment auto-apply round-trip with mocked claude, markdown-on-disk save/reload parity, persona override flow.
-- [ ] **Signed distribution** — Developer ID signing + notarization for the macOS `.app`/DMG.
-- [ ] **Lint config** — `npm run lint` still fails because ESLint 9 needs an
-  `eslint.config.*` flat config.
+- [ ] **Diff highlight** - show the changed range after an auto-applied edit,
+  then fade the mark.
+- [ ] **Stronger source anchors** - add markdown-source offsets so comments
+  survive heavier external rewrites.
+- [ ] **Tests** - comment auto-apply round-trip with mocked claude,
+  markdown-on-disk save/reload parity, persona override flow.
+- [ ] **Signed distribution** - Developer ID signing + notarization for the
+  macOS `.app`/DMG.
+- [ ] **Branding** - final name, icon, README hero, and release identity.
 
 ## Decisions & context
 
@@ -87,9 +95,8 @@ Highest-value chunks queued in `backlog.md`:
 ```bash
 npm install
 npm run tauri dev      # dev window with hot reload
-npm run tauri build    # production .app + .dmg → src-tauri/target/release/bundle/
+npm run tauri build -- --bundles app
+npm run release:dmg    # production .app + simple verified DMG via hdiutil
 ```
 
-For the production .dmg: ARM64 (Apple Silicon) build, unsigned unless a
-Developer ID Application certificate is installed. First launch needs
-right-click → Open.
+For unsigned local DMGs, use `INLINE_MD_NO_SIGN=1 npm run release:dmg`.

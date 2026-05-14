@@ -94,6 +94,10 @@ fn note_path(folder: &Path, id: &str) -> PathBuf {
     folder.join(format!("{id}.md"))
 }
 
+fn thread_path(folder: &Path, id: &str) -> PathBuf {
+    folder.join(format!("{id}.md.threads.json"))
+}
+
 fn validate_folder_id(id: &str) -> Result<(), String> {
     let trimmed = id.trim();
     if trimmed.is_empty() {
@@ -103,6 +107,51 @@ fn validate_folder_id(id: &str) -> Result<(), String> {
         segment.is_empty() || segment == "." || segment == ".." || segment.contains('\\')
     }) {
         return Err("Folder id contains an invalid path segment".to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn read_note_threads(
+    state: State<'_, ConfigState>,
+    id: String,
+) -> Result<Option<String>, String> {
+    let folder = notes_folder(&state)?;
+    let target = thread_path(&folder, &id);
+    ensure_inside(&folder, &target)?;
+    if !target.exists() {
+        return Ok(None);
+    }
+    fs::read_to_string(&target)
+        .map(Some)
+        .map_err(|e| format!("read threads: {e}"))
+}
+
+#[tauri::command]
+pub fn write_note_threads(
+    state: State<'_, ConfigState>,
+    watcher_state: State<'_, crate::watcher::WatcherState>,
+    id: String,
+    content: String,
+) -> Result<(), String> {
+    let folder = notes_folder(&state)?;
+    let target = thread_path(&folder, &id);
+    ensure_inside(&folder, &target)?;
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("create thread parent dirs: {e}"))?;
+    }
+    fs::write(&target, &content).map_err(|e| format!("write threads: {e}"))?;
+    crate::watcher::mark_self_write(&watcher_state, &target);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_note_threads(state: State<'_, ConfigState>, id: String) -> Result<(), String> {
+    let folder = notes_folder(&state)?;
+    let target = thread_path(&folder, &id);
+    ensure_inside(&folder, &target)?;
+    if target.exists() {
+        fs::remove_file(&target).map_err(|e| format!("remove threads: {e}"))?;
     }
     Ok(())
 }
@@ -157,15 +206,30 @@ pub fn rename_note(
     let folder = notes_folder(&state)?;
     let old_path = note_path(&folder, &old_id);
     let new_path = note_path(&folder, &new_id);
+    let old_threads_path = thread_path(&folder, &old_id);
+    let new_threads_path = thread_path(&folder, &new_id);
     ensure_inside(&folder, &old_path)?;
     ensure_inside(&folder, &new_path)?;
+    ensure_inside(&folder, &old_threads_path)?;
+    ensure_inside(&folder, &new_threads_path)?;
     if new_path.exists() {
         return Err(format!("A note named '{new_id}' already exists"));
+    }
+    if old_threads_path.exists() && new_threads_path.exists() {
+        return Err(format!("Thread sidecar for '{new_id}' already exists"));
     }
     if let Some(parent) = new_path.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("create parent dirs: {e}"))?;
     }
     fs::rename(&old_path, &new_path).map_err(|e| format!("rename: {e}"))?;
+    if old_threads_path.exists() {
+        if let Some(parent) = new_threads_path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| format!("create thread parent dirs: {e}"))?;
+        }
+        fs::rename(&old_threads_path, &new_threads_path)
+            .map_err(|e| format!("rename threads: {e}"))?;
+    }
     let content = fs::read_to_string(&new_path).unwrap_or_default();
     Ok(NoteFile {
         id: new_id.clone(),
@@ -232,8 +296,13 @@ pub fn delete_folder(state: State<'_, ConfigState>, id: String) -> Result<(), St
 pub fn delete_note(state: State<'_, ConfigState>, id: String) -> Result<(), String> {
     let folder = notes_folder(&state)?;
     let target = note_path(&folder, &id);
+    let threads_target = thread_path(&folder, &id);
     ensure_inside(&folder, &target)?;
+    ensure_inside(&folder, &threads_target)?;
     fs::remove_file(&target).map_err(|e| format!("remove: {e}"))?;
+    if threads_target.exists() {
+        fs::remove_file(&threads_target).map_err(|e| format!("remove threads: {e}"))?;
+    }
     Ok(())
 }
 

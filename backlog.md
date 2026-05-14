@@ -3,13 +3,15 @@
 inline-md roadmap. Forked from inlineai 2026-05-06.
 Organized by topic, not chronology.
 
-Status as of 2026-05-08: **Phases 1, 2.1, 2.2, file watching, core
+Status as of 2026-05-14: **Phases 1, 2.1, 2.2, file watching, core
 auto-apply UX, feedback-mode personas, hierarchical sidebar, sidebar context
 menus v1, markdown paste formatting, Claude cancellation, dead-code cleanup,
-settings, session reuse, app icon + DMG, comment anchor restore, sidebar file/folder
-management v2, onboarding copy, distribution runbook, and initial Playwright
-smoke tests all shipped.** Remaining big chunks: deeper auto-apply polish,
-arbitrary file moves, signed distribution, and branding.
+settings, session reuse, app icon + DMG, comment anchor restore, sidebar
+file/folder management v2, arbitrary folder moves, sidecar thread storage,
+onboarding copy, distribution runbook + local DMG script, ESLint, accessibility
+fixes, font bundle trimming, and initial Playwright smoke tests all shipped.**
+Remaining big chunks: diff highlight polish, stronger source-offset anchoring,
+signed/notarized distribution, deeper tests, and final branding.
 
 ---
 
@@ -26,11 +28,12 @@ in Tiptap; ⌘Z reverts via the editor's history. What's still missing:
 - The snapshot is already captured by Tiptap's history extension; verify
   it consistently does so before our `replaceWith` dispatch.
 
-### Drop the comment thread UI (deferred)
+### Keep the comment thread UI (decision)
 **Files:** `src/components/comments/`.
-- Comments become single-message anchors, not threads.
-- Per-passage history log (collapsed by default) replaces the thread.
-- Coupled with comment-mark round-trip below.
+- Keep threads for now. The current UI supports follow-ups, feedback personas,
+  and suggested edits without forcing a redesign.
+- Revisit only if threads start feeling heavy in actual use. A possible future
+  shape is a collapsed per-passage history log, but this is not active work.
 
 ### Comment-mark round-trip (best-effort shipped)
 **Files:** `src/extensions/comment-mark.ts`, `src/lib/markdown.ts`,
@@ -38,9 +41,11 @@ in Tiptap; ⌘Z reverts via the editor's history. What's still missing:
 - Shipped: threads now store a ProseMirror passage anchor and the editor
   reapplies `CommentMark` on load. It falls back to matching the selected text
   when positions drift.
-- Remaining: move thread storage from localStorage into a sidecar
-  `<note>.md.threads.json` file and track markdown-source offsets so anchors
-  survive heavier external rewrites.
+- Shipped: thread storage moved from localStorage into sidecar
+  `<note>.md.threads.json` files next to each markdown note. Existing
+  localStorage threads migrate on boot.
+- Remaining: track markdown-source offsets so anchors survive heavier external
+  rewrites.
 
 ## UX polish
 
@@ -52,7 +57,8 @@ in Tiptap; ⌘Z reverts via the editor's history. What's still missing:
 
 ## Sidebar context menus
 
-v1 and v2 shipped. Remaining work is arbitrary destination moves and pinning.
+v1 and v2 shipped. Move-to-folder is now covered. Only pinning remains as a
+separate product/design choice.
 
 ### v2 — file/folder management (shipped 2026-05-08)
 
@@ -71,6 +77,8 @@ v1 and v2 shipped. Remaining work is arbitrary destination moves and pinning.
   this), write new file. Persistence writeNote does the rest.
 - ✓ **Move to Parent Folder** — implemented via the existing disk-backed
   `rename_note` command. Updates cache id and active-doc id when needed.
+- ✓ **Move to arbitrary folder** - file context menu now exposes a folder
+  submenu backed by the existing disk-backed move path.
 
 ### Later — needs separate design
 
@@ -78,8 +86,6 @@ v1 and v2 shipped. Remaining work is arbitrary destination moves and pinning.
   sort sidebar with pinned at top. Visual pin indicator. Question: do
   pinned items override the mtime sort entirely, or is "pinned section
   first, then mtime-sorted" the right shape?
-- **Move to arbitrary folder** — needs a folder-picker UI (sub-menu or
-  dialog). "Move to Parent Folder" covers most cases for less work.
 
 ### Branding pass — final icon, app name, identity
 A working pixel-mark icon was wired up via `tauri icon` (committed at
@@ -126,20 +132,13 @@ the product is stable enough to commit to identity:
 
 ## Added 2026-05-06 (session housekeeping)
 
-- [ ] Sign + notarize the macOS `.app` bundle for distribution. Currently
-      unsigned — users get the "unidentified developer" warning on first
-      launch and need to right-click → Open. Use the Apple Developer ID
-      cert + `xcrun notarytool` flow per `~/.claude/references/macos-niche-rules.md`.
-- [ ] Replace the second DMG-on-Desktop hack — TCC blocked us from
-      overwriting the old DMG, so two are sitting on Desktop. A small
-      `/release-dmg` workflow that handles "trash old, drop new" cleanly
-      would be nicer.
-- [x] Tests — Playwright is wired with initial smoke tests. Backlog
-      candidates already noted in `## Hygiene`. First targets: comment
-      auto-apply round-trip with a mocked claude, markdown-on-disk
-      save/reload parity, persona override flow.
-- [x] First-run UX polish — OnboardingScreen now introduces the markdown-folder
-      and local-Claude workflow before asking for a notes folder.
+- [ ] Sign + notarize the macOS `.app` bundle for distribution. A Developer ID
+      Application identity is now present locally. Next release pass is Tauri
+      signing verification, `notarytool --keychain-profile "notarytool"`, stapling,
+      and Gatekeeper verification.
+- [ ] Release polish: decide whether the plain `hdiutil` DMG from
+      `npm run release:dmg` is good enough for v0.1 distribution, or whether
+      branded DMG layout is worth revisiting later.
 
 ## Added 2026-05-06 (from Things triage)
 

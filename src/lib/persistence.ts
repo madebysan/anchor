@@ -2,6 +2,9 @@ import type { CommentThread, DocumentMeta } from "@/types";
 import {
   listNoteTree,
   walkFiles,
+  readNoteThreads,
+  writeNoteThreads,
+  deleteNoteThreads,
   writeNote,
   deleteNote,
   sanitizeNoteId,
@@ -20,14 +23,14 @@ let bootCompleted = false;
 // store's id-keyed reads. Cached separately so a re-boot can replace it
 // without disturbing in-flight saves.
 let noteTreeCache: NoteTreeNode[] = [];
-
-// Threads continue to live in localStorage keyed by note id (file stem).
-// Phase 3 of the backlog moves them into sidecar files alongside the .md.
-function threadsKey(id: string) {
-  return `inline-md-threads-${id}`;
-}
+const threadCache = new Map<string, CommentThread[]>();
 
 const KEY_ACTIVE_DOC = "inline-md-active-doc";
+const LEGACY_THREAD_PREFIX = "inline-md-threads-";
+
+function threadsKey(id: string) {
+  return `${LEGACY_THREAD_PREFIX}${id}`;
+}
 
 // =====================
 // Boot — populate the cache from disk before the store initializes.
@@ -40,8 +43,9 @@ export async function bootPersistence(): Promise<void> {
 
 export async function refreshPersistence(): Promise<void> {
   const tree = await listNoteTree();
+  const files = Array.from(walkFiles(tree));
   noteCache.clear();
-  for (const file of walkFiles(tree)) {
+  for (const file of files) {
     noteCache.set(file.id, {
       id: file.id,
       path: file.path,
@@ -51,6 +55,20 @@ export async function refreshPersistence(): Promise<void> {
     });
   }
   noteTreeCache = tree;
+
+  const nextThreadCache = new Map<string, CommentThread[]>();
+  await Promise.all(
+    files.map(async (file) => {
+      const threads = await loadThreadsFromSidecar(file.id);
+      if (threads) {
+        nextThreadCache.set(file.id, threads);
+      }
+    }),
+  );
+  threadCache.clear();
+  for (const [id, threads] of nextThreadCache) {
+    threadCache.set(id, threads);
+  }
 }
 
 // Snapshot of the tree (folders + files) for the sidebar. Stable across
@@ -121,7 +139,7 @@ export function loadDocContent(id: string): string | null {
   return markdownToHtml(note.content);
 }
 
-export function saveDocContent(id: string, html: string): void {
+export async function saveDocContent(id: string, html: string): Promise<void> {
   const md = htmlToMarkdown(html);
 
   // Update cache optimistically so subsequent reads see the latest.
@@ -134,36 +152,126 @@ export function saveDocContent(id: string, html: string): void {
     });
   }
 
-  void writeNote(id, md)
-    .then((saved) => {
-      // Reconcile cache with the post-write metadata (real mtime).
-      noteCache.set(id, saved);
-    })
-    .catch((e) => {
-      console.error(`saveDocContent(${id}) failed:`, e);
-    });
+  try {
+    const saved = await writeNote(id, md);
+    // Reconcile cache with the post-write metadata (real mtime).
+    noteCache.set(id, saved);
+  } catch (e) {
+    console.error(`saveDocContent(${id}) failed:`, e);
+  }
 }
 
 // =====================
-// Per-document threads — still localStorage for Phase 2.
+// Per-document threads — sidecar JSON files next to each markdown file.
 // =====================
 
 export function loadDocThreads(id: string): CommentThread[] | null {
+  return threadCache.get(id) ?? null;
+}
+
+export async function saveDocThreads(id: string, threads: CommentThread[]): Promise<void> {
+  threadCache.set(id, threads);
+  clearLegacyThreads(id);
+  try {
+    if (threads.length === 0) {
+      await deleteNoteThreads(id);
+      return;
+    }
+    await writeNoteThreads(id, JSON.stringify(threads, null, 2));
+  } catch (e) {
+    console.warn(`saveDocThreads(${id}) failed:`, e);
+  }
+}
+
+async function loadThreadsFromSidecar(id: string): Promise<CommentThread[] | null> {
+  try {
+    const raw = await readNoteThreads(id);
+    if (raw) {
+      return parseThreads(id, raw);
+    }
+  } catch (e) {
+    console.warn(`loadDocThreads(${id}) failed:`, e);
+  }
+
+  const legacy = loadLegacyThreads(id);
+  if (!legacy) return null;
+  threadCache.set(id, legacy);
+  await saveDocThreads(id, legacy);
+  return legacy;
+}
+
+function loadLegacyThreads(id: string): CommentThread[] | null {
   try {
     const stored = localStorage.getItem(threadsKey(id));
     if (!stored) return null;
-    return JSON.parse(stored);
+    return parseThreads(id, stored);
   } catch {
     return null;
   }
 }
 
-export function saveDocThreads(id: string, threads: CommentThread[]): void {
+function clearLegacyThreads(id: string): void {
   try {
-    localStorage.setItem(threadsKey(id), JSON.stringify(threads));
-  } catch (e) {
-    console.warn(`saveDocThreads(${id}) failed:`, e);
+    localStorage.removeItem(threadsKey(id));
+  } catch {
+    // ignore
   }
+}
+
+function parseThreads(id: string, raw: string): CommentThread[] | null {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      console.warn(`Ignoring malformed thread sidecar for ${id}: expected an array`);
+      return null;
+    }
+    if (!parsed.every(isCommentThread)) {
+      console.warn(`Ignoring malformed thread sidecar for ${id}: invalid thread shape`);
+      return null;
+    }
+    return parsed;
+  } catch (e) {
+    console.warn(`Ignoring malformed thread sidecar for ${id}:`, e);
+    return null;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isCommentThread(value: unknown): value is CommentThread {
+  if (!isRecord(value)) return false;
+  const anchor = value.anchor;
+  const messages = value.messages;
+  return (
+    typeof value.id === "string" &&
+    typeof value.selectedText === "string" &&
+    (anchor === undefined || isCommentAnchor(anchor)) &&
+    Array.isArray(messages) &&
+    messages.every(isThreadMessage) &&
+    (value.status === "active" || value.status === "resolved") &&
+    typeof value.createdAt === "number"
+  );
+}
+
+function isCommentAnchor(value: unknown): value is NonNullable<CommentThread["anchor"]> {
+  return (
+    isRecord(value) &&
+    typeof value.text === "string" &&
+    typeof value.pmFrom === "number" &&
+    typeof value.pmTo === "number"
+  );
+}
+
+function isThreadMessage(value: unknown): value is CommentThread["messages"][number] {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    (value.role === "user" || value.role === "assistant") &&
+    typeof value.content === "string" &&
+    typeof value.createdAt === "number"
+  );
 }
 
 // =====================
@@ -172,14 +280,11 @@ export function saveDocThreads(id: string, threads: CommentThread[]): void {
 
 export function deleteDocData(id: string): void {
   noteCache.delete(id);
+  threadCache.delete(id);
   void deleteNote(id).catch((e) => {
     console.error(`deleteDocData(${id}) failed:`, e);
   });
-  try {
-    localStorage.removeItem(threadsKey(id));
-  } catch {
-    // ignore
-  }
+  clearLegacyThreads(id);
 }
 
 // =====================
