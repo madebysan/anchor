@@ -27,11 +27,6 @@ export function parseTrigger(
   };
 }
 
-// Check if a message starts with any @trigger
-export function hasTrigger(text: string, triggerNames: string[]): boolean {
-  return parseTrigger(text, triggerNames) !== null;
-}
-
 // Plain-note prefixes that opt the comment OUT of AI processing entirely.
 // Anything starting with one of these is a note for yourself, not a request.
 // Matched case-insensitively against the start of the trimmed message.

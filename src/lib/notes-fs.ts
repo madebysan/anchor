@@ -26,10 +26,6 @@ export type NoteTreeNode =
       children: NoteTreeNode[];
     };
 
-export async function listNotes(): Promise<NoteFile[]> {
-  return invoke<NoteFile[]>("list_notes");
-}
-
 export async function listNoteTree(): Promise<NoteTreeNode[]> {
   return invoke<NoteTreeNode[]>("list_note_tree");
 }
