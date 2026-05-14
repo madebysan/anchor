@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::env;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 use std::sync::Mutex;
 use tauri::State;
 
@@ -154,6 +154,18 @@ fn ensure_inside(folder: &Path, target: &Path) -> Result<(), String> {
     Ok(())
 }
 
+fn claude_failure_message(status: ExitStatus, stderr: &str) -> String {
+    let trimmed = stderr.trim();
+    if !trimmed.is_empty() {
+        return trimmed.to_string();
+    }
+
+    match status.code() {
+        Some(code) => format!("Claude Code exited with code {code} and did not print an error."),
+        None => "Claude Code was terminated and did not print an error.".to_string(),
+    }
+}
+
 // One-shot chat with claude — no file argument, just a prompt on stdin.
 // Used for chat-only requests when no document context is needed.
 #[tauri::command]
@@ -200,11 +212,7 @@ pub fn ai_chat_claude(
         Ok(AiExecutionResult {
             success: false,
             output: stdout,
-            error: Some(if stderr.is_empty() {
-                format!("claude exited with status {}", output.status)
-            } else {
-                stderr
-            }),
+            error: Some(claude_failure_message(output.status, &stderr)),
         })
     }
 }
@@ -277,11 +285,7 @@ pub fn ai_invoke_claude(
         return Ok(AiSessionResult {
             success: false,
             output: stdout,
-            error: Some(if stderr.is_empty() {
-                format!("claude exited with status {}", output.status)
-            } else {
-                stderr
-            }),
+            error: Some(claude_failure_message(output.status, &stderr)),
             session_id: None,
         });
     }
