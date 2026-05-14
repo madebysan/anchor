@@ -170,12 +170,12 @@ export default function AISettingsDialog({
 
             {/* Appearance */}
             <section className="space-y-3">
-              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Appearance</h4>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Appearance</h3>
 
               <div className="grid grid-cols-[140px_1fr] items-center gap-3">
                 <Label className="text-xs">Theme</Label>
                 <Select value={theme || "system"} onValueChange={setTheme}>
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className="h-8 text-xs" aria-label="Theme">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -193,7 +193,7 @@ export default function AISettingsDialog({
                   onValueChange={(next) => onFontChange?.(next)}
                   disabled={!onFontChange}
                 >
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className="h-8 text-xs" aria-label="Default font">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -213,7 +213,7 @@ export default function AISettingsDialog({
                   onValueChange={(next) => onSizeChange?.(next)}
                   disabled={!onSizeChange}
                 >
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className="h-8 text-xs" aria-label="Default size">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -233,7 +233,7 @@ export default function AISettingsDialog({
                   onValueChange={(next) => onLineHeightChange?.(next)}
                   disabled={!onLineHeightChange}
                 >
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className="h-8 text-xs" aria-label="Line height">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -251,7 +251,7 @@ export default function AISettingsDialog({
 
             {/* About */}
             <section className="space-y-2">
-              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">About</h4>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">About</h3>
               <p className="text-xs text-muted-foreground">
                 Inline MD v{APP_VERSION} · Made by{" "}
                 <a
@@ -296,7 +296,7 @@ export default function AISettingsDialog({
                   })
                 }
               >
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-8 text-xs" aria-label="Default persona">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -379,7 +379,10 @@ export default function AISettingsDialog({
                           onUpdateTrigger(key, { contextStrategy: next as ContextStrategy })
                         }
                       >
-                        <SelectTrigger className="h-8 text-xs">
+                        <SelectTrigger
+                          className="h-8 text-xs"
+                          aria-label={`${config.name} context strategy`}
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -407,7 +410,10 @@ export default function AISettingsDialog({
                           })
                         }
                       >
-                        <SelectTrigger className="h-8 text-xs">
+                        <SelectTrigger
+                          className="h-8 text-xs"
+                          aria-label={`${config.name} mode`}
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -434,7 +440,7 @@ export default function AISettingsDialog({
           {/* ----- SHORTCUTS ----- */}
           <TabsContent value="shortcuts" className="mt-4">
             <div className="rounded-lg border p-4 space-y-3">
-              <h4 className="text-sm font-medium">Keyboard Shortcuts</h4>
+              <h3 className="text-sm font-medium">Keyboard Shortcuts</h3>
               <div className="grid gap-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Submit message</span>
@@ -464,7 +470,7 @@ export default function AISettingsDialog({
 
               <Separator />
 
-              <h4 className="text-sm font-medium">Persona Triggers</h4>
+              <h3 className="text-sm font-medium">Persona Triggers</h3>
               <p className="text-xs text-muted-foreground">
                 Type these at the start of a comment to invoke a persona.
               </p>

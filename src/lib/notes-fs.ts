@@ -77,7 +77,7 @@ export function sanitizeNoteId(input: string): string {
   // sidecar conventions. Strip path separators and obvious bad characters.
   return input
     .trim()
-    .replace(/[\/\\:*?"<>|]/g, "-")
+    .replace(/[/\\:*?"<>|]/g, "-")
     .replace(/\.md$/i, "")
     .replace(/^\.+/, "")
     .slice(0, 120) || "untitled";

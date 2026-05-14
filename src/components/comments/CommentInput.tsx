@@ -379,6 +379,7 @@ export default function CommentInput({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
+          aria-label="Comment message"
           className="min-h-[60px] max-h-[120px] resize-none text-sm"
           rows={2}
         />
@@ -388,6 +389,8 @@ export default function CommentInput({
           onClick={handleSubmit}
           disabled={!value.trim() || disabled}
           className="flex-shrink-0 h-8 w-8"
+          aria-label="Send comment"
+          title="Send comment"
         >
           <Send className="h-4 w-4" />
         </Button>
