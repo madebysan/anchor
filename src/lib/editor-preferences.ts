@@ -1,10 +1,4 @@
-// Font and size options for the editor
-
-export interface FontOption {
-  id: string;
-  label: string;
-  cssVar: string;
-}
+// Size and line-height options for the editor.
 
 export interface SizeOption {
   id: string;
@@ -17,19 +11,6 @@ export interface LineHeightOption {
   label: string;
   cssValue: string;
 }
-
-export const FONT_OPTIONS: FontOption[] = [
-  { id: "geist", label: "Geist Sans", cssVar: "var(--font-geist-sans)" },
-  { id: "inter", label: "Inter", cssVar: "var(--font-inter)" },
-  { id: "lora", label: "Lora", cssVar: "var(--font-lora)" },
-  { id: "merriweather", label: "Merriweather", cssVar: "var(--font-merriweather)" },
-  { id: "nunito", label: "Nunito", cssVar: "var(--font-nunito)" },
-  { id: "open-sans", label: "Open Sans", cssVar: "var(--font-open-sans)" },
-  { id: "playfair", label: "Playfair Display", cssVar: "var(--font-playfair)" },
-  { id: "roboto", label: "Roboto", cssVar: "var(--font-roboto)" },
-  { id: "source-serif", label: "Source Serif 4", cssVar: "var(--font-source-serif)" },
-  { id: "ibm-plex", label: "IBM Plex Sans", cssVar: "var(--font-ibm-plex)" },
-];
 
 export const SIZE_OPTIONS: SizeOption[] = [
   { id: "sm", label: "Small", proseClass: "prose-sm" },
@@ -46,15 +27,13 @@ export const LINE_HEIGHT_OPTIONS: LineHeightOption[] = [
 ];
 
 export interface EditorPreferences {
-  fontId: string;
   sizeId: string;
   lineHeightId: string;
-  /** Hide the formatting cluster (B/I/H1.../font/size) — chrome buttons stay. */
+  /** Hide the formatting cluster (B/I/H1.../size/line height); chrome buttons stay. */
   formattingCollapsed: boolean;
 }
 
 export const DEFAULT_EDITOR_PREFS: EditorPreferences = {
-  fontId: "geist",
   sizeId: "lg",
   lineHeightId: "normal",
   formattingCollapsed: true,
@@ -70,10 +49,6 @@ export function loadEditorPrefs(): EditorPreferences {
     const parsed = JSON.parse(raw);
 
     // Validate that stored IDs match known options, fall back to defaults if not
-    const fontId =
-      typeof parsed.fontId === "string" && FONT_OPTIONS.some((f) => f.id === parsed.fontId)
-        ? parsed.fontId
-        : DEFAULT_EDITOR_PREFS.fontId;
     const sizeId =
       typeof parsed.sizeId === "string" && SIZE_OPTIONS.some((s) => s.id === parsed.sizeId)
         ? parsed.sizeId
@@ -88,7 +63,7 @@ export function loadEditorPrefs(): EditorPreferences {
         ? parsed.lineHeightId
         : DEFAULT_EDITOR_PREFS.lineHeightId;
 
-    return { fontId, sizeId, lineHeightId, formattingCollapsed };
+    return { sizeId, lineHeightId, formattingCollapsed };
   } catch {
     return DEFAULT_EDITOR_PREFS;
   }

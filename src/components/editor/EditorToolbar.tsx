@@ -34,8 +34,8 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useState, useEffect } from "react";
-import { FONT_OPTIONS, LINE_HEIGHT_OPTIONS, SIZE_OPTIONS } from "@/lib/editor-preferences";
-import type { FontOption, LineHeightOption, SizeOption } from "@/lib/editor-preferences";
+import { LINE_HEIGHT_OPTIONS, SIZE_OPTIONS } from "@/lib/editor-preferences";
+import type { LineHeightOption, SizeOption } from "@/lib/editor-preferences";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,10 +48,8 @@ import type { SaveStatus } from "@/lib/document-store";
 interface EditorToolbarProps {
   editor: Editor | null;
   onOpenSettings?: () => void;
-  currentFont?: FontOption;
   currentSize?: SizeOption;
   currentLineHeight?: LineHeightOption;
-  onFontChange?: (fontId: string) => void;
   onSizeChange?: (sizeId: string) => void;
   onLineHeightChange?: (lineHeightId: string) => void;
   documentTitle?: string;
@@ -104,10 +102,8 @@ function SaveIndicator({ saveStatus, lastSavedAt }: { saveStatus: SaveStatus; la
 export default function EditorToolbar({
   editor,
   onOpenSettings,
-  currentFont,
   currentSize,
   currentLineHeight,
-  onFontChange,
   onSizeChange,
   onLineHeightChange,
   documentTitle = "Untitled",
@@ -197,8 +193,7 @@ export default function EditorToolbar({
 
   return (
     <div className="flex flex-wrap items-center gap-0.5 border-b border-border px-4 py-1.5 bg-background">
-      {/* Collapse toggle — chrome buttons (save indicator, export, settings…) stay
-          on the right; formatting cluster (B/I/H1.../font/size) hides under this. */}
+      {/* Collapse toggle keeps chrome buttons visible while hiding formatting controls. */}
       {onToggleFormattingCollapsed && (
         <Button
           variant="ghost"
@@ -325,22 +320,6 @@ export default function EditorToolbar({
       </ToolbarButton>
 
       <div className="w-px h-5 bg-border mx-1" />
-
-      {/* Font selector */}
-      {currentFont && onFontChange && (
-        <Select value={currentFont.id} onValueChange={onFontChange}>
-          <SelectTrigger size="sm" className="h-7 w-[140px] text-xs border-none shadow-none bg-transparent hover:bg-muted">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {FONT_OPTIONS.map((font) => (
-              <SelectItem key={font.id} value={font.id}>
-                <span style={{ fontFamily: font.cssVar }}>{font.label}</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
 
       {/* Size selector */}
       {currentSize && onSizeChange && (

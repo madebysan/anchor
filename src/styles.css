@@ -53,15 +53,6 @@
 
   --font-geist-sans: "Geist Sans", system-ui, -apple-system, sans-serif;
   --font-geist-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-inter: "Inter", system-ui, sans-serif;
-  --font-lora: "Lora", Georgia, serif;
-  --font-merriweather: "Merriweather", Georgia, serif;
-  --font-nunito: "Nunito", system-ui, sans-serif;
-  --font-open-sans: "Open Sans", system-ui, sans-serif;
-  --font-playfair: "Playfair Display", Georgia, serif;
-  --font-roboto: "Roboto", system-ui, sans-serif;
-  --font-source-serif: "Source Serif 4", Georgia, serif;
-  --font-ibm-plex: "IBM Plex Sans", system-ui, sans-serif;
 
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
