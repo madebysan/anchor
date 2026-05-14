@@ -7,6 +7,11 @@ import AISettingsDialog from "./AISettingsDialog";
 import { useAIChat } from "@/hooks/useAIChat";
 import { useAISettings } from "@/hooks/useAISettings";
 import { useEditorPreferences } from "@/hooks/useEditorPreferences";
+import {
+  buildAnchorForRange,
+  buildDocumentSnapshot,
+  findThreadRange,
+} from "@/lib/ai/document-snapshot";
 import { useDocumentStore } from "@/lib/document-store";
 import { getNoteTree } from "@/lib/persistence";
 import type { NoteTreeNode } from "@/lib/notes-fs";
@@ -43,30 +48,6 @@ function rangeHasCommentMark(
   return found;
 }
 
-function findThreadRange(editor: TiptapEditor, thread: CommentThread) {
-  const text = thread.anchor?.text || thread.selectedText;
-  if (!text.trim()) return null;
-
-  const anchor = thread.anchor;
-  if (anchor) {
-    const slice = editor.state.doc.textBetween(anchor.pmFrom, anchor.pmTo, " ");
-    if (slice === anchor.text || slice === thread.selectedText) {
-      return { from: anchor.pmFrom, to: anchor.pmTo };
-    }
-  }
-
-  let match: { from: number; to: number } | null = null;
-  editor.state.doc.descendants((node, pos) => {
-    if (match || !node.isText) return false;
-    const content = node.text ?? "";
-    const offset = content.indexOf(text);
-    if (offset === -1) return true;
-    match = { from: pos + offset, to: pos + offset + text.length };
-    return false;
-  });
-  return match;
-}
-
 function restoreCommentMarks(editor: TiptapEditor, threads: CommentThread[]): void {
   const commentMark = editor.schema.marks.comment;
   if (!commentMark) return;
@@ -83,6 +64,57 @@ function restoreCommentMarks(editor: TiptapEditor, threads: CommentThread[]): vo
   }
 
   if (modified) editor.view.dispatch(tr);
+}
+
+function applyReplacementWithHighlight(
+  editor: TiptapEditor,
+  threadId: string,
+  replacement: string,
+): { from: number; to: number } | null {
+  const { doc } = editor.state;
+  let markFrom: number | null = null;
+  let markTo: number | null = null;
+
+  doc.descendants((node, pos) => {
+    node.marks.forEach((mark) => {
+      if (mark.type.name === "comment" && mark.attrs.commentId === threadId) {
+        if (markFrom === null) markFrom = pos;
+        markTo = pos + node.nodeSize;
+      }
+    });
+  });
+
+  if (markFrom === null || markTo === null) return null;
+
+  const marks = [];
+  const commentMark = editor.schema.marks.comment;
+  if (commentMark) {
+    marks.push(commentMark.create({ commentId: threadId }));
+  }
+  const editHighlight = editor.schema.marks.editHighlight;
+  const highlightId = `edit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  if (editHighlight) {
+    marks.push(editHighlight.create({ id: highlightId }));
+  }
+
+  const replacementNode = editor.schema.text(replacement, marks);
+  const tr = editor.state.tr.replaceWith(markFrom, markTo, replacementNode);
+  editor.view.dispatch(tr);
+
+  const range = { from: markFrom, to: markFrom + replacement.length };
+  if (editHighlight) {
+    window.setTimeout(() => {
+      if (editor.isDestroyed) return;
+      const to = Math.min(range.to, editor.state.doc.content.size);
+      if (to <= range.from) return;
+      const removeTr = editor.state.tr
+        .removeMark(range.from, to, editHighlight)
+        .setMeta("addToHistory", false);
+      editor.view.dispatch(removeTr);
+    }, 3200);
+  }
+
+  return range;
 }
 
 function DragHandle({
@@ -319,36 +351,15 @@ export default function EditorPage({
       const editor = editorRef.current;
       if (!editor) return;
 
-      // Find the comment mark's range for this thread and replace it.
-      const { doc } = editor.state;
-      let markFrom: number | null = null;
-      let markTo: number | null = null;
-      doc.descendants((node, pos) => {
-        node.marks.forEach((mark) => {
-          if (mark.type.name === "comment" && mark.attrs.commentId === threadId) {
-            if (markFrom === null) markFrom = pos;
-            markTo = pos + node.nodeSize;
-          }
-        });
-      });
-      if (markFrom === null || markTo === null) return;
-
-      const commentMark = editor.schema.marks.comment.create({ commentId: threadId });
-      const newText = editor.schema.text(replacement, [commentMark]);
-      const tr = editor.state.tr.replaceWith(markFrom, markTo, newText);
-      editor.view.dispatch(tr);
-      const anchorFrom = markFrom;
+      const range = applyReplacementWithHighlight(editor, threadId, replacement);
+      if (!range) return;
 
       // Update the thread's selectedText so subsequent follow-up messages
       // operate on the post-edit passage.
       useDocumentStore.getState().updateThread(threadId, (t) => ({
         ...t,
         selectedText: replacement,
-        anchor: {
-          text: replacement,
-          pmFrom: anchorFrom,
-          pmTo: anchorFrom + replacement.length,
-        },
+        anchor: buildAnchorForRange(editor, range.from, range.to, replacement),
       }));
     },
     settings
@@ -457,26 +468,8 @@ export default function EditorPage({
   // "outline" and "outline-plus-passage" can use them without re-parsing.
   const getDocumentSnapshot = useCallback((): DocumentSnapshot => {
     const editor = editorRef.current;
-    if (!editor) return { fullText: "", paragraphs: [], headings: [] };
-
-    const paragraphs: string[] = [];
-    const headings: { level: number; text: string }[] = [];
-
-    editor.state.doc.forEach((node) => {
-      const text = node.textContent;
-      if (!text) return;
-      paragraphs.push(text);
-      if (node.type.name === "heading") {
-        const level = (node.attrs as { level?: number }).level ?? 1;
-        headings.push({ level, text });
-      }
-    });
-
-    return {
-      fullText: paragraphs.join("\n\n"),
-      paragraphs,
-      headings,
-    };
+    if (!editor) return { fullText: "", sourceMarkdown: "", paragraphs: [], blocks: [], headings: [] };
+    return buildDocumentSnapshot(editor);
   }, []);
 
   const handleAddComment = useCallback(() => {
@@ -487,11 +480,9 @@ export default function EditorPage({
     if (from === to) return;
 
     const selectedText = editor.state.doc.textBetween(from, to, " ");
-    const threadId = useDocumentStore.getState().createThread(selectedText, {
-      text: selectedText,
-      pmFrom: from,
-      pmTo: to,
-    });
+    const threadId = useDocumentStore
+      .getState()
+      .createThread(selectedText, buildAnchorForRange(editor, from, to, selectedText));
 
     editor.chain().focus().setMark("comment", { commentId: threadId }).run();
   }, []);
@@ -554,16 +545,18 @@ export default function EditorPage({
       }
 
       const store = useDocumentStore.getState();
+      const threadBeforeMessage = store.threads.find((t) => t.id === threadId);
       store.addMessage(threadId, {
         role: "user",
         content: text,
         trigger: effectiveTrigger ?? undefined,
       });
 
-      const thread = store.threads.find((t) => t.id === threadId);
+      const thread = useDocumentStore.getState().threads.find((t) => t.id === threadId);
       if (!thread) return;
 
-      const hasAIHistory = thread.messages.some((m) => m.role === "assistant");
+      const hasAIHistory =
+        threadBeforeMessage?.messages.some((m) => m.role === "assistant") ?? false;
 
       const shouldRunAI = !plainNote && (effectiveTrigger || hasAIHistory);
       if (!shouldRunAI) return;
@@ -612,37 +605,18 @@ export default function EditorPage({
       const editor = editorRef.current;
       if (!editor) return;
 
-      const { doc } = editor.state;
-      let markFrom: number | null = null;
-      let markTo: number | null = null;
-
-      doc.descendants((node, pos) => {
-        node.marks.forEach((mark) => {
-          if (mark.type.name === "comment" && mark.attrs.commentId === threadId) {
-            if (markFrom === null) markFrom = pos;
-            markTo = pos + node.nodeSize;
-          }
-        });
-      });
-
-      if (markFrom !== null && markTo !== null) {
-        const commentMark = editor.schema.marks.comment.create({ commentId: threadId });
-        const newText = editor.schema.text(suggestion.suggestedText, [commentMark]);
-        const tr = editor.state.tr.replaceWith(markFrom, markTo, newText);
-        editor.view.dispatch(tr);
-      }
+      const range = applyReplacementWithHighlight(
+        editor,
+        threadId,
+        suggestion.suggestedText,
+      );
 
       useDocumentStore.getState().updateThread(threadId, (t) => ({
         ...t,
         selectedText: suggestion.suggestedText,
-        anchor:
-          markFrom !== null
-            ? {
-                text: suggestion.suggestedText,
-                pmFrom: markFrom,
-                pmTo: markFrom + suggestion.suggestedText.length,
-              }
-            : t.anchor,
+        anchor: range
+          ? buildAnchorForRange(editor, range.from, range.to, suggestion.suggestedText)
+          : t.anchor,
         messages: t.messages.map((m) =>
           m.id === messageId
             ? { ...m, suggestedEdit: { ...suggestion, status: "accepted" as const } }

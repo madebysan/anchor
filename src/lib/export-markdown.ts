@@ -30,8 +30,9 @@ function serializeInlineMarks(text: string, marks: readonly Mark[]): string {
       case "strike":
         result = `~~${result}~~`;
         break;
-      // Skip comment marks — internal annotations, not exported
       case "comment":
+      case "editHighlight":
+        // Skip internal editor annotations when exporting markdown.
         break;
     }
   }

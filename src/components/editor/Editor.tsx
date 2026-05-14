@@ -5,6 +5,7 @@ import { DOMParser as ProseMirrorDOMParser } from "@tiptap/pm/model";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import { CommentMark } from "@/extensions/comment-mark";
+import { EditHighlight } from "@/extensions/edit-highlight";
 import CommentBubbleMenu from "./CommentBubbleMenu";
 import EditorToolbar from "./EditorToolbar";
 import { markdownToHtml } from "@/lib/markdown";
@@ -116,6 +117,7 @@ export default function Editor({
         placeholder: "Start writing, or paste some text...",
       }),
       CommentMark,
+      EditHighlight,
     ],
     content: defaultContent,
     editorProps: {
