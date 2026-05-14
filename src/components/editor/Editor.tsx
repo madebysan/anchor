@@ -14,6 +14,8 @@ import type { SaveStatus } from "@/lib/document-store";
 import type { Editor as TiptapEditor } from "@tiptap/react";
 import type { LineHeightOption } from "@/lib/editor-preferences";
 
+const WORD_COUNT_DEBOUNCE_MS = 250;
+
 function looksLikeMarkdown(text: string): boolean {
   const trimmed = text.trim();
   if (!trimmed) return false;
@@ -32,14 +34,25 @@ function WordCount({ editor }: { editor: TiptapEditor }) {
   const [stats, setStats] = useState({ words: 0, chars: 0 });
 
   useEffect(() => {
-    const update = () => {
+    let updateTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const updateNow = () => {
       const text = editor.state.doc.textContent;
       const words = text.split(/\s+/).filter(Boolean).length;
       setStats({ words, chars: text.length });
     };
-    update();
-    editor.on("update", update);
-    return () => { editor.off("update", update); };
+
+    const scheduleUpdate = () => {
+      if (updateTimer) clearTimeout(updateTimer);
+      updateTimer = setTimeout(updateNow, WORD_COUNT_DEBOUNCE_MS);
+    };
+
+    updateNow();
+    editor.on("update", scheduleUpdate);
+    return () => {
+      if (updateTimer) clearTimeout(updateTimer);
+      editor.off("update", scheduleUpdate);
+    };
   }, [editor]);
 
   const readTime = Math.max(1, Math.ceil(stats.words / 200));

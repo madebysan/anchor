@@ -9,6 +9,7 @@ import {
   loadEditorPrefs,
   saveEditorPrefs,
 } from "@/lib/editor-preferences";
+import { loadEditorFont } from "@/lib/font-loader";
 
 export function useEditorPreferences() {
   const [prefs, setPrefs] = useState<EditorPreferences>(DEFAULT_EDITOR_PREFS);
@@ -20,6 +21,10 @@ export function useEditorPreferences() {
     setPrefs(loadEditorPrefs());
     setLoaded(true);
   }, []);
+
+  useEffect(() => {
+    loadEditorFont(prefs.fontId);
+  }, [prefs.fontId]);
 
   // Debounced save whenever prefs change (skip initial load)
   useEffect(() => {

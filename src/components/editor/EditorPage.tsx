@@ -1,9 +1,8 @@
 
-import { useRef, useCallback, useEffect, useState, useMemo } from "react";
+import { lazy, Suspense, useRef, useCallback, useEffect, useState, useMemo } from "react";
 import Editor from "./Editor";
 import CommentSidebar from "@/components/comments/CommentSidebar";
 import DocumentSidebar from "@/components/documents/DocumentSidebar";
-import AISettingsDialog from "./AISettingsDialog";
 import { useAIChat } from "@/hooks/useAIChat";
 import { useAISettings } from "@/hooks/useAISettings";
 import { useEditorPreferences } from "@/hooks/useEditorPreferences";
@@ -31,6 +30,8 @@ interface NotesChangedPayload {
 
 const NOTES_REFRESH_DEBOUNCE_MS = 250;
 const NOTES_POLL_INTERVAL_MS = 3000;
+const EDITOR_CONTENT_SYNC_DEBOUNCE_MS = 200;
+const AISettingsDialog = lazy(() => import("./AISettingsDialog"));
 
 function rangeHasCommentMark(
   editor: TiptapEditor,
@@ -190,6 +191,7 @@ export default function EditorPage({
   const [commentWidth, setCommentWidth] = useState(360);
   const docWidthRef = useRef(docWidth);
   const commentWidthRef = useRef(commentWidth);
+  const contentSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     settings,
@@ -323,12 +325,31 @@ export default function EditorPage({
     useDocumentStore.getState().acknowledgeContentLoad();
   }, [pendingContentLoad]);
 
-  // Editor → store: every Tiptap update writes to the store, which debounces saves.
-  const handleEditorUpdate = useCallback(() => {
+  const flushEditorContent = useCallback(() => {
+    if (contentSyncTimerRef.current) {
+      clearTimeout(contentSyncTimerRef.current);
+      contentSyncTimerRef.current = null;
+    }
     const editor = editorRef.current;
     if (!editor) return;
     useDocumentStore.getState().updateContent(editor.getHTML());
   }, []);
+
+  useEffect(() => {
+    return () => {
+      flushEditorContent();
+    };
+  }, [flushEditorContent]);
+
+  // Editor -> store: coalesce serialization so typing does not turn every
+  // ProseMirror update into a full-document HTML walk.
+  const handleEditorUpdate = useCallback(() => {
+    if (contentSyncTimerRef.current) clearTimeout(contentSyncTimerRef.current);
+    contentSyncTimerRef.current = setTimeout(
+      flushEditorContent,
+      EDITOR_CONTENT_SYNC_DEBOUNCE_MS,
+    );
+  }, [flushEditorContent]);
 
   // AI loop — Inline MD's locked auto-apply UX.
   // 1. Claude's full response lands in the thread's last assistant message
@@ -369,23 +390,26 @@ export default function EditorPage({
   // Doc transitions abort in-flight AI streams before the store swaps state.
   const handleSwitchDocument = useCallback(
     (targetId: string) => {
+      flushEditorContent();
       stopAllGenerations();
       useDocumentStore.getState().switchDocument(targetId);
     },
-    [stopAllGenerations]
+    [flushEditorContent, stopAllGenerations]
   );
 
   const handleCreateDocument = useCallback(() => {
+    flushEditorContent();
     stopAllGenerations();
     useDocumentStore.getState().createDocument();
-  }, [stopAllGenerations]);
+  }, [flushEditorContent, stopAllGenerations]);
 
   const handleCreateDocumentInFolder = useCallback(
     (folderId: string) => {
+      flushEditorContent();
       stopAllGenerations();
       useDocumentStore.getState().createDocument(folderId);
     },
-    [stopAllGenerations]
+    [flushEditorContent, stopAllGenerations]
   );
 
   const handleDuplicateDocument = useCallback((id: string) => {
@@ -396,30 +420,35 @@ export default function EditorPage({
 
   const handleMoveDocumentToFolder = useCallback(
     (id: string, targetFolderId: string | null) => {
+      if (id === activeDocId) flushEditorContent();
       if (id === activeDocId) stopAllGenerations();
       useDocumentStore.getState().moveDocumentToFolder(id, targetFolderId).catch((e) => {
         console.error("moveDocumentToFolder failed:", e);
       });
     },
-    [activeDocId, stopAllGenerations]
+    [activeDocId, flushEditorContent, stopAllGenerations]
   );
 
   const handleDeleteDocument = useCallback(
     (id: string) => {
       // If we're deleting the active doc, the store will load a different one.
-      if (id === activeDocId) stopAllGenerations();
+      if (id === activeDocId) {
+        flushEditorContent();
+        stopAllGenerations();
+      }
       useDocumentStore.getState().deleteDocument(id);
     },
-    [activeDocId, stopAllGenerations]
+    [activeDocId, flushEditorContent, stopAllGenerations]
   );
 
   const handleRenameDocument = useCallback(
     (id: string, title: string) => {
+      if (id === activeDocId) flushEditorContent();
       useDocumentStore.getState().renameDocument(id, title).catch((e) => {
         console.error("renameDocument failed:", e);
       });
     },
-    []
+    [activeDocId, flushEditorContent]
   );
 
   const toggleFocusMode = useCallback(() => setFocusMode((p) => !p), []);
@@ -727,24 +756,28 @@ export default function EditorPage({
         </>
       )}
 
-      <AISettingsDialog
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        settings={settings}
-        onUpdateSettings={updateSettings}
-        onUpdateTrigger={updateTrigger}
-        onResetTriggerPrompt={resetTriggerPrompt}
-        onAddTrigger={addTrigger}
-        onRemoveTrigger={removeTrigger}
-        notesFolder={notesFolder}
-        onChangeNotesFolder={onChangeNotesFolder}
-        currentFont={currentFont}
-        currentSize={currentSize}
-        currentLineHeight={currentLineHeight}
-        onFontChange={setFont}
-        onSizeChange={setFontSize}
-        onLineHeightChange={setLineHeight}
-      />
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <AISettingsDialog
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
+            settings={settings}
+            onUpdateSettings={updateSettings}
+            onUpdateTrigger={updateTrigger}
+            onResetTriggerPrompt={resetTriggerPrompt}
+            onAddTrigger={addTrigger}
+            onRemoveTrigger={removeTrigger}
+            notesFolder={notesFolder}
+            onChangeNotesFolder={onChangeNotesFolder}
+            currentFont={currentFont}
+            currentSize={currentSize}
+            currentLineHeight={currentLineHeight}
+            onFontChange={setFont}
+            onSizeChange={setFontSize}
+            onLineHeightChange={setLineHeight}
+          />
+        </Suspense>
+      )}
 
     </div>
   );
