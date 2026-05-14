@@ -42,6 +42,8 @@ Updated every session via `/save-session`.
 - **Browser-level editor regression:** Playwright now boots the Vite app with
   mocked Tauri and Claude commands, auto-applies a comment rewrite, checks the
   temporary edit highlight, and confirms the saved markdown reloads cleanly.
+- **Multi-document comment regression:** browser coverage now switches between
+  notes and confirms sidecar-backed comments plus visual marks restore on return.
 - **Notarized release artifact:** Apple accepted the ARM64 DMG submission
   `c8ac8c64-dce1-47ab-bd62-eddb55cb685e`; the stapled DMG and bundled app both
   pass Gatekeeper assessment.

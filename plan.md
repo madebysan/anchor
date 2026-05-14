@@ -54,7 +54,8 @@ Massive multi-phase day — fork stabilized, full AI integration shipped, multip
 - Tests: Playwright is wired via `npm run test:e2e` with markdown, persona
   settings, source-offset routing, thread-history smoke coverage, and a
   Vite-backed browser regression for mocked Tauri/Claude comment auto-apply plus
-  markdown reload parity.
+  markdown reload parity. The browser suite also covers multi-document switching
+  with sidecar-backed comment and visual mark restore.
 - QA: ESLint 9 flat config is present, lint passes, accessibility fixes from
   the QA pass are in place, and font imports were trimmed to Latin subsets.
 - Docs: `docs/distribution.md` captures the local app build, the reliable
@@ -73,8 +74,6 @@ Massive multi-phase day — fork stabilized, full AI integration shipped, multip
 
 Highest-value chunks queued in `backlog.md`:
 
-- [ ] **Multi-doc comment regression** - switch between two notes and verify
-  sidecar comments and visual marks survive document changes.
 - [ ] **Branding** - final name, icon, README hero, and release identity.
 
 ## Decisions & context
