@@ -22,6 +22,9 @@ Updated every session via `/save-session`.
 - **Chat-driven global edits:** Chat can run document-wide rename/replace-all
   actions and whole-document transformations such as translation through
   editor-owned operations instead of Claude writing files directly.
+- **Chat full-document default:** short Chat edit requests like "translate to
+  spanish" or "make the intro better" now use the whole document by default
+  instead of asking for a text selection.
 - **No copy-paste edit fallback:** document-level edit requests without a
   selected target now ask for a selection or caret insertion instead of drafting
   text for the user to paste manually.

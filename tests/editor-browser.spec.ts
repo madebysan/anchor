@@ -427,7 +427,7 @@ test("document-level insert command writes at the caret instead of debating the 
   expect(prompt).not.toContain("The user will apply it themselves");
 });
 
-test("document-level edit commands do not generate copy-paste instructions", async ({ page }) => {
+test("chat document edit commands use the full document instead of asking for selection", async ({ page }) => {
   await installTauriMock(page);
   await page.goto("/");
 
@@ -438,12 +438,13 @@ test("document-level edit commands do not generate copy-paste instructions", asy
   await page.getByRole("button", { name: "Send chat message" }).click();
 
   const prompt = await latestClaudePrompt(page);
-  expect(prompt).toContain("Anchor must apply edits directly through the editor");
-  expect(prompt).toContain("Do not draft a block for the user to copy and paste");
+  expect(prompt).toContain("whole-document transformation");
+  expect(prompt).toContain("Current document markdown");
+  expect(prompt).not.toContain("select the text they want changed");
   expect(prompt).not.toContain("The user will apply it themselves");
 });
 
-test("vague no-selection quality edits ask for a target", async ({ page }) => {
+test("chat quality edits use the full document instead of asking for selection", async ({ page }) => {
   await installTauriMock(page);
   await page.goto("/");
 
@@ -454,8 +455,9 @@ test("vague no-selection quality edits ask for a target", async ({ page }) => {
   await page.getByRole("button", { name: "Send chat message" }).click();
 
   const prompt = await latestClaudePrompt(page);
-  expect(prompt).toContain("Anchor must apply edits directly through the editor");
-  expect(prompt).toContain("select the text they want changed");
+  expect(prompt).toContain("whole-document transformation");
+  expect(prompt).toContain("Current document markdown");
+  expect(prompt).not.toContain("select the text they want changed");
   expect(prompt).not.toContain("The user will apply it themselves");
 });
 
@@ -602,7 +604,7 @@ test("chat can replace the whole document for global translation", async ({ page
   await page.getByRole("tab", { name: /Chat/ }).click();
   const messageInput = page.getByRole("textbox", { name: "Chat message" });
   await expect(messageInput).toBeVisible();
-  await messageInput.fill("Translate the whole document to Spanish");
+  await messageInput.fill("translate to spanish");
   await page.getByRole("button", { name: "Send chat message" }).click();
 
   const editor = page.locator(".ProseMirror");
@@ -614,6 +616,93 @@ test("chat can replace the whole document for global translation", async ({ page
   const prompt = await latestClaudePrompt(page);
   expect(prompt).toContain("whole-document transformation");
   expect(prompt).toContain("Current document markdown");
+});
+
+test("chat summaries stay conversational and do not edit the document", async ({ page }) => {
+  await installTauriMock(page, {
+    aiOutput: "This document is a short browser-test note.",
+  });
+  await page.goto("/");
+
+  await page.getByRole("tab", { name: /Chat/ }).click();
+  const messageInput = page.getByRole("textbox", { name: "Chat message" });
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("summarize this document");
+  await page.getByRole("button", { name: "Send chat message" }).click();
+
+  await expect(page.getByText("This document is a short browser-test note.")).toBeVisible();
+  await expect(page.locator(".ProseMirror")).toContainText(ORIGINAL_TEXT);
+  await expect(page.locator(".ProseMirror")).not.toContainText(REPLACEMENT_TEXT);
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("Document snapshot");
+  expect(prompt).not.toContain("whole-document transformation");
+});
+
+test("chat research-then-edit requests do not auto-apply", async ({ page }) => {
+  await installTauriMock(page, {
+    aiOutput: "This needs verification before Anchor changes the document.",
+  });
+  await page.goto("/");
+
+  await page.getByRole("tab", { name: /Chat/ }).click();
+  const messageInput = page.getByRole("textbox", { name: "Chat message" });
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("research whether this is true; if true, rewrite it");
+  await page.getByRole("button", { name: "Send chat message" }).click();
+
+  await expect(page.getByText("This needs verification before Anchor changes the document.")).toBeVisible();
+  await expect(page.locator(".ProseMirror")).toContainText(ORIGINAL_TEXT);
+  await expect(page.locator(".ProseMirror")).not.toContainText(REPLACEMENT_TEXT);
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("research, verification, or conditional edit chain");
+  expect(prompt).toContain("must not auto-apply");
+});
+
+test("chat structural move requests do not silently rewrite text", async ({ page }) => {
+  await installTauriMock(page, {
+    aiOutput: "Anchor needs a future multi-range move command before it can apply this directly.",
+  });
+  await page.goto("/");
+
+  await page.getByRole("tab", { name: /Chat/ }).click();
+  const messageInput = page.getByRole("textbox", { name: "Chat message" });
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("move this paragraph after the future work paragraph");
+  await page.getByRole("button", { name: "Send chat message" }).click();
+
+  await expect(page.getByText("Anchor needs a future multi-range move command")).toBeVisible();
+  await expect(page.locator(".ProseMirror")).toContainText(ORIGINAL_TEXT);
+  await expect(page.locator(".ProseMirror")).not.toContainText(REPLACEMENT_TEXT);
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("structural or multi-range document edit");
+  expect(prompt).toContain("cannot safely move text across two document locations");
+});
+
+test("chat insert requests use the caret instead of replacing the whole document", async ({ page }) => {
+  await installTauriMock(page, {
+    aiOutput: " Audience note.",
+  });
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+  await setEditorCaretAfterText(page, ORIGINAL_TEXT);
+
+  await page.getByRole("tab", { name: /Chat/ }).click();
+  const messageInput = page.getByRole("textbox", { name: "Chat message" });
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("add a sentence about the audience");
+  await page.getByRole("button", { name: "Send chat message" }).click();
+
+  await expect(editor).toContainText(`${ORIGINAL_TEXT} Audience note.`);
+  await expect.poll(() => savedMarkdown(page)).toContain(`${ORIGINAL_TEXT} Audience note.`);
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("direct insertion command");
+  expect(prompt).not.toContain("whole-document transformation");
 });
 
 test("applied AI diff can revert the passage", async ({ page }) => {
