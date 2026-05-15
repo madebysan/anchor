@@ -22,6 +22,12 @@
 - Built, signed, notarized, stapled, and Gatekeeper-checked the latest DMG:
   `src-tauri/target/release/bundle/dmg/Anchor_0.1.0_aarch64.dmg`. Apple
   notarization submission `21de2fc8-b4de-431c-a03e-c16430aded2a` was accepted.
+- Split the right sidebar into Comments and Chat. Comments stays anchored to
+  selected passages, while Chat handles document questions, no-selection
+  document-wide rename/replace actions, and whole-document transformations.
+- Added browser QA for Chat Q&A, Chat global rename without a selected anchor,
+  whole-document translation, and regression coverage for the selected-text
+  rewrite path.
 
 ## Done this session (2026-05-14)
 
@@ -117,6 +123,9 @@ Massive multi-phase day — fork stabilized, full AI integration shipped, multip
 - Latest performance work lazy-loads the editor after startup gates and loads
   Claude availability plus notes-folder config in parallel behind one smoother
   startup state.
+- The right sidebar has separate Comments and Chat tabs. Document-level AI work
+  should start in Chat; selection-bubble Ask AI remains the path for anchored
+  paragraph rewrites.
 
 ## Next steps
 

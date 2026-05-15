@@ -76,7 +76,12 @@ interface DocumentStore {
   ) => void;
   setLastAssistantAppliedEdit: (
     threadId: string,
-    input: { originalText: string; replacementText: string }
+    input: {
+      originalText: string;
+      replacementText: string;
+      scope?: NonNullable<ThreadMessage["appliedEdit"]>["scope"];
+      occurrenceCount?: number;
+    }
   ) => void;
   setAppliedEditStatus: (
     threadId: string,
@@ -577,6 +582,8 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
             id: `applied-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             originalText: input.originalText,
             replacementText: input.replacementText,
+            scope: input.scope,
+            occurrenceCount: input.occurrenceCount,
             status: "applied",
           },
         };

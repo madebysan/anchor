@@ -207,7 +207,7 @@ export default function CommentThread({
             selectedText={thread.selectedText}
             getDocumentSnapshot={getDocumentSnapshot}
             defaultPersona={defaultPersona}
-            initialIntent={thread.intent ?? "ai"}
+            initialIntent={thread.intent === "note" ? "note" : "ai"}
             placeholder={
               thread.intent === "note"
                 ? "Leave a note for yourself..."

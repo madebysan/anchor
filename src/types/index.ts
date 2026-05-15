@@ -11,7 +11,7 @@ export interface CommentThread {
   id: string;
   selectedText: string;
   anchor?: CommentAnchor;
-  intent?: "note" | "ai";
+  intent?: "note" | "ai" | "chat";
   messages: ThreadMessage[];
   status: "active" | "resolved";
   createdAt: number;
@@ -54,6 +54,8 @@ export interface AppliedEdit {
   id: string;
   originalText: string;
   replacementText: string;
+  scope?: "selection" | "replace-all" | "document";
+  occurrenceCount?: number;
   status: "applied" | "reverted";
 }
 

@@ -13,6 +13,7 @@ import {
   findThreadRange,
 } from "@/lib/ai/document-snapshot";
 import { useDocumentStore } from "@/lib/document-store";
+import { markdownToHtml } from "@/lib/markdown";
 import { getNoteTree } from "@/lib/persistence";
 import type { NoteTreeNode } from "@/lib/notes-fs";
 import { parseTrigger, isPlainNote } from "@/lib/triggers";
@@ -180,12 +181,14 @@ function isWordCharacter(character: string | undefined): boolean {
   return !!character && /[\p{L}\p{N}_]/u.test(character);
 }
 
-function findTextMatchIndexes(text: string, search: string): number[] {
+function findTextMatchIndexes(text: string, search: string, ignoreCase = false): number[] {
   if (!search) return [];
 
   const indexes: number[] = [];
   const useTokenBoundaries = /^[\p{L}\p{N}_]+$/u.test(search);
-  let index = text.indexOf(search);
+  const haystack = ignoreCase ? text.toLocaleLowerCase() : text;
+  const needle = ignoreCase ? search.toLocaleLowerCase() : search;
+  let index = haystack.indexOf(needle);
 
   while (index !== -1) {
     const before = text[index - 1];
@@ -196,7 +199,7 @@ function findTextMatchIndexes(text: string, search: string): number[] {
     ) {
       indexes.push(index);
     }
-    index = text.indexOf(search, index + search.length);
+    index = haystack.indexOf(needle, index + search.length);
   }
 
   return indexes;
@@ -214,7 +217,10 @@ function applyReplaceAllWithHighlight(
   editor.state.doc.descendants((node, pos) => {
     if (!node.isText) return;
     const text = node.text ?? "";
-    const indexes = findTextMatchIndexes(text, original);
+    const exactIndexes = findTextMatchIndexes(text, original);
+    const indexes = exactIndexes.length > 0
+      ? exactIndexes
+      : findTextMatchIndexes(text, original, true);
     for (const index of indexes) {
       matches.push({
         from: pos + index,
@@ -267,6 +273,14 @@ function applyReplaceAllWithHighlight(
   }
 
   return { count: matches.length, range };
+}
+
+function applyDocumentReplacement(
+  editor: TiptapEditor,
+  replacementMarkdown: string,
+): void {
+  const html = markdownToHtml(replacementMarkdown);
+  editor.commands.setContent(html, { emitUpdate: false });
 }
 
 function DragHandle({
@@ -530,6 +544,7 @@ export default function EditorPage({
         store.setLastAssistantAppliedEdit(threadId, {
           originalText: "",
           replacementText: insertion,
+          scope: "selection",
         });
 
         store.updateThread(threadId, (t) => ({
@@ -551,6 +566,8 @@ export default function EditorPage({
         store.setLastAssistantAppliedEdit(threadId, {
           originalText: original,
           replacementText: replacement,
+          scope: "replace-all",
+          occurrenceCount: result.count,
         });
 
         store.updateLastAssistantMessage(
@@ -566,6 +583,28 @@ export default function EditorPage({
         return;
       }
 
+      if (toolName === "replaceDocument") {
+        const original = (input as { original?: unknown }).original;
+        const replacement = (input as { replacement?: unknown }).replacement;
+        if (typeof original !== "string" || typeof replacement !== "string") return;
+
+        applyDocumentReplacement(editor, replacement);
+        store.updateContent(editor.getHTML());
+        restoreCommentMarks(editor, store.threads);
+
+        store.setLastAssistantAppliedEdit(threadId, {
+          originalText: original,
+          replacementText: replacement,
+          scope: "document",
+        });
+
+        store.updateLastAssistantMessage(
+          threadId,
+          "Replaced the entire document.",
+        );
+        return;
+      }
+
       if (toolName !== "suggestEdit") return;
       const replacement = (input as { replacement?: unknown }).replacement;
       if (typeof replacement !== "string") return;
@@ -576,6 +615,7 @@ export default function EditorPage({
       store.setLastAssistantAppliedEdit(threadId, {
         originalText: threadBeforeEdit.selectedText,
         replacementText: replacement,
+        scope: "selection",
       });
 
       // Update the thread's selectedText so subsequent follow-up messages
@@ -701,7 +741,7 @@ export default function EditorPage({
   const getDocumentSnapshot = useCallback((): DocumentSnapshot => {
     const editor = editorRef.current;
     if (!editor) return { fullText: "", sourceMarkdown: "", paragraphs: [], blocks: [], headings: [] };
-    return buildDocumentSnapshot(editor, { includeSourceMarkdown: false });
+    return buildDocumentSnapshot(editor, { includeSourceMarkdown: true });
   }, []);
 
   const createAnchoredThread = useCallback((intent: "note" | "ai") => {
@@ -731,7 +771,7 @@ export default function EditorPage({
     createAnchoredThread("ai");
   }, [createAnchoredThread]);
 
-  const createDocumentThread = useCallback((intent: "note" | "ai") => {
+  const createDocumentThread = useCallback((intent: "note" | "ai" | "chat") => {
     const editor = editorRef.current;
     const anchor = editor
       ? buildAnchorForRange(
@@ -741,15 +781,22 @@ export default function EditorPage({
           "",
         )
       : undefined;
-    useDocumentStore.getState().createThread("", anchor, intent);
+    return useDocumentStore.getState().createThread("", anchor, intent);
   }, []);
 
   const handleAddDocumentComment = useCallback(() => {
     createDocumentThread("note");
   }, [createDocumentThread]);
 
-  const handleAddDocumentAI = useCallback(() => {
-    createDocumentThread("ai");
+  const getOrCreateChatThreadId = useCallback(() => {
+    const existing = useDocumentStore
+      .getState()
+      .threads.find((thread) => thread.intent === "chat" && thread.status === "active");
+    if (existing) {
+      useDocumentStore.getState().setActiveThreadId(existing.id);
+      return existing.id;
+    }
+    return createDocumentThread("chat");
   }, [createDocumentThread]);
 
   // ⌘⇧V / Ctrl+Shift+V opens a comment on the current selection (or a
@@ -792,8 +839,13 @@ export default function EditorPage({
       const explicitTrigger = parseTrigger(text, enabledTriggerNames);
       const plainNote = isPlainNote(text);
 
+      const store = useDocumentStore.getState();
+      const threadBeforeMessage = store.threads.find((t) => t.id === threadId);
+      const isChatThread = threadBeforeMessage?.intent === "chat";
+
       let effectiveTrigger = explicitTrigger;
       if (
+        !isChatThread &&
         !explicitTrigger &&
         !plainNote &&
         settings.defaultPersona &&
@@ -805,8 +857,6 @@ export default function EditorPage({
         };
       }
 
-      const store = useDocumentStore.getState();
-      const threadBeforeMessage = store.threads.find((t) => t.id === threadId);
       store.addMessage(threadId, {
         role: "user",
         content: text,
@@ -819,7 +869,7 @@ export default function EditorPage({
       const hasAIHistory =
         threadBeforeMessage?.messages.some((m) => m.role === "assistant") ?? false;
 
-      const shouldRunAI = !plainNote && (effectiveTrigger || hasAIHistory);
+      const shouldRunAI = isChatThread || (!plainNote && (effectiveTrigger || hasAIHistory));
       if (!shouldRunAI) return;
 
       store.addMessage(threadId, { role: "assistant", content: "" });
@@ -840,6 +890,14 @@ export default function EditorPage({
       }
     },
     [sendAIMessage, getDocumentSnapshot, settings]
+  );
+
+  const handleSubmitChatMessage = useCallback(
+    (text: string) => {
+      const threadId = getOrCreateChatThreadId();
+      void handleSubmitMessage(threadId, text);
+    },
+    [getOrCreateChatThreadId, handleSubmitMessage],
   );
 
   const handleAcceptSuggestion = useCallback(
@@ -888,10 +946,36 @@ export default function EditorPage({
       const editor = editorRef.current;
       if (!editor) return;
 
+      const store = useDocumentStore.getState();
+
+      if (edit.scope === "document") {
+        applyDocumentReplacement(editor, edit.originalText);
+        store.updateContent(editor.getHTML());
+        restoreCommentMarks(editor, store.threads);
+        store.setAppliedEditStatus(threadId, messageId, edit.id, "reverted");
+        return;
+      }
+
+      if (edit.scope === "replace-all") {
+        const result = applyReplaceAllWithHighlight(
+          editor,
+          threadId,
+          edit.replacementText,
+          edit.originalText,
+        );
+        if (!result) return;
+        store.updateThread(threadId, (thread) => ({
+          ...thread,
+          selectedText: edit.originalText,
+          anchor: buildAnchorForRange(editor, result.range.from, result.range.to, edit.originalText),
+        }));
+        store.setAppliedEditStatus(threadId, messageId, edit.id, "reverted");
+        return;
+      }
+
       const range = applyReplacementWithHighlight(editor, threadId, edit.originalText);
       if (!range) return;
 
-      const store = useDocumentStore.getState();
       store.updateThread(threadId, (thread) => ({
         ...thread,
         selectedText: edit.originalText,
@@ -991,7 +1075,8 @@ export default function EditorPage({
               onResolveThread={handleResolveThread}
               onUnresolveThread={handleUnresolveThread}
               onAddDocumentComment={handleAddDocumentComment}
-              onAddDocumentAI={handleAddDocumentAI}
+              onAddDocumentAI={getOrCreateChatThreadId}
+              onSubmitChatMessage={handleSubmitChatMessage}
               onAcceptSuggestion={handleAcceptSuggestion}
               onRejectSuggestion={handleRejectSuggestion}
               onRevertAppliedEdit={handleRevertAppliedEdit}

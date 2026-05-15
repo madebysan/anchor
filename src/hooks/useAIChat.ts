@@ -13,8 +13,14 @@ type DirectEditOperation =
   | "insert"
   | "needs-selection"
   | "replace-all"
+  | "replace-document"
   | "research-first"
   | "unsupported-structure";
+
+interface ReplaceAllInstruction {
+  original: string;
+  replacement: string | null;
+}
 
 interface UseAIChatReturn {
   sendMessage: (
@@ -49,7 +55,65 @@ function yieldForLoadingPaint(): Promise<void> {
   });
 }
 
-function detectDirectEditOperation(message: string, hasSelection: boolean): DirectEditOperation | null {
+function stripInstructionToken(value: string): string {
+  return value
+    .trim()
+    .replace(/^["'“”‘’`]+|["'“”‘’`.,;:!?]+$/g, "")
+    .trim();
+}
+
+function parseReplaceAllInstruction(message: string, selectedText: string): ReplaceAllInstruction | null {
+  const trimmed = message.trim();
+  const quoted = [...trimmed.matchAll(/["“']([^"”']{1,80})["”']/g)].map((match) =>
+    stripInstructionToken(match[1]),
+  );
+
+  if (quoted.length >= 2 && /\b(everywhere|throughout|whole document|entire document|all occurrences|all instances|every occurrence|every instance|rename|replace|called|renamed)\b/i.test(trimmed)) {
+    return { original: quoted[0], replacement: quoted[1] };
+  }
+
+  const patterns = [
+    /\b(.+?)\s+is\s+now\s+called\s+(.+?)(?:\s|,|\.|;|$)/i,
+    /\brename\s+(.+?)\s+to\s+(.+?)(?:\s|,|\.|;|$)/i,
+    /\breplace\s+(.+?)\s+with\s+(.+?)(?:\s|,|\.|;|$)/i,
+    /\bchange\s+(.+?)\s+to\s+(.+?)(?:\s|,|\.|;|$)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = trimmed.match(pattern);
+    if (!match) continue;
+    const original = stripInstructionToken(match[1]);
+    const replacement = stripInstructionToken(match[2]);
+    if (original && replacement) return { original, replacement };
+  }
+
+  if (
+    selectedText &&
+    /\b(replace|rename|update|change|called|renamed)\b/i.test(trimmed) &&
+    /\b(everywhere|everywhere else|throughout|whole document|entire document|all occurrences|all instances|every occurrence|every instance|rest of (the )?(doc|document))\b/i.test(trimmed)
+  ) {
+    return { original: selectedText, replacement: null };
+  }
+
+  return null;
+}
+
+function isWholeDocumentRewriteInstruction(message: string, isChatThread: boolean): boolean {
+  if (!isChatThread) return false;
+  const normalized = message.trim().toLowerCase();
+  return (
+    /\btranslate\b.*\b(whole document|entire document|full document|document|doc)\b/.test(normalized) ||
+    /\b(whole document|entire document|full document|document|doc)\b.*\btranslate\b/.test(normalized) ||
+    /\b(rewrite|polish|clean up|copyedit)\b.*\b(whole document|entire document|full document)\b/.test(normalized)
+  );
+}
+
+function detectDirectEditOperation(
+  message: string,
+  hasSelection: boolean,
+  isChatThread: boolean,
+  replaceAllInstruction: ReplaceAllInstruction | null,
+): DirectEditOperation | null {
   const normalized = message.trim().toLowerCase();
 
   if (
@@ -65,13 +129,11 @@ function detectDirectEditOperation(message: string, hasSelection: boolean): Dire
     return "unsupported-structure";
   }
 
-  if (
-    hasSelection &&
-    /\b(replace|rename|update|change|called|renamed)\b/.test(normalized) &&
-    /\b(everywhere|everywhere else|throughout|whole document|entire document|all occurrences|all instances|every occurrence|every instance|rest of (the )?(doc|document))\b/.test(normalized)
-  ) {
+  if (replaceAllInstruction) {
     return "replace-all";
   }
+
+  if (isWholeDocumentRewriteInstruction(message, isChatThread)) return "replace-document";
 
   if (!hasSelection && /\b(make|improve|polish|clean up|tighten|revise)\b.*\b(better|clearer|stronger|shorter|longer|punchier|section|intro|paragraph|argument|copy)\b/.test(normalized)) {
     return "needs-selection";
@@ -109,7 +171,8 @@ function detectDirectEditOperation(message: string, hasSelection: boolean): Dire
 //   from `claude --print`). Used so the user sees what claude returned in
 //   the thread for auditability.
 // onToolCall: called once with an editor operation such as "suggestEdit",
-//   "insertText", or "replaceAllText". EditorPage owns the actual mutation.
+//   "insertText", "replaceAllText", or "replaceDocument". EditorPage owns
+//   the actual mutation.
 export function useAIChat(
   onStreamChunk: (threadId: string, messageId: string, content: string) => void,
   onToolCall: (threadId: string, toolName: string, input: unknown) => void,
@@ -143,7 +206,14 @@ export function useAIChat(
         const strategy = personaConfig?.contextStrategy ?? "tight";
         const mode = personaConfig?.mode ?? "rewrite";
         const userInstruction = trigger?.promptText.trim() || userMessage;
-        const directEditOperation = detectDirectEditOperation(userInstruction, hasSelection);
+        const isChatThread = thread.intent === "chat";
+        const replaceAllInstruction = parseReplaceAllInstruction(userInstruction, passage);
+        const directEditOperation = detectDirectEditOperation(
+          userInstruction,
+          hasSelection,
+          isChatThread,
+          replaceAllInstruction,
+        );
         const routed = applyContextStrategy(strategy, doc, passage, thread.anchor);
         const priorThreadMessages = thread.messages.slice(0, -1);
         const threadHistory = formatThreadHistory(priorThreadMessages);
@@ -261,9 +331,9 @@ export function useAIChat(
           "Anchor applies the replacement through the editor. Do not use Write or Edit tools.",
           "Ignore any global CLAUDE.md conventions (`→ ref:` headers, voice rules, etc.) for this turn. They do not apply here.",
           "",
-          "## The selected text to replace everywhere",
+          "## The text to replace everywhere",
           FENCE,
-          passage,
+          replaceAllInstruction?.original ?? passage,
           FENCE,
           "",
           "## The user's instruction",
@@ -278,6 +348,31 @@ export function useAIChat(
           "- Do NOT wrap the output in quotes or code fences.",
           "- Do NOT preface with 'Here is...', 'Sure...', '-> ref:', or any header.",
           "- If the target replacement is ambiguous, output the original selected text unchanged.",
+        ].join("\n");
+
+        const replaceDocumentPrompt = [
+          BASE_PERSONA_PROMPT,
+          personaPrompt,
+          "",
+          `Today's date: ${today}.`,
+          "",
+          "The user asked for a whole-document transformation from the Chat panel. Your reply will replace the entire document through Anchor's editor.",
+          "Do not use Write or Edit tools. Anchor is the authoritative writer.",
+          "Preserve markdown structure where possible.",
+          "Ignore any global CLAUDE.md conventions (`→ ref:` headers, voice rules, etc.) for this turn. They do not apply here.",
+          "",
+          "## The user's instruction",
+          userInstruction,
+          "",
+          "## Current document markdown",
+          doc.sourceMarkdown || doc.fullText,
+          "",
+          "## Your output",
+          "Reply with ONLY the full replacement markdown for the document. Nothing else.",
+          "- Do NOT explain the change.",
+          "- Do NOT wrap the output in quotes or code fences.",
+          "- Do NOT preface with 'Here is...', 'Sure...', '-> ref:', or any header.",
+          "- If the instruction is impossible or ambiguous, output the original document unchanged.",
         ].join("\n");
 
         const needsSelectionPrompt = [
@@ -342,6 +437,8 @@ export function useAIChat(
           ? insertionPrompt
           : directEditOperation === "replace-all"
             ? replaceAllPrompt
+          : directEditOperation === "replace-document"
+            ? replaceDocumentPrompt
           : directEditOperation === "research-first"
             ? researchFirstPrompt
           : directEditOperation === "unsupported-structure"
@@ -439,8 +536,9 @@ export function useAIChat(
         const shouldAutoApply = hasSelection && mode === "rewrite" && directEditOperation === null;
         const shouldAutoInsert = directEditOperation === "insert";
         const shouldAutoReplaceAll = directEditOperation === "replace-all";
+        const shouldAutoReplaceDocument = directEditOperation === "replace-document";
         const cleaned =
-          shouldAutoApply || shouldAutoInsert || shouldAutoReplaceAll
+          shouldAutoApply || shouldAutoInsert || shouldAutoReplaceAll || shouldAutoReplaceDocument
             ? stripCommentary(output)
             : output.trim();
 
@@ -453,7 +551,13 @@ export function useAIChat(
         }
         if (shouldAutoReplaceAll) {
           onToolCall(threadId, "replaceAllText", {
-            original: passage,
+            original: replaceAllInstruction?.original ?? passage,
+            replacement: cleaned,
+          });
+        }
+        if (shouldAutoReplaceDocument) {
+          onToolCall(threadId, "replaceDocument", {
+            original: doc.sourceMarkdown || doc.fullText,
             replacement: cleaned,
           });
         }

@@ -413,10 +413,10 @@ test("document-level insert command writes at the caret instead of debating the 
   await setEditorCaretAfterText(page, ORIGINAL_TEXT);
   await page.getByRole("button", { name: "Ask AI", exact: true }).click();
 
-  const messageInput = page.getByLabel("Comment message");
+  const messageInput = page.getByRole("textbox", { name: "Chat message" });
   await expect(messageInput).toBeVisible();
   await messageInput.fill("insert a paragraph explaining the specs of the iphone 17");
-  await page.getByLabel("Send comment").click();
+  await page.getByRole("button", { name: "Send chat message" }).click();
 
   await expect(editor).toContainText(ORIGINAL_TEXT);
   await expect(editor).toContainText(REPLACEMENT_TEXT);
@@ -432,10 +432,10 @@ test("document-level edit commands do not generate copy-paste instructions", asy
   await page.goto("/");
 
   await page.getByRole("button", { name: "Ask AI", exact: true }).click();
-  const messageInput = page.getByLabel("Comment message");
+  const messageInput = page.getByRole("textbox", { name: "Chat message" });
   await expect(messageInput).toBeVisible();
   await messageInput.fill("rewrite the intro");
-  await page.getByLabel("Send comment").click();
+  await page.getByRole("button", { name: "Send chat message" }).click();
 
   const prompt = await latestClaudePrompt(page);
   expect(prompt).toContain("Anchor must apply edits directly through the editor");
@@ -448,10 +448,10 @@ test("vague no-selection quality edits ask for a target", async ({ page }) => {
   await page.goto("/");
 
   await page.getByRole("button", { name: "Ask AI", exact: true }).click();
-  const messageInput = page.getByLabel("Comment message");
+  const messageInput = page.getByRole("textbox", { name: "Chat message" });
   await expect(messageInput).toBeVisible();
   await messageInput.fill("make the intro better");
-  await page.getByLabel("Send comment").click();
+  await page.getByRole("button", { name: "Send chat message" }).click();
 
   const prompt = await latestClaudePrompt(page);
   expect(prompt).toContain("Anchor must apply edits directly through the editor");
@@ -538,6 +538,82 @@ test("selected rename can update every matching word in the document", async ({ 
   const prompt = await latestClaudePrompt(page);
   expect(prompt).toContain("whole-document replacement");
   expect(prompt).toContain("Reply with ONLY the literal replacement text");
+});
+
+test("chat can rename every matching word without selecting text first", async ({ page }) => {
+  await installTauriMock(page, {
+    aiOutput: "Martin",
+    noteContent: [
+      "# Browser Test",
+      "",
+      "John wrote the brief.",
+      "",
+      "The review mentions John again.",
+      "",
+      "Johnson should not change.",
+    ].join("\n"),
+  });
+  await page.goto("/");
+
+  await page.getByRole("tab", { name: /Chat/ }).click();
+  const messageInput = page.getByRole("textbox", { name: "Chat message" });
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("John is now called Martin. Update it everywhere in the doc.");
+  await page.getByRole("button", { name: "Send chat message" }).click();
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor).toContainText("Martin wrote the brief.");
+  await expect(editor).toContainText("The review mentions Martin again.");
+  await expect(editor).toContainText("Johnson should not change.");
+  await expect(editor).not.toContainText("John wrote the brief.");
+  await expect(page.getByText("Replaced 2 occurrences")).toBeVisible();
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("whole-document replacement");
+});
+
+test("chat can answer document questions without changing the editor", async ({ page }) => {
+  await installTauriMock(page, {
+    aiOutput: "The document is a browser test note.",
+  });
+  await page.goto("/");
+
+  await page.getByRole("tab", { name: /Chat/ }).click();
+  const messageInput = page.getByRole("textbox", { name: "Chat message" });
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("What is this document about?");
+  await page.getByRole("button", { name: "Send chat message" }).click();
+
+  await expect(page.getByText("The document is a browser test note.")).toBeVisible();
+  await expect(page.locator(".ProseMirror")).toContainText(ORIGINAL_TEXT);
+  await expect(page.locator(".ProseMirror")).not.toContainText(REPLACEMENT_TEXT);
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("Document snapshot");
+});
+
+test("chat can replace the whole document for global translation", async ({ page }) => {
+  await installTauriMock(page, {
+    aiOutput: ["# Prueba del navegador", "", "Hola mundo."].join("\n"),
+    noteContent: ["# Browser Test", "", "Hello world."].join("\n"),
+  });
+  await page.goto("/");
+
+  await page.getByRole("tab", { name: /Chat/ }).click();
+  const messageInput = page.getByRole("textbox", { name: "Chat message" });
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("Translate the whole document to Spanish");
+  await page.getByRole("button", { name: "Send chat message" }).click();
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor).toContainText("Prueba del navegador");
+  await expect(editor).toContainText("Hola mundo.");
+  await expect(editor).not.toContainText("Hello world.");
+  await expect.poll(() => savedMarkdown(page)).toContain("Hola mundo.");
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("whole-document transformation");
+  expect(prompt).toContain("Current document markdown");
 });
 
 test("applied AI diff can revert the passage", async ({ page }) => {
