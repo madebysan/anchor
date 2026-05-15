@@ -37,6 +37,7 @@ interface CommentInputProps {
   getDocumentSnapshot?: () => DocumentSnapshot;
   /** Default persona key to fire when no @trigger and not a plain note. */
   defaultPersona?: string;
+  initialIntent?: "note" | "ai";
 }
 
 export default function CommentInput({
@@ -49,14 +50,18 @@ export default function CommentInput({
   selectedText = "",
   getDocumentSnapshot,
   defaultPersona,
+  initialIntent = "ai",
 }: CommentInputProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const defaultPersonaOverride = initialIntent === "note" ? "note" : null;
 
   // Per-comment routing override. null = use default (or @-trigger in text).
   // "note" = plain note (no AI). Otherwise a persona key.
-  const [personaOverride, setPersonaOverride] = useState<string | null>(null);
+  const [personaOverride, setPersonaOverride] = useState<string | null>(
+    defaultPersonaOverride
+  );
 
   // Autocomplete state
   const [showAutocomplete, setShowAutocomplete] = useState(false);
@@ -171,7 +176,7 @@ export default function CommentInput({
 
     onSubmit(toSend);
     setValue("");
-    setPersonaOverride(null);
+    setPersonaOverride(defaultPersonaOverride);
     setShowAutocomplete(false);
   };
 

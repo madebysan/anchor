@@ -28,6 +28,7 @@ function looksLikeMarkdown(text: string): boolean {
 
 interface EditorProps {
   onAddComment?: () => void;
+  onAskAI?: () => void;
   onReady?: () => void;
   onUpdate?: () => void;
   onOpenSettings?: () => void;
@@ -58,6 +59,7 @@ export const defaultContent = `<h1>Welcome to Anchor</h1>
 
 export default function Editor({
   onAddComment,
+  onAskAI,
   onReady,
   onUpdate,
   onOpenSettings,
@@ -162,6 +164,7 @@ export default function Editor({
           <CommentBubbleMenu
             editor={editor}
             onAddComment={() => onAddComment?.()}
+            onAskAI={() => onAskAI?.()}
           />
         )}
         <EditorContent editor={editor} />

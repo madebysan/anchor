@@ -11,6 +11,7 @@ export interface CommentThread {
   id: string;
   selectedText: string;
   anchor?: CommentAnchor;
+  intent?: "note" | "ai";
   messages: ThreadMessage[];
   status: "active" | "resolved";
   createdAt: number;

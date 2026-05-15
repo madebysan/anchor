@@ -63,7 +63,11 @@ interface DocumentStore {
 
   // ---- Threads ----
   setActiveThreadId: (id: string | null) => void;
-  createThread: (selectedText: string, anchor?: CommentAnchor) => string;
+  createThread: (
+    selectedText: string,
+    anchor?: CommentAnchor,
+    intent?: CommentThread["intent"]
+  ) => string;
   addMessage: (threadId: string, message: Omit<ThreadMessage, "id" | "createdAt">) => string;
   updateLastAssistantMessage: (threadId: string, content: string) => void;
   setLastAssistantSuggestion: (
@@ -478,12 +482,13 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   // ---- Threads ----
   setActiveThreadId: (id) => set({ activeThreadId: id }),
 
-  createThread: (selectedText, anchor) => {
+  createThread: (selectedText, anchor, intent) => {
     const id = makeThreadId();
     const thread: CommentThread = {
       id,
       selectedText,
       anchor,
+      intent,
       messages: [],
       status: "active",
       createdAt: Date.now(),

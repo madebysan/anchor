@@ -471,8 +471,8 @@ export default function AISettingsDialog({
               <p className="text-xs text-muted-foreground">
                 Add instructions after a trigger, e.g.{" "}
                 <code className="bg-muted px-1 rounded">@copywriter make it punchier</code>.
-                Or prefix with <code className="bg-muted px-1 rounded">Note:</code> to skip
-                the AI and save as a plain note.
+                Use Add Comment for plain notes. Use Ask AI or type an{" "}
+                <code className="bg-muted px-1 rounded">@persona</code> trigger for AI.
               </p>
             </div>
           </TabsContent>

@@ -258,6 +258,7 @@ function isCommentThread(value: unknown): value is CommentThread {
   return (
     typeof value.id === "string" &&
     typeof value.selectedText === "string" &&
+    (value.intent === undefined || value.intent === "note" || value.intent === "ai") &&
     (anchor === undefined || isCommentAnchor(anchor)) &&
     Array.isArray(messages) &&
     messages.every(isThreadMessage) &&
