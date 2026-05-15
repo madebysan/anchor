@@ -418,6 +418,30 @@ test("document-level insert command writes at the caret instead of debating the 
   expect(prompt).not.toContain("The user will apply it themselves");
 });
 
+test("document-level edit commands do not generate copy-paste instructions", async ({ page }) => {
+  await installTauriMock(page);
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Ask AI", exact: true }).click();
+  const messageInput = page.getByLabel("Comment message");
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("rewrite the intro");
+  await page.getByLabel("Send comment").click();
+
+  const prompt = await page.evaluate(() => {
+    const win = window as unknown as {
+      __inlineMdTest?: { invocations: Array<{ cmd: string; args: { prompt?: string } }> };
+    };
+    const invocation = win.__inlineMdTest?.invocations.find(
+      (item) => item.cmd === "ai_invoke_claude",
+    );
+    return invocation?.args.prompt ?? "";
+  });
+  expect(prompt).toContain("Anchor must apply edits directly through the editor");
+  expect(prompt).toContain("Do not draft a block for the user to copy and paste");
+  expect(prompt).not.toContain("The user will apply it themselves");
+});
+
 test("applied AI diff can revert the passage", async ({ page }) => {
   await installTauriMock(page);
   await page.goto("/");

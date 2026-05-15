@@ -16,6 +16,9 @@ Updated every session via `/save-session`.
 - **Ask AI at cursor:** the comments panel now offers a document-level AI entry
   point so new text can be drafted from the caret without selecting existing
   text first.
+- **No copy-paste edit fallback:** document-level edit requests without a
+  selected target now ask for a selection or caret insertion instead of drafting
+  text for the user to paste manually.
 
 ### Branding
 - **Renamed app to Anchor:** updated product name, app window title, package
@@ -32,6 +35,8 @@ Updated every session via `/save-session`.
   applied edit back to the original selected passage.
 - Added browser coverage for document-level AI insertion so direct insert
   commands cannot regress into "paste this yourself" responses.
+- Added browser coverage to keep no-selection edit requests from producing
+  copy-paste instructions.
 - **Performance cleanup:** lazy-loaded the editor after startup gates, removed
   WOFF fallback font assets, and added an explicit SVG favicon. Production
   preview Lighthouse improved from 88 to 97, with initial transfer dropping
