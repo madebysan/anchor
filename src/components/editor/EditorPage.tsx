@@ -126,8 +126,13 @@ function applyInsertionWithHighlight(
   editor: TiptapEditor,
   thread: CommentThread,
   insertion: string,
+  position: "caret" | "document-end" = "caret",
 ): { from: number; to: number; text: string } | null {
   if (!insertion) return null;
+
+  if (position === "document-end") {
+    return applyDocumentEndInsertionWithHighlight(editor, thread, insertion);
+  }
 
   const insertionPosition =
     typeof thread.anchor?.pmFrom === "number"
@@ -159,6 +164,51 @@ function applyInsertionWithHighlight(
       if (to <= range.from) return;
       const removeTr = editor.state.tr
         .removeMark(range.from, to, editHighlight)
+        .setMeta("addToHistory", false);
+      editor.view.dispatch(removeTr);
+    }, 3200);
+  }
+
+  return range;
+}
+
+function applyDocumentEndInsertionWithHighlight(
+  editor: TiptapEditor,
+  thread: CommentThread,
+  insertion: string,
+): { from: number; to: number; text: string } | null {
+  const insertionText = insertion.trim();
+  if (!insertionText) return null;
+
+  const from = editor.state.doc.content.size;
+  const html = markdownToHtml(`\n\n${insertionText}`);
+  const didInsert = editor.commands.insertContentAt(from, html);
+  if (!didInsert) return null;
+
+  const to = editor.state.doc.content.size;
+  const commentMark = editor.schema.marks.comment;
+  const editHighlight = editor.schema.marks.editHighlight;
+  const highlightId = `edit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+  let tr = editor.state.tr;
+  if (commentMark) {
+    tr = tr.addMark(from, to, commentMark.create({ commentId: thread.id }));
+  }
+  if (editHighlight) {
+    tr = tr.addMark(from, to, editHighlight.create({ id: highlightId }));
+  }
+  if (tr.steps.length > 0) {
+    editor.view.dispatch(tr);
+  }
+
+  const range = { from, to, text: insertionText };
+  if (editHighlight) {
+    window.setTimeout(() => {
+      if (editor.isDestroyed) return;
+      const boundedTo = Math.min(range.to, editor.state.doc.content.size);
+      if (boundedTo <= range.from) return;
+      const removeTr = editor.state.tr
+        .removeMark(range.from, boundedTo, editHighlight)
         .setMeta("addToHistory", false);
       editor.view.dispatch(removeTr);
     }, 3200);
@@ -561,9 +611,16 @@ export default function EditorPage({
 
       if (toolName === "insertText") {
         const insertion = (input as { insertion?: unknown }).insertion;
+        const position = (input as { position?: unknown }).position;
         if (typeof insertion !== "string") return;
+        const insertionPosition = position === "document-end" ? "document-end" : "caret";
 
-        const range = applyInsertionWithHighlight(editor, threadBeforeEdit, insertion);
+        const range = applyInsertionWithHighlight(
+          editor,
+          threadBeforeEdit,
+          insertion,
+          insertionPosition,
+        );
         if (!range) return;
 
         store.setLastAssistantAppliedEdit(threadId, {

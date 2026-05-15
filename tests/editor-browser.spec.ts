@@ -705,6 +705,45 @@ test("chat insert requests use the caret instead of replacing the whole document
   expect(prompt).not.toContain("whole-document transformation");
 });
 
+test("chat can append prior answer bullets as a new section at document end", async ({ page }) => {
+  const sectionMarkdown = [
+    "## Summary",
+    "",
+    "- The first point.",
+    "- The second point.",
+    "- The third point.",
+  ].join("\n");
+  await installTauriMock(page, {
+    aiOutput: sectionMarkdown,
+    noteContent: ["# Browser Test", "", "Body paragraph."].join("\n"),
+  });
+  await page.goto("/");
+
+  await page.getByRole("tab", { name: /Chat/ }).click();
+  const messageInput = page.getByRole("textbox", { name: "Chat message" });
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("whats the summary of this article in 3 bullet points");
+  await page.getByRole("button", { name: "Send chat message" }).click();
+  await expect(page.getByText("The first point.")).toBeVisible();
+
+  await messageInput.fill("ok lets add those bullet points at the end of the document as a new section");
+  await page.getByRole("button", { name: "Send chat message" }).click();
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor).toContainText("Browser Test");
+  await expect(editor).toContainText("Body paragraph.");
+  await expect(editor).toContainText("Summary");
+  await expect(editor).toContainText("The third point.");
+  await expect.poll(() => savedMarkdown(page)).toContain("## Summary");
+  await expect.poll(() => savedMarkdown(page)).toContain("The third point.");
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("append new content to the end of the document");
+  expect(prompt).toContain("Prior thread context");
+  expect(prompt).toContain("Use prior thread context");
+  expect(prompt).not.toContain("Place your caret");
+});
+
 test("selection Ask AI switches from Chat to the new comment thread", async ({ page }) => {
   await installTauriMock(page);
   await page.goto("/");

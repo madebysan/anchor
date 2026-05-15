@@ -1,4 +1,5 @@
 export type ChatIntent =
+  | "append-document"
   | "answer-document-question"
   | "insert-at-caret"
   | "needs-target"
@@ -28,7 +29,7 @@ interface ChatRequestClassification {
 const DOCUMENT_EDIT_VERBS =
   /^(translate|rewrite|polish|copyedit|edit|fix|update|change|delete|remove|shorten|expand)\b/;
 const INSERTION_VERBS =
-  /^(insert|add|write|draft|compose|append|prepend|put)\b/;
+  /\b(insert|add|write|draft|compose|append|prepend|put)\b/;
 const QUESTION_STARTERS =
   /^(what|why|how|when|where|who|which|can you explain|tell me|summarize)\b/;
 const QUALITY_EDIT_PATTERN =
@@ -55,8 +56,16 @@ export function classifyChatRequest({
     return { intent: "replace-all", replaceAllInstruction };
   }
 
+  if (isQuestionRequest(normalized)) {
+    return { intent: "answer-document-question", replaceAllInstruction };
+  }
+
   if (hasSelection) {
     return { intent: "selected-passage", replaceAllInstruction };
+  }
+
+  if (isChatThread && isDocumentAppendRequest(normalized)) {
+    return { intent: "append-document", replaceAllInstruction };
   }
 
   if (isInsertionRequest(normalized)) {
@@ -141,10 +150,20 @@ function isInsertionRequest(normalized: string): boolean {
   );
 }
 
-function isDocumentEditRequest(normalized: string): boolean {
-  if (QUESTION_STARTERS.test(normalized) || normalized.endsWith("?")) {
-    return false;
-  }
+function isDocumentAppendRequest(normalized: string): boolean {
+  if (!isInsertionRequest(normalized)) return false;
+  return (
+    /\b(end|bottom)\b.*\b(document|doc|article|file|note)\b/.test(normalized) ||
+    /\b(document|doc|article|file|note)\b.*\b(end|bottom)\b/.test(normalized) ||
+    /\bat the end\b/.test(normalized)
+  );
+}
 
+function isQuestionRequest(normalized: string): boolean {
+  return QUESTION_STARTERS.test(normalized) || normalized.endsWith("?");
+}
+
+function isDocumentEditRequest(normalized: string): boolean {
+  if (isQuestionRequest(normalized)) return false;
   return DOCUMENT_EDIT_VERBS.test(normalized) || QUALITY_EDIT_PATTERN.test(normalized);
 }
