@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   CommentThread as CommentThreadType,
   SuggestedEdit,
@@ -73,6 +73,14 @@ export default function CommentSidebar({
   const activeThreads = commentThreads.filter((t) => t.status === "active");
   const resolvedThreads = commentThreads.filter((t) => t.status === "resolved");
   const chatIsLoading = chatThread ? !!isLoading[chatThread.id] : false;
+  const activeThread = activeThreadId
+    ? threads.find((thread) => thread.id === activeThreadId)
+    : null;
+
+  useEffect(() => {
+    if (!activeThread) return;
+    setMode(activeThread.intent === "chat" ? "chat" : "comments");
+  }, [activeThread]);
 
   const openChat = () => {
     setMode("chat");
