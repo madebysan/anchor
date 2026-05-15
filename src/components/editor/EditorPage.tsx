@@ -126,7 +126,7 @@ function applyInsertionWithHighlight(
   editor: TiptapEditor,
   thread: CommentThread,
   insertion: string,
-): { from: number; to: number } | null {
+): { from: number; to: number; text: string } | null {
   if (!insertion) return null;
 
   const insertionPosition =
@@ -134,6 +134,8 @@ function applyInsertionWithHighlight(
       ? thread.anchor.pmFrom
       : editor.state.selection.from;
   const from = Math.max(0, Math.min(insertionPosition, editor.state.doc.content.size));
+  const insertionText = normalizeInsertionBoundary(editor, from, insertion);
+  if (!insertionText) return null;
 
   const marks = [];
   const commentMark = editor.schema.marks.comment;
@@ -146,10 +148,10 @@ function applyInsertionWithHighlight(
     marks.push(editHighlight.create({ id: highlightId }));
   }
 
-  const tr = editor.state.tr.insert(from, editor.schema.text(insertion, marks));
+  const tr = editor.state.tr.insert(from, editor.schema.text(insertionText, marks));
   editor.view.dispatch(tr);
 
-  const range = { from, to: from + insertion.length };
+  const range = { from, to: from + insertionText.length, text: insertionText };
   if (editHighlight) {
     window.setTimeout(() => {
       if (editor.isDestroyed) return;
@@ -163,6 +165,29 @@ function applyInsertionWithHighlight(
   }
 
   return range;
+}
+
+function normalizeInsertionBoundary(
+  editor: TiptapEditor,
+  from: number,
+  insertion: string,
+): string {
+  const text = insertion;
+  const before = from > 0 ? editor.state.doc.textBetween(from - 1, from, "\n", "\n") : "";
+  const after = from < editor.state.doc.content.size
+    ? editor.state.doc.textBetween(from, from + 1, "\n", "\n")
+    : "";
+
+  const needsLeadingSpace =
+    before !== "" &&
+    !/\s/.test(before) &&
+    !/^[\s.,;:!?)}\]'"”’]/.test(text);
+  const needsTrailingSpace =
+    after !== "" &&
+    !/\s/.test(after) &&
+    !/[\s([{'"“‘]$/.test(text);
+
+  return `${needsLeadingSpace ? " " : ""}${text}${needsTrailingSpace ? " " : ""}`;
 }
 
 interface ReplaceAllResult {
@@ -543,14 +568,14 @@ export default function EditorPage({
 
         store.setLastAssistantAppliedEdit(threadId, {
           originalText: "",
-          replacementText: insertion,
+          replacementText: range.text,
           scope: "selection",
         });
 
         store.updateThread(threadId, (t) => ({
           ...t,
-          selectedText: insertion,
-          anchor: buildAnchorForRange(editor, range.from, range.to, insertion),
+          selectedText: range.text,
+          anchor: buildAnchorForRange(editor, range.from, range.to, range.text),
         }));
         return;
       }

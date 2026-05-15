@@ -101,7 +101,14 @@ function parseReplaceAllInstruction(message: string, selectedText: string): Repl
 function isWholeDocumentRewriteInstruction(message: string, isChatThread: boolean): boolean {
   if (!isChatThread) return false;
   const normalized = message.trim().toLowerCase();
+  const isQuestion =
+    /^(what|why|how|when|where|who|which|can you explain|tell me|summarize)\b/.test(normalized) ||
+    normalized.endsWith("?");
+  if (isQuestion) return false;
+
   return (
+    /^(translate|rewrite|polish|copyedit|edit|fix|update|change|delete|remove|shorten|expand)\b/.test(normalized) ||
+    /\b(make|improve|polish|clean up|tighten|revise)\b.*\b(better|clearer|stronger|shorter|longer|punchier|section|intro|paragraph|argument|copy)\b/.test(normalized) ||
     /\btranslate\b.*\b(whole document|entire document|full document|document|doc)\b/.test(normalized) ||
     /\b(whole document|entire document|full document|document|doc)\b.*\btranslate\b/.test(normalized) ||
     /\b(rewrite|polish|clean up|copyedit)\b.*\b(whole document|entire document|full document)\b/.test(normalized)
@@ -148,7 +155,7 @@ function detectDirectEditOperation(
     return "insert";
   }
   if (
-    /^(rewrite|replace|edit|change|fix|update|delete|remove|shorten|expand|translate|summarize)\b/.test(normalized)
+    /^(rewrite|replace|edit|change|fix|update|delete|remove|shorten|expand|translate)\b/.test(normalized)
   ) {
     return "needs-selection";
   }
