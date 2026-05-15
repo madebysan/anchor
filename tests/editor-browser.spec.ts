@@ -356,6 +356,17 @@ async function savedMarkdown(page: Page): Promise<string> {
   });
 }
 
+async function latestClaudePrompt(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const win = window as unknown as {
+      __inlineMdTest?: { invocations: Array<{ cmd: string; args: { prompt?: string } }> };
+    };
+    const invocations =
+      win.__inlineMdTest?.invocations.filter((item) => item.cmd === "ai_invoke_claude") ?? [];
+    return invocations.at(-1)?.args.prompt ?? "";
+  });
+}
+
 test("comment rewrite auto-applies, highlights, and survives markdown reload", async ({ page }) => {
   await installTauriMock(page);
   await page.goto("/");
@@ -405,15 +416,7 @@ test("document-level insert command writes at the caret instead of debating the 
   await expect(editor).toContainText(REPLACEMENT_TEXT);
   await expect.poll(() => savedMarkdown(page)).toContain(REPLACEMENT_TEXT);
 
-  const prompt = await page.evaluate(() => {
-    const win = window as unknown as {
-      __inlineMdTest?: { invocations: Array<{ cmd: string; args: { prompt?: string } }> };
-    };
-    const invocation = win.__inlineMdTest?.invocations.find(
-      (item) => item.cmd === "ai_invoke_claude",
-    );
-    return invocation?.args.prompt ?? "";
-  });
+  const prompt = await latestClaudePrompt(page);
   expect(prompt).toContain("direct insertion command");
   expect(prompt).not.toContain("The user will apply it themselves");
 });
@@ -428,18 +431,68 @@ test("document-level edit commands do not generate copy-paste instructions", asy
   await messageInput.fill("rewrite the intro");
   await page.getByLabel("Send comment").click();
 
-  const prompt = await page.evaluate(() => {
-    const win = window as unknown as {
-      __inlineMdTest?: { invocations: Array<{ cmd: string; args: { prompt?: string } }> };
-    };
-    const invocation = win.__inlineMdTest?.invocations.find(
-      (item) => item.cmd === "ai_invoke_claude",
-    );
-    return invocation?.args.prompt ?? "";
-  });
+  const prompt = await latestClaudePrompt(page);
   expect(prompt).toContain("Anchor must apply edits directly through the editor");
   expect(prompt).toContain("Do not draft a block for the user to copy and paste");
   expect(prompt).not.toContain("The user will apply it themselves");
+});
+
+test("vague no-selection quality edits ask for a target", async ({ page }) => {
+  await installTauriMock(page);
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Ask AI", exact: true }).click();
+  const messageInput = page.getByLabel("Comment message");
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("make the intro better");
+  await page.getByLabel("Send comment").click();
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("Anchor must apply edits directly through the editor");
+  expect(prompt).toContain("select the text they want changed");
+  expect(prompt).not.toContain("The user will apply it themselves");
+});
+
+test("research-then-edit requests stay in the thread instead of auto-applying", async ({ page }) => {
+  await installTauriMock(page);
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+  await selectEditorText(page, ORIGINAL_TEXT);
+  await clickSelectionAction(page, "Ask AI");
+
+  const messageInput = page.getByLabel("Comment message");
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("research whether this is true; if true, rewrite it");
+  await page.getByLabel("Send comment").click();
+
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+  await expect(editor).not.toContainText(REPLACEMENT_TEXT);
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("research, verification, or conditional edit chain");
+  expect(prompt).toContain("must not auto-apply");
+});
+
+test("multi-range move requests are treated as unsupported structural edits", async ({ page }) => {
+  await installTauriMock(page);
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+  await selectEditorText(page, ORIGINAL_TEXT);
+  await clickSelectionAction(page, "Ask AI");
+
+  const messageInput = page.getByLabel("Comment message");
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("move this paragraph after the future work paragraph");
+  await page.getByLabel("Send comment").click();
+
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+  await expect(editor).not.toContainText(REPLACEMENT_TEXT);
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("structural or multi-range document edit");
+  expect(prompt).toContain("cannot safely move text across two document locations");
 });
 
 test("applied AI diff can revert the passage", async ({ page }) => {

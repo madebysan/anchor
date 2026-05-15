@@ -31,6 +31,15 @@ Updated every session via `/save-session`.
   editor preferences, expanded folders, and old thread data can carry forward.
 
 ### QA
+- **Expanded real-life AI edit QA:** ran a 20-scenario Claude QA matrix across
+  rewrites, direct inserts, off-topic inserts, vague document edits, structural
+  moves, and conditional research-then-edit requests.
+- **Safer AI edit routing:** vague quality edits without a selection now ask for
+  a target, conditional research/edit chains stay in the thread until verified,
+  and multi-range move requests no longer silently rewrite the selected text.
+- **Discussion grounding:** document-level discussion prompts now include the
+  routed document snapshot so ordinary questions can answer from current editor
+  context without modifying the file.
 - Added browser coverage for AI rewrite diff rendering and reverting an
   applied edit back to the original selected passage.
 - Added browser coverage for document-level AI insertion so direct insert
