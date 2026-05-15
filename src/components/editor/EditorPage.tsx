@@ -19,7 +19,7 @@ import { parseTrigger, isPlainNote } from "@/lib/triggers";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { DocumentSnapshot } from "@/lib/ai/context-router";
-import type { CommentThread, SuggestedEdit } from "@/types";
+import type { AppliedEdit, CommentThread, SuggestedEdit } from "@/types";
 import type { Editor as TiptapEditor } from "@tiptap/react";
 import { GripVertical } from "lucide-react";
 
@@ -371,12 +371,21 @@ export default function EditorPage({
       const editor = editorRef.current;
       if (!editor) return;
 
+      const store = useDocumentStore.getState();
+      const threadBeforeEdit = store.threads.find((t) => t.id === threadId);
       const range = applyReplacementWithHighlight(editor, threadId, replacement);
       if (!range) return;
 
+      if (threadBeforeEdit) {
+        store.setLastAssistantAppliedEdit(threadId, {
+          originalText: threadBeforeEdit.selectedText,
+          replacementText: replacement,
+        });
+      }
+
       // Update the thread's selectedText so subsequent follow-up messages
       // operate on the post-edit passage.
-      useDocumentStore.getState().updateThread(threadId, (t) => ({
+      store.updateThread(threadId, (t) => ({
         ...t,
         selectedText: replacement,
         anchor: buildAnchorForRange(editor, range.from, range.to, replacement),
@@ -662,6 +671,25 @@ export default function EditorPage({
     []
   );
 
+  const handleRevertAppliedEdit = useCallback(
+    (threadId: string, messageId: string, edit: AppliedEdit) => {
+      const editor = editorRef.current;
+      if (!editor) return;
+
+      const range = applyReplacementWithHighlight(editor, threadId, edit.originalText);
+      if (!range) return;
+
+      const store = useDocumentStore.getState();
+      store.updateThread(threadId, (thread) => ({
+        ...thread,
+        selectedText: edit.originalText,
+        anchor: buildAnchorForRange(editor, range.from, range.to, edit.originalText),
+      }));
+      store.setAppliedEditStatus(threadId, messageId, edit.id, "reverted");
+    },
+    []
+  );
+
   const handleResolveThread = useCallback((threadId: string) => {
     const editor = editorRef.current;
     if (editor) {
@@ -753,6 +781,7 @@ export default function EditorPage({
               onAddDocumentComment={handleAddDocumentComment}
               onAcceptSuggestion={handleAcceptSuggestion}
               onRejectSuggestion={handleRejectSuggestion}
+              onRevertAppliedEdit={handleRevertAppliedEdit}
               isLoading={isLoading}
               onStopGeneration={stopGeneration}
               triggerOptions={triggerOptions}

@@ -1,6 +1,7 @@
 
 import type { ThreadMessage, SuggestedEdit as SuggestedEditType } from "@/types";
 import { parseAiErrorMessage } from "@/lib/ai-errors";
+import AppliedEdit from "./AppliedEdit";
 import SuggestedEditComponent from "./SuggestedEdit";
 import { AlertTriangle, Bot, User } from "lucide-react";
 
@@ -9,6 +10,7 @@ interface CommentMessageProps {
   suggestion?: SuggestedEditType | null;
   onAcceptSuggestion?: () => void;
   onRejectSuggestion?: () => void;
+  onRevertAppliedEdit?: () => void;
 }
 
 export default function CommentMessage({
@@ -16,6 +18,7 @@ export default function CommentMessage({
   suggestion,
   onAcceptSuggestion,
   onRejectSuggestion,
+  onRevertAppliedEdit,
 }: CommentMessageProps) {
   const isAI = message.role === "assistant";
 
@@ -72,6 +75,11 @@ export default function CommentMessage({
               </p>
             )}
           </div>
+        ) : message.appliedEdit ? (
+          <AppliedEdit
+            edit={message.appliedEdit}
+            onRevert={message.appliedEdit.status === "applied" ? onRevertAppliedEdit : undefined}
+          />
         ) : displayContent ? (
           <div
             className={`text-sm leading-relaxed rounded-lg px-3 py-2 ${

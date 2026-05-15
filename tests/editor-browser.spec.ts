@@ -339,6 +339,8 @@ test("comment rewrite auto-applies, highlights, and survives markdown reload", a
 
   await expect(editor).toContainText(REPLACEMENT_TEXT);
   await expect(editor).not.toContainText(ORIGINAL_TEXT);
+  await expect(page.getByLabel("Before")).toContainText(ORIGINAL_TEXT);
+  await expect(page.getByLabel("After")).toContainText(REPLACEMENT_TEXT);
   await expect(page.locator("mark.edit-highlight")).toHaveCount(1);
 
   await expect.poll(() => savedMarkdown(page)).toContain(REPLACEMENT_TEXT);
@@ -349,6 +351,29 @@ test("comment rewrite auto-applies, highlights, and survives markdown reload", a
   await page.reload();
   await expect(page.locator(".ProseMirror")).toContainText(REPLACEMENT_TEXT);
   await expect(page.locator(".ProseMirror")).not.toContainText(ORIGINAL_TEXT);
+});
+
+test("applied AI diff can revert the passage", async ({ page }) => {
+  await installTauriMock(page);
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+
+  await selectEditorText(page, ORIGINAL_TEXT);
+  await clickSelectionAction(page, "Ask AI");
+
+  const messageInput = page.getByLabel("Comment message");
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("Make this punchier");
+  await page.getByLabel("Send comment").click();
+
+  await expect(editor).toContainText(REPLACEMENT_TEXT);
+  await page.getByRole("button", { name: "Revert" }).click();
+
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+  await expect(editor).not.toContainText(REPLACEMENT_TEXT);
+  await expect(page.getByText("Edit reverted")).toBeVisible();
 });
 
 test("comment submit shows loading controls while Claude is pending", async ({ page }) => {

@@ -7,6 +7,10 @@ Updated every session via `/save-session`.
 
 ## 2026-05-15
 
+### Features
+- **Before/After diff mode:** auto-applied AI rewrites now render an Applied
+  edit card with before/after text and a one-click Revert action.
+
 ### Branding
 - **Renamed app to Anchor:** updated product name, app window title, package
   metadata, Rust crate metadata, bundle identifier, visible onboarding/settings
@@ -16,6 +20,8 @@ Updated every session via `/save-session`.
   editor preferences, expanded folders, and old thread data can carry forward.
 
 ### QA
+- Added browser coverage for AI rewrite diff rendering and reverting an
+  applied edit back to the original selected passage.
 - Verified the rename with `npm run lint`, `npm run build`,
   `npm run test:e2e`, `cargo check`, and `npm run tauri build -- --bundles app`.
   The Tauri build produced a signed `Anchor.app`.
