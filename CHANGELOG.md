@@ -22,6 +22,8 @@ Updated every session via `/save-session`.
 ### QA
 - Added browser coverage for AI rewrite diff rendering and reverting an
   applied edit back to the original selected passage.
+- Removed dead UI component exports, cleared stale Tauri build cache from the
+  pre-rename path, and refreshed the file-watcher handoff note.
 - Verified the rename with `npm run lint`, `npm run build`,
   `npm run test:e2e`, `cargo check`, and `npm run tauri build -- --bundles app`.
   The Tauri build produced a signed `Anchor.app`.

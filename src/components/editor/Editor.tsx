@@ -48,7 +48,7 @@ interface EditorProps {
 }
 
 // Sample content so the editor isn't empty on first load
-export const defaultContent = `<h1>Welcome to Anchor</h1>
+const defaultContent = `<h1>Welcome to Anchor</h1>
 <p>This is a document editor where AI lives in the margins. Select any text and click "Comment" to start a conversation about it.</p>
 <h2>How it works</h2>
 <p>Anchor lets you have AI-powered conversations anchored to specific passages in your document. Instead of a separate chat sidebar, your AI interactions live right where the text is.</p>

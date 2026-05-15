@@ -39,7 +39,8 @@ Massive multi-phase day — fork stabilized, full AI integration shipped, multip
 - Hierarchical sidebar: subfolder traversal in Rust (`list_note_tree`), tree types in JS, expand/collapse persistence, search-flattens-to-list mode
 - Per-doc claude sessions via `--resume` for token-cheap follow-ups; auto-retry without session on `--resume` failure (no request lost)
 - Auto-apply UX: claude's response replaces the highlighted passage in Tiptap; ⌘Z reverts
-- File watcher Rust scaffolding (notify crate + self-write marker + debounce); JS listener still TODO
+- File watcher is wired end to end: Rust emits `notes-changed`, React listens,
+  and visible-window polling covers synced-folder cases where native events lag.
 
 ### UX
 - Settings dialog rewritten: General (default) / Personas / Shortcuts. Notes folder + Reveal in Finder + theme + default font/size + Reset. Default-persona picker.
