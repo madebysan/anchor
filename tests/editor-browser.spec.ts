@@ -705,6 +705,22 @@ test("chat insert requests use the caret instead of replacing the whole document
   expect(prompt).not.toContain("whole-document transformation");
 });
 
+test("selection Ask AI switches from Chat to the new comment thread", async ({ page }) => {
+  await installTauriMock(page);
+  await page.goto("/");
+
+  await page.getByRole("tab", { name: /Chat/ }).click();
+  await expect(page.getByRole("tab", { name: /Chat/ })).toHaveAttribute("aria-selected", "true");
+
+  await selectEditorText(page, ORIGINAL_TEXT);
+  await clickSelectionAction(page, "Ask AI");
+
+  await expect(page.getByRole("tab", { name: /Comments/ })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByLabel("Comment message")).toBeVisible();
+  await expect(page.getByLabel("Comment message")).toHaveAttribute("placeholder", "Ask AI to edit or respond...");
+  await expect(page.getByRole("textbox", { name: "Chat message" })).toBeHidden();
+});
+
 test("applied AI diff can revert the passage", async ({ page }) => {
   await installTauriMock(page);
   await page.goto("/");
