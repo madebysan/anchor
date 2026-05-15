@@ -349,7 +349,7 @@ export default function EditorPage({
     );
   }, [flushEditorContent]);
 
-  // AI loop — Inline MD's locked auto-apply UX.
+  // AI loop: Anchor's locked auto-apply UX.
   // 1. Claude's full response lands in the thread's last assistant message
   //    (auditability, the user can see what was applied).
   // 2. Then the same text replaces the comment-marked range in the document.

@@ -13,7 +13,7 @@ export function useAISettings() {
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
-  // inline-md doesn't use API keys (Claude Code handles auth), but we keep
+  // Anchor doesn't use API keys (Claude Code handles auth), but we keep
   // the AISettings shape from the inlineai parent for the persona/trigger
   // config it carries. Just load whatever's persisted in localStorage.
   useEffect(() => {

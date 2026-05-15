@@ -1,6 +1,6 @@
 # Distribution Runbook
 
-Inline MD builds a signed macOS app bundle and a signed DMG. Use the local DMG
+Anchor builds a signed macOS app bundle and a signed DMG. Use the local DMG
 script because it avoids Tauri's Finder/AppleScript DMG layout step, which has
 hung on this machine before.
 
@@ -11,12 +11,12 @@ npm run tauri build -- --bundles app --no-sign
 ```
 
 The macOS app lands at
-`src-tauri/target/release/bundle/macos/Inline MD.app`.
+`src-tauri/target/release/bundle/macos/Anchor.app`.
 
 ## Unsigned Local DMG
 
 ```bash
-INLINE_MD_NO_SIGN=1 npm run release:dmg
+ANCHOR_NO_SIGN=1 npm run release:dmg
 ```
 
 Use this for quick local checks only. The script builds the app bundle, stages
@@ -34,7 +34,7 @@ identity, creates the DMG, signs the DMG, verifies the image checksum, and
 prints the artifact path:
 
 ```text
-src-tauri/target/release/bundle/dmg/Inline MD_0.1.0_aarch64.dmg
+src-tauri/target/release/bundle/dmg/Anchor_0.1.0_aarch64.dmg
 ```
 
 Current signing identity:
@@ -62,18 +62,17 @@ npm run release:mac
 Expected validation commands:
 
 ```bash
-spctl --assess --type open --context context:primary-signature --verbose=4 "src-tauri/target/release/bundle/dmg/Inline MD_0.1.0_aarch64.dmg"
-spctl --assess --type execute --verbose=4 "src-tauri/target/release/bundle/macos/Inline MD.app"
-codesign --verify --deep --strict --verbose=4 "src-tauri/target/release/bundle/macos/Inline MD.app"
-hdiutil verify "src-tauri/target/release/bundle/dmg/Inline MD_0.1.0_aarch64.dmg"
+spctl --assess --type open --context context:primary-signature --verbose=4 "src-tauri/target/release/bundle/dmg/Anchor_0.1.0_aarch64.dmg"
+spctl --assess --type execute --verbose=4 "src-tauri/target/release/bundle/macos/Anchor.app"
+codesign --verify --deep --strict --verbose=4 "src-tauri/target/release/bundle/macos/Anchor.app"
+hdiutil verify "src-tauri/target/release/bundle/dmg/Anchor_0.1.0_aarch64.dmg"
 ```
 
-Latest verified notarization:
+Last verified notarization before the Anchor rename:
 
 ```text
 Status: Accepted
-Submission ID: c8ac8c64-dce1-47ab-bd62-eddb55cb685e
-SHA-256: 024b999b6e2f5f17c68e992e40b99170670aef721043ba0ae2ddc6ee97515284
+Submission ID: 7c9d0db2-0a06-4559-8428-87a1426b6960
 ```
 
 ## DMG Design

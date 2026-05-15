@@ -32,7 +32,7 @@ impl WatcherState {
     }
 }
 
-/// Record that we (Inline MD) wrote `path`. Subsequent watcher events for
+/// Record that we (Anchor) wrote `path`. Subsequent watcher events for
 /// this path within SELF_WRITE_GUARD are skipped.
 pub fn mark_self_write(state: &State<'_, WatcherState>, path: &Path) {
     if let Ok(mut map) = state.self_writes.lock() {

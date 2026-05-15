@@ -1,8 +1,9 @@
 import type { AISettings, TriggerConfig, ContextStrategy } from "@/types";
 
-const STORAGE_KEY = "inline-md-settings";
+const STORAGE_KEY = "anchor-settings";
+const LEGACY_STORAGE_KEYS = ["inline-md-settings"];
 
-// Default prompts for each persona. Inline MD's auto-apply contract (in
+// Default prompts for each persona. Anchor's auto-apply contract (in
 // useAIChat) instructs claude to output ONLY the replacement passage, so
 // these prompts focus on role + style, not output format.
 export const DEFAULT_TRIGGER_PROMPTS: Record<string, string> = {
@@ -138,7 +139,9 @@ function backfillTrigger(
 
 export function loadSettings(): AISettings {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored =
+      localStorage.getItem(STORAGE_KEY) ??
+      LEGACY_STORAGE_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
     if (!stored) return DEFAULT_SETTINGS;
 
     const parsed = JSON.parse(stored) as Partial<AISettings>;

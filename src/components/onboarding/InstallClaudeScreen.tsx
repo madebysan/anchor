@@ -27,7 +27,7 @@ export default function InstallClaudeScreen({ onInstalled }: InstallClaudeScreen
       <div className="max-w-lg space-y-4">
         <h1 className="text-3xl font-semibold tracking-tight">Install Claude Code</h1>
         <p className="text-base text-muted-foreground">
-          Inline MD doesn't ship with its own AI. It uses your local{" "}
+          Anchor doesn't ship with its own AI. It uses your local{" "}
           <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">claude</code>{" "}
           CLI, which uses your Claude.ai subscription. No API keys, no per-token billing.
         </p>

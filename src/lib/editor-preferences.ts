@@ -39,12 +39,15 @@ export const DEFAULT_EDITOR_PREFS: EditorPreferences = {
   formattingCollapsed: true,
 };
 
-const STORAGE_KEY = "inline-md-editor-prefs";
+const STORAGE_KEY = "anchor-editor-prefs";
+const LEGACY_STORAGE_KEYS = ["inline-md-editor-prefs"];
 
 export function loadEditorPrefs(): EditorPreferences {
   if (typeof window === "undefined") return DEFAULT_EDITOR_PREFS;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw =
+      localStorage.getItem(STORAGE_KEY) ??
+      LEGACY_STORAGE_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
     if (!raw) return DEFAULT_EDITOR_PREFS;
     const parsed = JSON.parse(raw);
 
