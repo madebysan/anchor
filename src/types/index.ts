@@ -1,4 +1,4 @@
-// All TypeScript types for InlineAI
+// All TypeScript types for Anchor
 
 export interface DocumentMeta {
   id: string;         // "doc-{timestamp}-{random5}"

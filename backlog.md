@@ -1,9 +1,9 @@
 # Backlog
 
-inline-md roadmap. Forked from inlineai 2026-05-06.
+Anchor roadmap. Forked from inlineai 2026-05-06.
 Organized by topic, not chronology.
 
-Status as of 2026-05-14: **Phases 1, 2.1, 2.2, file watching, core
+Status as of 2026-05-15: **Phases 1, 2.1, 2.2, file watching, core
 auto-apply UX, feedback-mode personas, hierarchical sidebar, sidebar context
 menus v1, markdown paste formatting, Claude cancellation, dead-code cleanup,
 settings, session reuse, app icon + DMG, comment anchor restore, sidebar
@@ -12,8 +12,8 @@ onboarding copy, distribution runbook + local DMG script, ESLint, accessibility
 fixes, font bundle trimming, initial Playwright smoke tests, browser-level
 auto-apply and multi-document comment regression coverage, clearer Claude
 failure states, non-blocking comment loading, editor chrome trimming, and signed
-and notarized macOS distribution all shipped.** Remaining big chunk: final
-branding.
+and notarized macOS distribution all shipped.** App name is now Anchor.
+Remaining branding work is icon/README/release polish.
 
 ---
 
@@ -82,20 +82,19 @@ separate product/design choice.
   pinned items override the mtime sort entirely, or is "pinned section
   first, then mtime-sorted" the right shape?
 
-### Branding pass — final icon, app name, identity
+### Branding pass — final icon and identity
 A working pixel-mark icon was wired up via `tauri icon` (committed at
 `src-tauri/icons/`), but in dev mode the Dock often shows the Tauri
 default — release `.app` bundles use it correctly. When the rest of
 the product is stable enough to commit to identity:
-- Confirm final app name (currently "Inline MD" / `inline-md` —
-  open question whether this is the keeper).
+- App name is now Anchor.
 - Final icon design pass. The current pixel-mark is a placeholder
   vibe; if it stays, generate higher-fidelity variants for retina /
   hover / etc.
-- Update `productName`, `identifier`, README hero, and DMG branding
-  if the name changes. See
-  `~/.claude/references/project-rename-checklist.md` for the
-  cross-cutting rename steps.
+- README hero and release identity still need a final polish pass.
+- If the name changes again, use
+  `~/.codex/references/project-rename-checklist.md` for cross-cutting rename
+  steps.
 - Run `tauri icon <source.png>` to regenerate all sizes (`.icns`,
   `.ico`, PNG matrix) once the final icon is locked.
 
@@ -158,7 +157,7 @@ the product is stable enough to commit to identity:
 
 - ✓ **Init** (commit `a7fe28c`) — Tauri + Vite scaffold, fork from inlineai,
   fonts swapped, window opens.
-- ✓ **Rename to inline-md** (commit `16bab76`) — folder, npm, Cargo, lib,
+- ✓ **Rename to anchor** (commit `16bab76`) — folder, npm, Cargo, lib,
   bundle id, product name. Plus folder-picker onboarding (Phase 2.1).
 - ✓ **Phase 2.2: markdown on disk** (commit `edf5a53`) — Rust file I/O
   commands, marked + turndown round-trip, persistence.ts rewritten,

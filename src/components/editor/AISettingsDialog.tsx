@@ -103,9 +103,16 @@ export default function AISettingsDialog({
       return;
     }
     try {
-      localStorage.removeItem("inline-md-settings");
-      localStorage.removeItem("inline-md-editor-prefs");
-      localStorage.removeItem("inline-md-expanded-folders");
+      for (const key of [
+        "anchor-settings",
+        "anchor-editor-prefs",
+        "anchor-expanded-folders",
+        "inline-md-settings",
+        "inline-md-editor-prefs",
+        "inline-md-expanded-folders",
+      ]) {
+        localStorage.removeItem(key);
+      }
       window.location.reload();
     } catch (e) {
       console.error("reset failed:", e);
@@ -227,7 +234,7 @@ export default function AISettingsDialog({
             <section className="space-y-2">
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">About</h3>
               <p className="text-xs text-muted-foreground">
-                Inline MD v{APP_VERSION} · Made by{" "}
+                Anchor v{APP_VERSION} · Made by{" "}
                 <a
                   href="https://santiagoalonso.com"
                   target="_blank"
@@ -257,7 +264,7 @@ export default function AISettingsDialog({
               Each persona is invoked by typing{" "}
               <code className="bg-muted px-1 rounded">@name</code> at the start of a
               comment. Edit the prompt or change how much of the document gets sent.
-              Inline MD uses your local Claude Code CLI for every persona.
+              Anchor uses your local Claude Code CLI for every persona.
             </p>
 
             <div className="grid grid-cols-[140px_1fr] items-center gap-3">

@@ -4,7 +4,7 @@ const ORIGINAL_TEXT = "The original sentence needs work.";
 const REPLACEMENT_TEXT = "A sharper sentence.";
 const SECOND_NOTE_TITLE = "Second Note";
 const SECOND_NOTE_TEXT = "This is another note.";
-const STORAGE_KEY = "inline-md-browser-test-state";
+const STORAGE_KEY = "anchor-browser-test-state";
 
 interface TauriMockOptions {
   aiFailure?: string;

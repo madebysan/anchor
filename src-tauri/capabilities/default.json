@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default permissions for Inline MD: core + dialog (folder picker). File I/O happens in custom Rust commands, not the fs plugin; claude is spawned via std::process::Command, not the shell plugin.",
+  "description": "Default permissions for Anchor: core + dialog (folder picker). File I/O happens in custom Rust commands, not the fs plugin; claude is spawned via std::process::Command, not the shell plugin.",
   "windows": ["main"],
   "permissions": [
     "core:default",

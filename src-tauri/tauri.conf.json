@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Inline MD",
+  "productName": "Anchor",
   "version": "0.1.0",
-  "identifier": "com.santiagoalonso.inline-md",
+  "identifier": "com.santiagoalonso.anchor",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Inline MD",
+        "title": "Anchor",
         "width": 1280,
         "height": 800,
         "minWidth": 720,
@@ -32,7 +32,7 @@
     "targets": "all",
     "category": "Productivity",
     "shortDescription": "AI instructions anchored to your text.",
-    "longDescription": "Inline MD is a desktop markdown editor where AI instructions are anchored to passages. Uses Claude Code locally — no API keys.",
+    "longDescription": "Anchor is a desktop markdown editor where AI instructions are anchored to passages. Uses Claude Code locally — no API keys.",
     "macOS": {
       "signingIdentity": "Developer ID Application: Santiago Alonso Alexandre (QAMM2A6WRQ)",
       "providerShortName": "QAMM2A6WRQ"

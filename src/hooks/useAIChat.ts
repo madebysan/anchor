@@ -42,7 +42,7 @@ function yieldForLoadingPaint(): Promise<void> {
   });
 }
 
-// Inline MD AI hook — wraps the local `claude` CLI via Tauri.
+// Anchor AI hook wraps the local `claude` CLI via Tauri.
 //
 // The locked UX is auto-apply: every AI response replaces the highlighted
 // passage in the document. ⌘Z reverts. No staging card. So the prompt is

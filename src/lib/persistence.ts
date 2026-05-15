@@ -25,11 +25,17 @@ let bootCompleted = false;
 let noteTreeCache: NoteTreeNode[] = [];
 const threadCache = new Map<string, CommentThread[]>();
 
-const KEY_ACTIVE_DOC = "inline-md-active-doc";
-const LEGACY_THREAD_PREFIX = "inline-md-threads-";
+const KEY_ACTIVE_DOC = "anchor-active-doc";
+const LEGACY_ACTIVE_DOC_KEYS = ["inline-md-active-doc"];
+const THREAD_PREFIX = "anchor-threads-";
+const LEGACY_THREAD_PREFIXES = ["inline-md-threads-"];
 
 function threadsKey(id: string) {
-  return `${LEGACY_THREAD_PREFIX}${id}`;
+  return `${THREAD_PREFIX}${id}`;
+}
+
+function legacyThreadKeys(id: string) {
+  return LEGACY_THREAD_PREFIXES.map((prefix) => `${prefix}${id}`);
 }
 
 // =====================
@@ -202,7 +208,9 @@ async function loadThreadsFromSidecar(id: string): Promise<CommentThread[] | nul
 
 function loadLegacyThreads(id: string): CommentThread[] | null {
   try {
-    const stored = localStorage.getItem(threadsKey(id));
+    const stored =
+      localStorage.getItem(threadsKey(id)) ??
+      legacyThreadKeys(id).map((key) => localStorage.getItem(key)).find(Boolean);
     if (!stored) return null;
     return parseThreads(id, stored);
   } catch {
@@ -213,6 +221,9 @@ function loadLegacyThreads(id: string): CommentThread[] | null {
 function clearLegacyThreads(id: string): void {
   try {
     localStorage.removeItem(threadsKey(id));
+    for (const key of legacyThreadKeys(id)) {
+      localStorage.removeItem(key);
+    }
   } catch {
     // ignore
   }
@@ -304,7 +315,11 @@ export function saveActiveDocId(id: string): void {
 
 export function loadActiveDocId(): string | null {
   try {
-    return localStorage.getItem(KEY_ACTIVE_DOC);
+    return (
+      localStorage.getItem(KEY_ACTIVE_DOC) ??
+      LEGACY_ACTIVE_DOC_KEYS.map((key) => localStorage.getItem(key)).find(Boolean) ??
+      null
+    );
   } catch {
     return null;
   }

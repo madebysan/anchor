@@ -17,7 +17,7 @@ fi
 APP_PATH="src-tauri/target/release/bundle/macos/${PRODUCT_NAME}.app"
 OUT_DIR="src-tauri/target/release/bundle/dmg"
 DMG_PATH="${OUT_DIR}/${PRODUCT_NAME}_${VERSION}_${BUNDLE_ARCH}.dmg"
-STAGING="$(mktemp -d "${TMPDIR:-/tmp}/inline-md-dmg.XXXXXX")"
+STAGING="$(mktemp -d "${TMPDIR:-/tmp}/anchor-dmg.XXXXXX")"
 
 cleanup() {
   rm -rf "$STAGING"
@@ -25,7 +25,7 @@ cleanup() {
 trap cleanup EXIT
 
 TAURI_ARGS=(tauri build -- --bundles app)
-if [ "${INLINE_MD_NO_SIGN:-0}" = "1" ]; then
+if [ "${ANCHOR_NO_SIGN:-0}" = "1" ]; then
   TAURI_ARGS+=(--no-sign)
 fi
 
@@ -47,7 +47,7 @@ hdiutil create \
   -ov \
   "$DMG_PATH"
 
-if [ "${INLINE_MD_NO_SIGN:-0}" != "1" ] && [ -n "$SIGNING_IDENTITY" ]; then
+if [ "${ANCHOR_NO_SIGN:-0}" != "1" ] && [ -n "$SIGNING_IDENTITY" ]; then
   codesign --force --sign "$SIGNING_IDENTITY" --timestamp "$DMG_PATH"
 fi
 

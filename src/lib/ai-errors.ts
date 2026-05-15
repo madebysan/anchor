@@ -5,7 +5,7 @@ export interface AiErrorMessage {
   recovery?: string;
 }
 
-const AI_ERROR_PREFIX = "inline-md-ai-error:";
+const AI_ERROR_PREFIX = "anchor-ai-error:";
 
 function normalizeUnknownError(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -42,7 +42,7 @@ function describeAiError(rawInput: string): AiErrorMessage {
   if (lower.includes("failed to launch claude cli")) {
     return {
       title: "Claude Code could not start",
-      description: "Inline MD could not find or launch the Claude Code command.",
+      description: "Anchor could not find or launch the Claude Code command.",
       detail: raw,
       recovery: "Open Terminal and run `claude` once, then try the request again here.",
     };
@@ -50,7 +50,7 @@ function describeAiError(rawInput: string): AiErrorMessage {
 
   if (lower.includes("parse claude json")) {
     return {
-      title: "Inline MD could not read Claude's response",
+      title: "Anchor could not read Claude's response",
       description: "Claude Code returned output, but it was not in the expected format.",
       detail: raw,
       recovery: "Retry the request. If it repeats, open Claude Code in Terminal and check for setup prompts.",
@@ -82,7 +82,7 @@ function describeAiError(rawInput: string): AiErrorMessage {
 
   return {
     title: "AI request failed",
-    description: raw || "Inline MD did not receive a usable response.",
+    description: raw || "Anchor did not receive a usable response.",
     recovery: "Retry the request. If it repeats, open Claude Code in Terminal to check the CLI.",
   };
 }

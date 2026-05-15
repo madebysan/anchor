@@ -180,14 +180,14 @@ mark.comment-highlight.active {
 mark.edit-highlight {
   background-color: oklch(0.78 0.16 155 / 35%);
   border-radius: 2px;
-  animation: inline-md-edit-highlight 3s ease-out forwards;
+  animation: anchor-edit-highlight 3s ease-out forwards;
 }
 
 .dark mark.edit-highlight {
   background-color: oklch(0.55 0.12 155 / 35%);
 }
 
-@keyframes inline-md-edit-highlight {
+@keyframes anchor-edit-highlight {
   0% {
     background-color: oklch(0.78 0.16 155 / 45%);
   }

@@ -5,6 +5,21 @@ Updated every session via `/save-session`.
 
 ---
 
+## 2026-05-15
+
+### Branding
+- **Renamed app to Anchor:** updated product name, app window title, package
+  metadata, Rust crate metadata, bundle identifier, visible onboarding/settings
+  copy, README, distribution docs, and release script output naming.
+- **Migration safety:** Anchor reads prior localStorage keys and the
+  old Tauri app-config folder so existing notes-folder selection, active note,
+  editor preferences, expanded folders, and old thread data can carry forward.
+
+### QA
+- Verified the rename with `npm run lint`, `npm run build`,
+  `npm run test:e2e`, `cargo check`, and `npm run tauri build -- --bundles app`.
+  The Tauri build produced a signed `Anchor.app`.
+
 ## 2026-05-14
 
 ### Features
@@ -74,7 +89,7 @@ Updated every session via `/save-session`.
 - **Suggestion reasons** — suggested edit reasons now appear inline under the assistant message when present.
 - **Comment anchor restore** — comment threads now store passage anchors and reapply visual comment marks after markdown reload when the original passage can still be located.
 - **Sidebar management v2** — sidebar menus now support new notes inside folders, new subfolders, duplicate note, move note to parent folder, and recursive folder delete.
-- **First-run onboarding copy** — the folder picker now introduces Inline MD's markdown-folder + local-Claude workflow before asking for a folder.
+- **First-run onboarding copy** — the folder picker now introduces Anchor's markdown-folder + local-Claude workflow before asking for a folder.
 - **Playwright smoke tests** — added a Playwright test script and initial markdown/settings regression coverage.
 
 ### Fixes
@@ -125,7 +140,7 @@ Updated every session via `/save-session`.
 
 ### Distribution
 - **Local release build preflight** — verified the icon set exists and confirmed there is no local Developer ID signing identity, so generated DMGs remain unsigned until signing is configured.
-- **DMG build** — built `src-tauri/target/release/bundle/dmg/Inline MD_0.1.0_aarch64.dmg` locally and verified the disk image checksum with `hdiutil verify`.
-- **`Inline MD 0.1.0 (path-fix).dmg`** built and on Desktop. ARM64, ~7 MB, unsigned. First launch: right-click → Open.
+- **DMG build** — built `src-tauri/target/release/bundle/dmg/Anchor_0.1.0_aarch64.dmg` locally and verified the disk image checksum with `hdiutil verify`.
+- **`Anchor 0.1.0 (path-fix).dmg`** built and on Desktop. ARM64, ~7 MB, unsigned. First launch: right-click → Open.
 
 ### Status: committed (working tree clean, dev server stopped)

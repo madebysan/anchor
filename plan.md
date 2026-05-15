@@ -1,5 +1,17 @@
 # plan
 
+## Done this session (2026-05-15)
+
+- Renamed the product to Anchor across app metadata, package metadata, Rust
+  crate metadata, visible UI copy, README, distribution docs, scripts, and
+  project instructions.
+- Updated the macOS bundle identifier to `com.santiagoalonso.anchor`.
+- Added migration fallbacks for the previous storage/config locations
+  so the renamed app can recover the selected notes folder, active note, editor
+  preferences, expanded folders, and old localStorage thread data.
+- Verified with lint, web build, Playwright, Cargo, and a signed Tauri app
+  bundle build. The app bundle now builds as `Anchor.app`.
+
 ## Done this session (2026-05-14)
 
 Focused release-hardening pass after the sidebar/file-watching work stabilized.
@@ -16,14 +28,14 @@ Focused release-hardening pass after the sidebar/file-watching work stabilized.
   Playwright browser suite with 15 tests passing.
 - Rebuilt the macOS DMG, signed it with Developer ID, notarized it, stapled it,
   verified the checksum, and copied it to Desktop:
-  `/Users/san/Desktop/Inline MD_0.1.0_aarch64-20260514-172119.dmg`.
+  `/Users/san/Desktop/Anchor_0.1.0_aarch64-20260514-172119.dmg`.
 
 ## Done this session (2026-05-06)
 
 Massive multi-phase day — fork stabilized, full AI integration shipped, multiple fix passes.
 
 ### Architecture
-- Renamed inline-mac → inline-md (folder, npm, Cargo, lib name, bundle id, product name)
+- Fork renamed and stabilized (folder, npm, Cargo, lib name, bundle id, product name). Current product name is Anchor as of 2026-05-15.
 - Hierarchical sidebar: subfolder traversal in Rust (`list_note_tree`), tree types in JS, expand/collapse persistence, search-flattens-to-list mode
 - Per-doc claude sessions via `--resume` for token-cheap follow-ups; auto-retry without session on `--resume` failure (no request lost)
 - Auto-apply UX: claude's response replaces the highlighted passage in Tiptap; ⌘Z reverts
@@ -50,7 +62,7 @@ Massive multi-phase day — fork stabilized, full AI integration shipped, multip
 
 ### Distribution
 - App icon swapped to san's pixel-mark via `tauri icon`.
-- Built `Inline MD 0.1.0_aarch64.dmg` and saved to Desktop. Two on Desktop currently — `Inline MD 0.1.0.dmg` (older, missing PATH fix; TCC-locked) and `Inline MD 0.1.0 (path-fix).dmg` (newer, use this).
+- Built `Anchor 0.1.0_aarch64.dmg` and saved to Desktop. Two on Desktop currently — `Anchor 0.1.0.dmg` (older, missing PATH fix; TCC-locked) and `Anchor 0.1.0 (path-fix).dmg` (newer, use this).
 
 ## Current state
 
@@ -95,13 +107,13 @@ Massive multi-phase day — fork stabilized, full AI integration shipped, multip
 
 Highest-value chunks queued in `backlog.md`:
 
-- [ ] **Branding** - final name, icon, README hero, and release identity.
+- [ ] **Branding** - final icon, README hero, and release identity.
 
 ## Decisions & context
 
 - **Personas should NOT auto-rewrite for everything** — shipped as per-persona `rewrite` / `feedback` mode. Researcher/challenger default to feedback.
 - **Pinning** the only sidebar feature considered "later" — needs sort-logic + persistence + visual indicator design.
-- **Branding** — "Inline MD" + pixel-mark icon are placeholders. Final naming + identity pass deferred until product is more stable.
+- **Branding** — app name is now Anchor. The pixel-mark icon is still a placeholder until a final identity pass.
 - **Tauri `--bare` won't help** with the global CLAUDE.md leak — it forces ANTHROPIC_API_KEY auth, defeating subscription-quota benefit. Prompt-level override + output stripper is the path.
 
 ## Dependencies added (this session)
@@ -126,4 +138,4 @@ npm run release:notarize
 npm run release:mac    # signed DMG + notarization + stapling
 ```
 
-For unsigned local DMGs, use `INLINE_MD_NO_SIGN=1 npm run release:dmg`.
+For unsigned local DMGs, use `ANCHOR_NO_SIGN=1 npm run release:dmg`.

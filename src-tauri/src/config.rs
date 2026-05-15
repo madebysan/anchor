@@ -20,6 +20,16 @@ fn config_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join("config.json"))
 }
 
+fn legacy_config_path(path: &Path) -> Option<PathBuf> {
+    let app_dir = path.parent()?;
+    let support_dir = app_dir.parent()?;
+    Some(
+        support_dir
+            .join("com.santiagoalonso.inline-md")
+            .join("config.json"),
+    )
+}
+
 pub fn load_config(app: &AppHandle) -> AppConfig {
     let path = match config_path(app) {
         Ok(p) => p,
@@ -27,9 +37,21 @@ pub fn load_config(app: &AppHandle) -> AppConfig {
     };
     let contents = match fs::read_to_string(&path) {
         Ok(c) => c,
-        Err(_) => return AppConfig::default(),
+        Err(_) => {
+            let Some(legacy_path) = legacy_config_path(&path) else {
+                return AppConfig::default();
+            };
+            let Ok(legacy_contents) = fs::read_to_string(legacy_path) else {
+                return AppConfig::default();
+            };
+            legacy_contents
+        }
     };
-    serde_json::from_str(&contents).unwrap_or_default()
+    let config: AppConfig = serde_json::from_str(&contents).unwrap_or_default();
+    if !path.exists() {
+        let _ = save_config(app, &config);
+    }
+    config
 }
 
 pub fn save_config(app: &AppHandle, config: &AppConfig) -> Result<(), String> {

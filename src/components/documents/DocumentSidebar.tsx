@@ -63,7 +63,8 @@ interface DocumentSidebarProps {
   onChangeNotesFolder?: () => void;
 }
 
-const EXPANDED_KEY = "inline-md-expanded-folders";
+const EXPANDED_KEY = "anchor-expanded-folders";
+const LEGACY_EXPANDED_KEYS = ["inline-md-expanded-folders"];
 
 interface FolderOption {
   id: string;
@@ -72,7 +73,9 @@ interface FolderOption {
 
 function loadExpanded(): Set<string> {
   try {
-    const raw = localStorage.getItem(EXPANDED_KEY);
+    const raw =
+      localStorage.getItem(EXPANDED_KEY) ??
+      LEGACY_EXPANDED_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
     if (!raw) return new Set();
     const parsed = JSON.parse(raw);
     return new Set(Array.isArray(parsed) ? parsed : []);
