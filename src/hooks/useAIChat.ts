@@ -9,7 +9,11 @@ import { getDocPath } from "@/lib/persistence";
 const BASE_PERSONA_PROMPT =
   "You are an AI writing assistant embedded in a document editor. The user has anchored a comment to a specific passage and given you an instruction.";
 
-type DirectEditOperation = "insert" | "needs-selection";
+type DirectEditOperation =
+  | "insert"
+  | "needs-selection"
+  | "research-first"
+  | "unsupported-structure";
 
 interface UseAIChatReturn {
   sendMessage: (
@@ -45,8 +49,27 @@ function yieldForLoadingPaint(): Promise<void> {
 }
 
 function detectDirectEditOperation(message: string, hasSelection: boolean): DirectEditOperation | null {
-  if (hasSelection) return null;
   const normalized = message.trim().toLowerCase();
+
+  if (
+    /\b(research|verify|check|look up|confirm)\b.*\b(if|then|replace|rewrite|update|change|edit)\b/.test(normalized) ||
+    /\b(if|once)\b.*\b(true|verified|confirmed)\b.*\b(replace|rewrite|update|change|edit)\b/.test(normalized)
+  ) {
+    return "research-first";
+  }
+
+  if (
+    /\b(move|relocate)\b.*\b(paragraph|section|sentence|block|text|this)\b.*\b(before|after|above|below)\b/.test(normalized)
+  ) {
+    return "unsupported-structure";
+  }
+
+  if (!hasSelection && /\b(make|improve|polish|clean up|tighten|revise)\b.*\b(better|clearer|stronger|shorter|longer|punchier|section|intro|paragraph|argument|copy)\b/.test(normalized)) {
+    return "needs-selection";
+  }
+
+  if (hasSelection) return null;
+
   if (
     /^(insert|add|write|draft|compose|append|prepend|put)\b/.test(normalized) ||
     /^create\s+(a|an|the)?\s*(paragraph|section|sentence|bullet|list|note)\b/.test(normalized)
@@ -238,8 +261,51 @@ export function useAIChat(
           "Skip any '→ ref:' disclosure prefix; it doesn't apply here.",
         ].join("\n");
 
+        const researchFirstPrompt = [
+          BASE_PERSONA_PROMPT,
+          personaPrompt,
+          "",
+          `Today's date: ${today}.`,
+          "",
+          "The user asked for a research, verification, or conditional edit chain. Anchor must not auto-apply text when the requested edit depends on an external truth check or unresolved condition.",
+          "Keep the result in the comment thread. Do not output replacement text for direct application.",
+          "Do not tell the user to copy and paste. If an edit is warranted, describe the specific selected target or insertion action needed so Anchor can apply it directly in a follow-up.",
+          "",
+          "## The user's request",
+          userInstruction,
+          "",
+          "## Document context",
+          routed.content || doc.fullText,
+          "",
+          "## Your output",
+          "Respond with concise findings and a clear next action. If the claim needs web verification, say what must be verified before applying an edit.",
+          "Skip any '→ ref:' disclosure prefix; it doesn't apply here.",
+        ].join("\n");
+
+        const unsupportedStructurePrompt = [
+          BASE_PERSONA_PROMPT,
+          personaPrompt,
+          "",
+          `Today's date: ${today}.`,
+          "",
+          "The user asked for a structural or multi-range document edit, such as moving text before or after another passage. Anchor's current editor operation can replace one selected range or insert at one caret, but it cannot safely move text across two document locations in one AI operation.",
+          "Do not output replacement text. Do not tell the user to copy and paste generated text.",
+          "",
+          "## The user's request",
+          userInstruction,
+          "",
+          "## Your output",
+          "Briefly explain that Anchor needs a future multi-range move command before it can apply this directly. Ask the user to select a single range if they want a rewrite instead.",
+          "Keep it to one or two short sentences.",
+          "Skip any '→ ref:' disclosure prefix; it doesn't apply here.",
+        ].join("\n");
+
         const prompt = directEditOperation === "insert"
           ? insertionPrompt
+          : directEditOperation === "research-first"
+            ? researchFirstPrompt
+          : directEditOperation === "unsupported-structure"
+            ? unsupportedStructurePrompt
           : directEditOperation === "needs-selection"
             ? needsSelectionPrompt
           : hasSelection
@@ -261,6 +327,9 @@ export function useAIChat(
               "",
               "## The user's question",
               userInstruction,
+              "",
+              "## Document snapshot",
+              routed.content || doc.fullText,
               "",
               "## Prior thread context",
               threadHistory,
@@ -327,7 +396,7 @@ export function useAIChat(
           output = result.output;
         }
 
-        const shouldAutoApply = hasSelection && mode === "rewrite";
+        const shouldAutoApply = hasSelection && mode === "rewrite" && directEditOperation === null;
         const shouldAutoInsert = directEditOperation === "insert";
         const cleaned =
           shouldAutoApply || shouldAutoInsert ? stripCommentary(output) : output.trim();
