@@ -27,6 +27,9 @@ Updated every session via `/save-session`.
   instead of asking for a text selection.
 - **Chat intent routing:** Chat now uses a dedicated intent classifier so
   realistic QA prompts are regression coverage, not hardcoded product behavior.
+- **Chat append edits:** follow-up requests like "add those bullet points at
+  the end of the document" now append a new section directly instead of asking
+  the user to move the caret.
 - **No copy-paste edit fallback:** document-level edit requests without a
   selected target now ask for a selection or caret insertion instead of drafting
   text for the user to paste manually.

@@ -28,6 +28,11 @@ test("insert requests use the caret instead of whole-document replacement", () =
   expect(classify("write a paragraph about the conclusion").intent).toBe("insert-at-caret");
 });
 
+test("chat append requests target the end of the document", () => {
+  expect(classify("ok lets add those bullet points at the end of the document as a new section").intent).toBe("append-document");
+  expect(classify("append this to the bottom of the article").intent).toBe("append-document");
+});
+
 test("global rename requests carry replacement instructions", () => {
   const result = classify("John is now called Martin. Update it everywhere in the doc.");
 

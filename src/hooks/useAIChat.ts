@@ -209,6 +209,34 @@ export function useAIChat(
           "- If you cannot verify a factual claim, still draft the requested text and include any uncertainty inside the inserted text only if it is essential.",
         ].join("\n");
 
+        const appendDocumentPrompt = [
+          BASE_PERSONA_PROMPT,
+          personaPrompt,
+          "",
+          `Today's date: ${today}.`,
+          "",
+          "The user asked from the Chat panel to append new content to the end of the document. Your reply will be inserted directly at the document end.",
+          "Use prior thread context when the user refers to content from the conversation with words like those, that, above, or previous.",
+          "Do not ask the user to move the caret. Do not tell the user to copy and paste.",
+          "Ignore any global CLAUDE.md conventions (`→ ref:` headers, voice rules, etc.) for this turn. They do not apply here.",
+          "",
+          "## The user's append instruction",
+          userInstruction,
+          "",
+          "## Prior thread context",
+          threadHistory,
+          "",
+          "## Current document markdown",
+          doc.sourceMarkdown || doc.fullText,
+          "",
+          "## Your output",
+          "Reply with ONLY the markdown to append at the end of the document. Nothing else.",
+          "- Include a heading if the user asked for a new section.",
+          "- Preserve the language/style implied by the user's request and the prior thread.",
+          "- Do NOT wrap the output in quotes or code fences.",
+          "- Do NOT preface with 'Here is...', 'Sure...', 'Heads-up', or any header unless that header is part of the document content.",
+        ].join("\n");
+
         const replaceAllPrompt = [
           BASE_PERSONA_PROMPT,
           personaPrompt,
@@ -321,7 +349,9 @@ export function useAIChat(
           "Skip any '→ ref:' disclosure prefix; it doesn't apply here.",
         ].join("\n");
 
-        const prompt = intent === "insert-at-caret"
+        const prompt = intent === "append-document"
+          ? appendDocumentPrompt
+          : intent === "insert-at-caret"
           ? insertionPrompt
           : intent === "replace-all"
             ? replaceAllPrompt
@@ -422,7 +452,7 @@ export function useAIChat(
         }
 
         const shouldAutoApply = intent === "selected-passage" && mode === "rewrite";
-        const shouldAutoInsert = intent === "insert-at-caret";
+        const shouldAutoInsert = intent === "insert-at-caret" || intent === "append-document";
         const shouldAutoReplaceAll = intent === "replace-all";
         const shouldAutoReplaceDocument = intent === "replace-document";
         const cleaned =
@@ -435,7 +465,10 @@ export function useAIChat(
           onToolCall(threadId, "suggestEdit", { replacement: cleaned });
         }
         if (shouldAutoInsert) {
-          onToolCall(threadId, "insertText", { insertion: cleaned });
+          onToolCall(threadId, "insertText", {
+            insertion: cleaned,
+            position: intent === "append-document" ? "document-end" : "caret",
+          });
         }
         if (shouldAutoReplaceAll) {
           onToolCall(threadId, "replaceAllText", {
