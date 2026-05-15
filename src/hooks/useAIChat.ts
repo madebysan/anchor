@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import type { AISettings, CommentThread, ParsedTrigger } from "@/types";
+import { classifyChatRequest } from "@/lib/ai/chat-intent";
 import { applyContextStrategy, type DocumentSnapshot } from "@/lib/ai/context-router";
 import { formatThreadHistory } from "@/lib/ai/thread-history";
 import { cancelClaude, chatClaude, invokeClaudeSession } from "@/lib/ai-cli";
@@ -8,19 +9,6 @@ import { getDocPath } from "@/lib/persistence";
 
 const BASE_PERSONA_PROMPT =
   "You are an AI writing assistant embedded in a document editor. The user has anchored a comment to a specific passage and given you an instruction.";
-
-type DirectEditOperation =
-  | "insert"
-  | "needs-selection"
-  | "replace-all"
-  | "replace-document"
-  | "research-first"
-  | "unsupported-structure";
-
-interface ReplaceAllInstruction {
-  original: string;
-  replacement: string | null;
-}
 
 interface UseAIChatReturn {
   sendMessage: (
@@ -53,113 +41,6 @@ function yieldForLoadingPaint(): Promise<void> {
       window.setTimeout(resolve, 0);
     });
   });
-}
-
-function stripInstructionToken(value: string): string {
-  return value
-    .trim()
-    .replace(/^["'“”‘’`]+|["'“”‘’`.,;:!?]+$/g, "")
-    .trim();
-}
-
-function parseReplaceAllInstruction(message: string, selectedText: string): ReplaceAllInstruction | null {
-  const trimmed = message.trim();
-  const quoted = [...trimmed.matchAll(/["“']([^"”']{1,80})["”']/g)].map((match) =>
-    stripInstructionToken(match[1]),
-  );
-
-  if (quoted.length >= 2 && /\b(everywhere|throughout|whole document|entire document|all occurrences|all instances|every occurrence|every instance|rename|replace|called|renamed)\b/i.test(trimmed)) {
-    return { original: quoted[0], replacement: quoted[1] };
-  }
-
-  const patterns = [
-    /\b(.+?)\s+is\s+now\s+called\s+(.+?)(?:\s|,|\.|;|$)/i,
-    /\brename\s+(.+?)\s+to\s+(.+?)(?:\s|,|\.|;|$)/i,
-    /\breplace\s+(.+?)\s+with\s+(.+?)(?:\s|,|\.|;|$)/i,
-    /\bchange\s+(.+?)\s+to\s+(.+?)(?:\s|,|\.|;|$)/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = trimmed.match(pattern);
-    if (!match) continue;
-    const original = stripInstructionToken(match[1]);
-    const replacement = stripInstructionToken(match[2]);
-    if (original && replacement) return { original, replacement };
-  }
-
-  if (
-    selectedText &&
-    /\b(replace|rename|update|change|called|renamed)\b/i.test(trimmed) &&
-    /\b(everywhere|everywhere else|throughout|whole document|entire document|all occurrences|all instances|every occurrence|every instance|rest of (the )?(doc|document))\b/i.test(trimmed)
-  ) {
-    return { original: selectedText, replacement: null };
-  }
-
-  return null;
-}
-
-function isWholeDocumentRewriteInstruction(message: string, isChatThread: boolean): boolean {
-  if (!isChatThread) return false;
-  const normalized = message.trim().toLowerCase();
-  const isQuestion =
-    /^(what|why|how|when|where|who|which|can you explain|tell me|summarize)\b/.test(normalized) ||
-    normalized.endsWith("?");
-  if (isQuestion) return false;
-
-  return (
-    /^(translate|rewrite|polish|copyedit|edit|fix|update|change|delete|remove|shorten|expand)\b/.test(normalized) ||
-    /\b(make|improve|polish|clean up|tighten|revise)\b.*\b(better|clearer|stronger|shorter|longer|punchier|section|intro|paragraph|argument|copy)\b/.test(normalized) ||
-    /\btranslate\b.*\b(whole document|entire document|full document|document|doc)\b/.test(normalized) ||
-    /\b(whole document|entire document|full document|document|doc)\b.*\btranslate\b/.test(normalized) ||
-    /\b(rewrite|polish|clean up|copyedit)\b.*\b(whole document|entire document|full document)\b/.test(normalized)
-  );
-}
-
-function detectDirectEditOperation(
-  message: string,
-  hasSelection: boolean,
-  isChatThread: boolean,
-  replaceAllInstruction: ReplaceAllInstruction | null,
-): DirectEditOperation | null {
-  const normalized = message.trim().toLowerCase();
-
-  if (
-    /\b(research|verify|check|look up|confirm)\b.*\b(if|then|replace|rewrite|update|change|edit)\b/.test(normalized) ||
-    /\b(if|once)\b.*\b(true|verified|confirmed)\b.*\b(replace|rewrite|update|change|edit)\b/.test(normalized)
-  ) {
-    return "research-first";
-  }
-
-  if (
-    /\b(move|relocate)\b.*\b(paragraph|section|sentence|block|text|this)\b.*\b(before|after|above|below)\b/.test(normalized)
-  ) {
-    return "unsupported-structure";
-  }
-
-  if (replaceAllInstruction) {
-    return "replace-all";
-  }
-
-  if (isWholeDocumentRewriteInstruction(message, isChatThread)) return "replace-document";
-
-  if (!hasSelection && /\b(make|improve|polish|clean up|tighten|revise)\b.*\b(better|clearer|stronger|shorter|longer|punchier|section|intro|paragraph|argument|copy)\b/.test(normalized)) {
-    return "needs-selection";
-  }
-
-  if (hasSelection) return null;
-
-  if (
-    /^(insert|add|write|draft|compose|append|prepend|put)\b/.test(normalized) ||
-    /^create\s+(a|an|the)?\s*(paragraph|section|sentence|bullet|list|note)\b/.test(normalized)
-  ) {
-    return "insert";
-  }
-  if (
-    /^(rewrite|replace|edit|change|fix|update|delete|remove|shorten|expand|translate)\b/.test(normalized)
-  ) {
-    return "needs-selection";
-  }
-  return null;
 }
 
 // Anchor AI hook wraps the local `claude` CLI via Tauri.
@@ -214,13 +95,13 @@ export function useAIChat(
         const mode = personaConfig?.mode ?? "rewrite";
         const userInstruction = trigger?.promptText.trim() || userMessage;
         const isChatThread = thread.intent === "chat";
-        const replaceAllInstruction = parseReplaceAllInstruction(userInstruction, passage);
-        const directEditOperation = detectDirectEditOperation(
-          userInstruction,
+        const chatClassification = classifyChatRequest({
+          message: userInstruction,
           hasSelection,
           isChatThread,
-          replaceAllInstruction,
-        );
+          selectedText: passage,
+        });
+        const { intent, replaceAllInstruction } = chatClassification;
         const routed = applyContextStrategy(strategy, doc, passage, thread.anchor);
         const priorThreadMessages = thread.messages.slice(0, -1);
         const threadHistory = formatThreadHistory(priorThreadMessages);
@@ -440,19 +321,19 @@ export function useAIChat(
           "Skip any '→ ref:' disclosure prefix; it doesn't apply here.",
         ].join("\n");
 
-        const prompt = directEditOperation === "insert"
+        const prompt = intent === "insert-at-caret"
           ? insertionPrompt
-          : directEditOperation === "replace-all"
+          : intent === "replace-all"
             ? replaceAllPrompt
-          : directEditOperation === "replace-document"
+          : intent === "replace-document"
             ? replaceDocumentPrompt
-          : directEditOperation === "research-first"
+          : intent === "research-first"
             ? researchFirstPrompt
-          : directEditOperation === "unsupported-structure"
+          : intent === "unsupported-structure"
             ? unsupportedStructurePrompt
-          : directEditOperation === "needs-selection"
+          : intent === "needs-target"
             ? needsSelectionPrompt
-          : hasSelection
+          : intent === "selected-passage"
           ? mode === "feedback"
             ? feedbackPrompt
             : rewritePrompt
@@ -540,10 +421,10 @@ export function useAIChat(
           output = result.output;
         }
 
-        const shouldAutoApply = hasSelection && mode === "rewrite" && directEditOperation === null;
-        const shouldAutoInsert = directEditOperation === "insert";
-        const shouldAutoReplaceAll = directEditOperation === "replace-all";
-        const shouldAutoReplaceDocument = directEditOperation === "replace-document";
+        const shouldAutoApply = intent === "selected-passage" && mode === "rewrite";
+        const shouldAutoInsert = intent === "insert-at-caret";
+        const shouldAutoReplaceAll = intent === "replace-all";
+        const shouldAutoReplaceDocument = intent === "replace-document";
         const cleaned =
           shouldAutoApply || shouldAutoInsert || shouldAutoReplaceAll || shouldAutoReplaceDocument
             ? stripCommentary(output)
