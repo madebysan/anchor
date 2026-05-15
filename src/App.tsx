@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import ThemeProvider from "@/components/ThemeProvider";
-import EditorPage from "@/components/editor/EditorPage";
 import OnboardingScreen from "@/components/onboarding/OnboardingScreen";
 import InstallClaudeScreen from "@/components/onboarding/InstallClaudeScreen";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { getNotesFolder, pickNotesFolder, persistNotesFolder } from "@/lib/notes-folder";
 import { checkClaudeCli } from "@/lib/ai-cli";
 import { bootPersistence } from "@/lib/persistence";
+
+const EditorPage = lazy(() => import("@/components/editor/EditorPage"));
 
 type FolderState = string | null | undefined;
 
@@ -86,10 +87,12 @@ export default function App() {
     view = <LoadingScreen label="Loading notes…" />;
   } else {
     view = (
-      <EditorPage
-        notesFolder={notesFolder}
-        onChangeNotesFolder={handleChangeNotesFolder}
-      />
+      <Suspense fallback={<LoadingScreen label="Loading editor…" />}>
+        <EditorPage
+          notesFolder={notesFolder}
+          onChangeNotesFolder={handleChangeNotesFolder}
+        />
+      </Suspense>
     );
   }
 
