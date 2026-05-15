@@ -500,7 +500,7 @@ export default function EditorPage({
     return buildDocumentSnapshot(editor, { includeSourceMarkdown: false });
   }, []);
 
-  const handleAddComment = useCallback(() => {
+  const createAnchoredThread = useCallback((intent: "note" | "ai") => {
     const editor = editorRef.current;
     if (!editor) return;
 
@@ -510,10 +510,22 @@ export default function EditorPage({
     const selectedText = editor.state.doc.textBetween(from, to, " ");
     const threadId = useDocumentStore
       .getState()
-      .createThread(selectedText, buildAnchorForRange(editor, from, to, selectedText));
+      .createThread(
+        selectedText,
+        buildAnchorForRange(editor, from, to, selectedText),
+        intent
+      );
 
     editor.chain().focus().setMark("comment", { commentId: threadId }).run();
   }, []);
+
+  const handleAddComment = useCallback(() => {
+    createAnchoredThread("note");
+  }, [createAnchoredThread]);
+
+  const handleAskAI = useCallback(() => {
+    createAnchoredThread("ai");
+  }, [createAnchoredThread]);
 
   // ⌘⇧V / Ctrl+Shift+V opens a comment on the current selection (or a
   // document-level comment if nothing is selected). ⌘⇧M is already taken
@@ -538,7 +550,7 @@ export default function EditorPage({
   }, [handleAddComment]);
 
   const handleAddDocumentComment = useCallback(() => {
-    useDocumentStore.getState().createThread("");
+    useDocumentStore.getState().createThread("", undefined, "note");
   }, []);
 
   const handleSelectThread = useCallback((id: string | null) => {
@@ -705,6 +717,7 @@ export default function EditorPage({
           editorRef={editorRef}
           onReady={handleEditorReady}
           onAddComment={handleAddComment}
+          onAskAI={handleAskAI}
           onUpdate={handleEditorUpdate}
           onOpenSettings={() => setSettingsOpen(true)}
           proseSize={currentSize.proseClass}

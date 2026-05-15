@@ -23,6 +23,9 @@ Updated every session via `/save-session`.
 ## 2026-05-14
 
 ### Features
+- **Split selection actions:** selecting text now shows separate Add Comment
+  and Ask AI actions. Add Comment creates a plain anchored note by default;
+  Ask AI keeps the existing Claude/persona flow.
 - **Thread sidecar files:** comment threads now persist beside each markdown file
   as `<note>.md.threads.json`; existing localStorage thread data migrates on boot.
 - **Edit highlight fade:** auto-applied Claude edits and accepted suggestions now

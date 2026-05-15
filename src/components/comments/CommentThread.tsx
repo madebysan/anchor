@@ -9,7 +9,7 @@ import type { DocumentSnapshot } from "@/lib/ai/context-router";
 import CommentMessage from "./CommentMessage";
 import CommentInput from "./CommentInput";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, FileText, Quote, Square } from "lucide-react";
+import { CheckCircle2, FileText, MessageSquare, Quote, Sparkles, Square } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 interface TriggerOption {
@@ -86,7 +86,13 @@ export default function CommentThread({
           <div className="flex items-start gap-1.5 min-w-0">
             {thread.selectedText ? (
               <>
-                <Quote className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                {thread.intent === "ai" ? (
+                  <Sparkles className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                ) : thread.intent === "note" ? (
+                  <MessageSquare className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                ) : (
+                  <Quote className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                )}
                 <p className="text-xs text-muted-foreground italic line-clamp-2">
                   {thread.selectedText}
                 </p>
@@ -190,6 +196,12 @@ export default function CommentThread({
             selectedText={thread.selectedText}
             getDocumentSnapshot={getDocumentSnapshot}
             defaultPersona={defaultPersona}
+            initialIntent={thread.intent ?? "ai"}
+            placeholder={
+              thread.intent === "note"
+                ? "Leave a note for yourself..."
+                : "Ask AI to edit or respond..."
+            }
           />
         </div>
       )}
@@ -206,7 +218,7 @@ export default function CommentThread({
       {!isActive && thread.messages.length === 0 && (
         <div className="px-3 pb-2">
           <p className="text-xs text-muted-foreground">
-            Click to add a comment
+            {thread.intent === "ai" ? "Click to ask AI" : "Click to add a comment"}
           </p>
         </div>
       )}

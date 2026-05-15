@@ -307,19 +307,10 @@ async function selectEditorText(page: Page, text: string): Promise<void> {
   }, text);
 }
 
-function dispatchCommentShortcut(page: Page): Promise<void> {
-  return page.evaluate(() => {
-    window.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "V",
-        code: "KeyV",
-        ctrlKey: true,
-        shiftKey: true,
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-  });
+async function clickSelectionAction(page: Page, name: "Add Comment" | "Ask AI"): Promise<void> {
+  const action = page.getByRole("button", { name });
+  await expect(action).toBeVisible();
+  await action.click();
 }
 
 async function savedMarkdown(page: Page): Promise<string> {
@@ -339,7 +330,7 @@ test("comment rewrite auto-applies, highlights, and survives markdown reload", a
   await expect(editor).toContainText(ORIGINAL_TEXT);
 
   await selectEditorText(page, ORIGINAL_TEXT);
-  await dispatchCommentShortcut(page);
+  await clickSelectionAction(page, "Ask AI");
 
   const messageInput = page.getByLabel("Comment message");
   await expect(messageInput).toBeVisible();
@@ -367,7 +358,7 @@ test("comment submit shows loading controls while Claude is pending", async ({ p
   const editor = page.locator(".ProseMirror");
   await expect(editor).toContainText(ORIGINAL_TEXT);
   await selectEditorText(page, ORIGINAL_TEXT);
-  await dispatchCommentShortcut(page);
+  await clickSelectionAction(page, "Ask AI");
 
   const messageInput = page.getByLabel("Comment message");
   await expect(messageInput).toBeVisible();
@@ -402,7 +393,7 @@ test("Claude CLI failures render as actionable sidebar alerts", async ({ page })
 
   await expect(page.locator(".ProseMirror")).toContainText(ORIGINAL_TEXT);
   await selectEditorText(page, ORIGINAL_TEXT);
-  await dispatchCommentShortcut(page);
+  await clickSelectionAction(page, "Ask AI");
 
   const messageInput = page.getByLabel("Comment message");
   await expect(messageInput).toBeVisible();
@@ -426,9 +417,9 @@ test("document switches restore sidecar comments and visual marks", async ({ pag
   await expect(editor).toContainText(ORIGINAL_TEXT);
 
   await selectEditorText(page, ORIGINAL_TEXT);
-  await dispatchCommentShortcut(page);
+  await clickSelectionAction(page, "Add Comment");
 
-  const noteText = "Note: keep this claim grounded";
+  const noteText = "Keep this claim grounded";
   const messageInput = page.getByLabel("Comment message");
   await expect(messageInput).toBeVisible();
   await messageInput.fill(noteText);
@@ -448,4 +439,41 @@ test("document switches restore sidecar comments and visual marks", async ({ pag
   await expect(page.locator("mark.comment-highlight")).toHaveCount(1);
   await comments.getByText(ORIGINAL_TEXT).click();
   await expect(comments.getByText(noteText)).toBeVisible();
+});
+
+test("selection Add Comment stores a plain note without calling Claude", async ({ page }) => {
+  await installTauriMock(page);
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+
+  await selectEditorText(page, ORIGINAL_TEXT);
+  await clickSelectionAction(page, "Add Comment");
+
+  const noteText = "Remember to verify this source";
+  const messageInput = page.getByLabel("Comment message");
+  await expect(messageInput).toBeVisible();
+  await expect(messageInput).toHaveAttribute("placeholder", "Leave a note for yourself...");
+  await messageInput.fill(noteText);
+  await page.getByLabel("Send comment").click();
+
+  await expect(page.getByText(noteText)).toBeVisible();
+  await messageInput.fill("Second private reminder");
+  await page.getByLabel("Send comment").click();
+  await expect(page.getByText("Second private reminder")).toBeVisible();
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+  await expect(editor).not.toContainText(REPLACEMENT_TEXT);
+
+  const aiInvocationCount = await page.evaluate(() => {
+    const win = window as unknown as {
+      __inlineMdTest?: { invocations: Array<{ cmd: string }> };
+    };
+    return (
+      win.__inlineMdTest?.invocations.filter(({ cmd }) =>
+        cmd === "ai_chat_claude" || cmd === "ai_invoke_claude"
+      ).length ?? 0
+    );
+  });
+  expect(aiInvocationCount).toBe(0);
 });
