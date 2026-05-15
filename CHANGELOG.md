@@ -25,6 +25,8 @@ Updated every session via `/save-session`.
 - **Chat full-document default:** short Chat edit requests like "translate to
   spanish" or "make the intro better" now use the whole document by default
   instead of asking for a text selection.
+- **Chat intent routing:** Chat now uses a dedicated intent classifier so
+  realistic QA prompts are regression coverage, not hardcoded product behavior.
 - **No copy-paste edit fallback:** document-level edit requests without a
   selected target now ask for a selection or caret insertion instead of drafting
   text for the user to paste manually.
