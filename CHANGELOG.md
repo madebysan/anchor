@@ -10,6 +10,12 @@ Updated every session via `/save-session`.
 ### Features
 - **Before/After diff mode:** auto-applied AI rewrites now render an Applied
   edit card with before/after text and a one-click Revert action.
+- **Caret insertion commands:** document-level AI comments that explicitly ask
+  to insert, add, write, draft, append, or prepend text now write at the caret
+  instead of turning the request into advice.
+- **Ask AI at cursor:** the comments panel now offers a document-level AI entry
+  point so new text can be drafted from the caret without selecting existing
+  text first.
 
 ### Branding
 - **Renamed app to Anchor:** updated product name, app window title, package
@@ -24,6 +30,8 @@ Updated every session via `/save-session`.
 ### QA
 - Added browser coverage for AI rewrite diff rendering and reverting an
   applied edit back to the original selected passage.
+- Added browser coverage for document-level AI insertion so direct insert
+  commands cannot regress into "paste this yourself" responses.
 - **Performance cleanup:** lazy-loaded the editor after startup gates, removed
   WOFF fallback font assets, and added an explicit SVG favicon. Production
   preview Lighthouse improved from 88 to 97, with initial transfer dropping

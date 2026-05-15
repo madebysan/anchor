@@ -307,8 +307,42 @@ async function selectEditorText(page: Page, text: string): Promise<void> {
   }, text);
 }
 
+async function setEditorCaretAfterText(page: Page, text: string): Promise<void> {
+  await page.locator(".ProseMirror").click();
+  await page.evaluate((targetText) => {
+    const editor = document.querySelector(".ProseMirror");
+    if (!(editor instanceof HTMLElement)) {
+      throw new Error("Missing editor");
+    }
+
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let current = walker.nextNode();
+    while (current) {
+      const content = current.textContent ?? "";
+      const index = content.indexOf(targetText);
+      if (index !== -1) {
+        const range = document.createRange();
+        const caretOffset = index + targetText.length;
+        range.setStart(current, caretOffset);
+        range.collapse(true);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        editor.focus();
+        document.dispatchEvent(new Event("selectionchange"));
+        return;
+      }
+      current = walker.nextNode();
+    }
+
+    throw new Error(`Could not place caret after text: ${targetText}`);
+  }, text);
+}
+
 async function clickSelectionAction(page: Page, name: "Add Comment" | "Ask AI"): Promise<void> {
-  const action = page.getByRole("button", { name });
+  const action = page
+    .locator("main")
+    .getByRole("button", { name: new RegExp(`^${name}$`, "i") });
   await expect(action).toBeVisible();
   await action.click();
 }
@@ -351,6 +385,37 @@ test("comment rewrite auto-applies, highlights, and survives markdown reload", a
   await page.reload();
   await expect(page.locator(".ProseMirror")).toContainText(REPLACEMENT_TEXT);
   await expect(page.locator(".ProseMirror")).not.toContainText(ORIGINAL_TEXT);
+});
+
+test("document-level insert command writes at the caret instead of debating the request", async ({ page }) => {
+  await installTauriMock(page);
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+  await setEditorCaretAfterText(page, ORIGINAL_TEXT);
+  await page.getByRole("button", { name: "Ask AI", exact: true }).click();
+
+  const messageInput = page.getByLabel("Comment message");
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("insert a paragraph explaining the specs of the iphone 17");
+  await page.getByLabel("Send comment").click();
+
+  await expect(editor).toContainText(ORIGINAL_TEXT);
+  await expect(editor).toContainText(REPLACEMENT_TEXT);
+  await expect.poll(() => savedMarkdown(page)).toContain(REPLACEMENT_TEXT);
+
+  const prompt = await page.evaluate(() => {
+    const win = window as unknown as {
+      __inlineMdTest?: { invocations: Array<{ cmd: string; args: { prompt?: string } }> };
+    };
+    const invocation = win.__inlineMdTest?.invocations.find(
+      (item) => item.cmd === "ai_invoke_claude",
+    );
+    return invocation?.args.prompt ?? "";
+  });
+  expect(prompt).toContain("direct insertion command");
+  expect(prompt).not.toContain("The user will apply it themselves");
 });
 
 test("applied AI diff can revert the passage", async ({ page }) => {
