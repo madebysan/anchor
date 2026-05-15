@@ -285,7 +285,18 @@ function isThreadMessage(value: unknown): value is CommentThread["messages"][num
     typeof value.id === "string" &&
     (value.role === "user" || value.role === "assistant") &&
     typeof value.content === "string" &&
+    (value.appliedEdit === undefined || isAppliedEdit(value.appliedEdit)) &&
     typeof value.createdAt === "number"
+  );
+}
+
+function isAppliedEdit(value: unknown): value is NonNullable<CommentThread["messages"][number]["appliedEdit"]> {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.originalText === "string" &&
+    typeof value.replacementText === "string" &&
+    (value.status === "applied" || value.status === "reverted")
   );
 }
 

@@ -74,6 +74,16 @@ interface DocumentStore {
     threadId: string,
     input: { replacement: string; reason?: string }
   ) => void;
+  setLastAssistantAppliedEdit: (
+    threadId: string,
+    input: { originalText: string; replacementText: string }
+  ) => void;
+  setAppliedEditStatus: (
+    threadId: string,
+    messageId: string,
+    editId: string,
+    status: NonNullable<ThreadMessage["appliedEdit"]>["status"]
+  ) => void;
   resolveThread: (threadId: string) => void;
   unresolveThread: (threadId: string) => void;
   updateThread: (threadId: string, updater: (t: CommentThread) => CommentThread) => void;
@@ -549,6 +559,47 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
           },
         };
         return { ...t, messages: updated };
+      }),
+    }));
+    scheduleThreadSave();
+  },
+
+  setLastAssistantAppliedEdit: (threadId, input) => {
+    set((state) => ({
+      threads: state.threads.map((t) => {
+        if (t.id !== threadId) return t;
+        const lastAiIdx = t.messages.findLastIndex((m) => m.role === "assistant");
+        if (lastAiIdx === -1) return t;
+        const updated = [...t.messages];
+        updated[lastAiIdx] = {
+          ...updated[lastAiIdx],
+          appliedEdit: {
+            id: `applied-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            originalText: input.originalText,
+            replacementText: input.replacementText,
+            status: "applied",
+          },
+        };
+        return { ...t, messages: updated };
+      }),
+    }));
+    scheduleThreadSave();
+  },
+
+  setAppliedEditStatus: (threadId, messageId, editId, status) => {
+    set((state) => ({
+      threads: state.threads.map((t) => {
+        if (t.id !== threadId) return t;
+        return {
+          ...t,
+          messages: t.messages.map((message) => {
+            if (message.id !== messageId || message.appliedEdit?.id !== editId) return message;
+            return {
+              ...message,
+              appliedEdit: { ...message.appliedEdit, status },
+            };
+          }),
+        };
       }),
     }));
     scheduleThreadSave();

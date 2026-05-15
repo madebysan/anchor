@@ -26,6 +26,11 @@ interface CommentSidebarProps {
   onAddDocumentComment?: () => void;
   onAcceptSuggestion?: (threadId: string, suggestion: SuggestedEdit, messageId: string) => void;
   onRejectSuggestion?: (threadId: string, suggestion: SuggestedEdit, messageId: string) => void;
+  onRevertAppliedEdit?: (
+    threadId: string,
+    messageId: string,
+    edit: NonNullable<CommentThreadType["messages"][number]["appliedEdit"]>
+  ) => void;
   isLoading?: Record<string, boolean>;
   onStopGeneration?: (threadId: string) => void;
   triggerOptions?: TriggerOption[];
@@ -47,6 +52,7 @@ export default function CommentSidebar({
   onAddDocumentComment,
   onAcceptSuggestion,
   onRejectSuggestion,
+  onRevertAppliedEdit,
   isLoading = {},
   onStopGeneration,
   triggerOptions,
@@ -135,6 +141,7 @@ export default function CommentSidebar({
             onResolve={onResolveThread}
             onAcceptSuggestion={onAcceptSuggestion}
             onRejectSuggestion={onRejectSuggestion}
+            onRevertAppliedEdit={onRevertAppliedEdit}
             isLoading={!!isLoading[thread.id]}
             onStopGeneration={
               onStopGeneration

@@ -32,6 +32,7 @@ export interface ThreadMessage {
   content: string;
   trigger?: ParsedTrigger;
   suggestedEdit?: SuggestedEdit;
+  appliedEdit?: AppliedEdit;
   createdAt: number;
 }
 
@@ -47,6 +48,13 @@ export interface SuggestedEdit {
   status: "pending" | "accepted" | "rejected";
   /** Optional one-sentence rationale from the AI (Phase 4 tool calls). */
   reason?: string;
+}
+
+export interface AppliedEdit {
+  id: string;
+  originalText: string;
+  replacementText: string;
+  status: "applied" | "reverted";
 }
 
 // Per-comment context strategy. Each persona declares which slice of the

@@ -25,6 +25,11 @@ interface CommentThreadProps {
   onResolve: (threadId: string) => void;
   onAcceptSuggestion?: (threadId: string, suggestion: SuggestedEdit, messageId: string) => void;
   onRejectSuggestion?: (threadId: string, suggestion: SuggestedEdit, messageId: string) => void;
+  onRevertAppliedEdit?: (
+    threadId: string,
+    messageId: string,
+    edit: NonNullable<CommentThreadType["messages"][number]["appliedEdit"]>
+  ) => void;
   isLoading?: boolean;
   onStopGeneration?: () => void;
   triggerOptions?: TriggerOption[];
@@ -41,6 +46,7 @@ export default function CommentThread({
   onResolve,
   onAcceptSuggestion,
   onRejectSuggestion,
+  onRevertAppliedEdit,
   isLoading = false,
   onStopGeneration,
   triggerOptions,
@@ -155,6 +161,11 @@ export default function CommentThread({
                               { ...suggestion, originalText: thread.selectedText },
                               msg.id
                             )
+                        : undefined
+                    }
+                    onRevertAppliedEdit={
+                      msg.appliedEdit && onRevertAppliedEdit
+                        ? () => onRevertAppliedEdit(thread.id, msg.id, msg.appliedEdit!)
                         : undefined
                     }
                   />
