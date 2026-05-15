@@ -9,7 +9,7 @@ import { getDocPath } from "@/lib/persistence";
 const BASE_PERSONA_PROMPT =
   "You are an AI writing assistant embedded in a document editor. The user has anchored a comment to a specific passage and given you an instruction.";
 
-type DirectEditOperation = "insert";
+type DirectEditOperation = "insert" | "needs-selection";
 
 interface UseAIChatReturn {
   sendMessage: (
@@ -52,6 +52,11 @@ function detectDirectEditOperation(message: string, hasSelection: boolean): Dire
     /^create\s+(a|an|the)?\s*(paragraph|section|sentence|bullet|list|note)\b/.test(normalized)
   ) {
     return "insert";
+  }
+  if (
+    /^(rewrite|replace|edit|change|fix|update|delete|remove|shorten|expand|translate|summarize)\b/.test(normalized)
+  ) {
+    return "needs-selection";
   }
   return null;
 }
@@ -214,8 +219,29 @@ export function useAIChat(
           "- If you cannot verify a factual claim, still draft the requested text and include any uncertainty inside the inserted text only if it is essential.",
         ].join("\n");
 
+        const needsSelectionPrompt = [
+          BASE_PERSONA_PROMPT,
+          personaPrompt,
+          "",
+          `Today's date: ${today}.`,
+          "",
+          "The user asked for a document edit, but Anchor has no selected passage for replacement and this is not an insertion-at-caret command.",
+          "Anchor must apply edits directly through the editor. Do not draft a block for the user to copy and paste.",
+          "Do not say where to paste anything. Do not provide a proposed replacement.",
+          "",
+          "## The user's edit request",
+          userInstruction,
+          "",
+          "## Your output",
+          "Briefly ask the user to select the text they want changed, or place the caret and use an insert/add/write/draft command if they want new text created at that location.",
+          "Keep it to one short sentence.",
+          "Skip any '→ ref:' disclosure prefix; it doesn't apply here.",
+        ].join("\n");
+
         const prompt = directEditOperation === "insert"
           ? insertionPrompt
+          : directEditOperation === "needs-selection"
+            ? needsSelectionPrompt
           : hasSelection
           ? mode === "feedback"
             ? feedbackPrompt
@@ -231,7 +257,7 @@ export function useAIChat(
               "## File access rules (important)",
               "- The document is accessible via your Read tool at the file path that was passed when this session started. Use Read freely.",
               "- Do NOT use Write, Edit, or any tool that modifies the file. The user's editor is the authoritative source — direct edits to the file get clobbered on the next editor save.",
-              "- If the user asks you to change the document, respond with the proposed change as text in your reply (e.g. show the new content and where it should go). The user will apply it themselves.",
+              "- If the user asks you to change the document, do not draft text for them to copy and paste. Ask them to select the passage to change, or place the caret and use an insert/add/write/draft command so Anchor can apply the edit directly.",
               "",
               "## The user's question",
               userInstruction,
