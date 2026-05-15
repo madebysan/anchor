@@ -11,8 +11,9 @@ file/folder management v2, arbitrary folder moves, sidecar thread storage,
 onboarding copy, distribution runbook + local DMG script, ESLint, accessibility
 fixes, font bundle trimming, initial Playwright smoke tests, browser-level
 auto-apply and multi-document comment regression coverage, clearer Claude
-failure states, non-blocking comment loading, editor chrome trimming, and signed
-and notarized macOS distribution all shipped.** App name is now Anchor.
+failure states, non-blocking comment loading, editor chrome trimming,
+before/after diff mode, startup performance polish, visual QA cleanup, and
+signed and notarized macOS distribution all shipped.** App name is now Anchor.
 Remaining branding work is icon/README/release polish.
 
 ---

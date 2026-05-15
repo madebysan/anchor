@@ -9,8 +9,19 @@
 - Added migration fallbacks for the previous storage/config locations
   so the renamed app can recover the selected notes folder, active note, editor
   preferences, expanded folders, and old localStorage thread data.
+- Added Before/After diff mode for auto-applied AI rewrites, including a
+  one-click Revert action.
+- Completed the performance and QA sequence: editor lazy loading, WOFF2-only
+  font loading, dead UI export cleanup, parallel startup checks, smoother
+  startup loading state, safe-area viewport metadata, touch-safe hover styling,
+  and a token-based render error screen.
+- Verified the latest production preview at Lighthouse 99, with static visual
+  QA checks reporting no findings.
 - Verified with lint, web build, Playwright, Cargo, and a signed Tauri app
   bundle build. The app bundle now builds as `Anchor.app`.
+- Built, signed, notarized, stapled, and Gatekeeper-checked the latest DMG:
+  `src-tauri/target/release/bundle/dmg/Anchor_0.1.0_aarch64.dmg`. Apple
+  notarization submission `21de2fc8-b4de-431c-a03e-c16430aded2a` was accepted.
 
 ## Done this session (2026-05-14)
 
@@ -99,10 +110,13 @@ Massive multi-phase day — fork stabilized, full AI integration shipped, multip
 - Local Keychain has a valid Developer ID Application identity. `npm run
   release:dmg` builds and signs the app/DMG, and `npm run release:notarize`
   submits, staples, and Gatekeeper-checks the DMG. The latest accepted Apple
-  submission is `7c9d0db2-0a06-4559-8428-87a1426b6960`.
+  submission is `21de2fc8-b4de-431c-a03e-c16430aded2a`.
 - Recent performance work removed optional editor font switching, unused font
   assets, and the live word-count footer. The editor keeps the expected
   formatting, size, line-height, markdown paste, export, and comment workflows.
+- Latest performance work lazy-loads the editor after startup gates and loads
+  Claude availability plus notes-folder config in parallel behind one smoother
+  startup state.
 
 ## Next steps
 
