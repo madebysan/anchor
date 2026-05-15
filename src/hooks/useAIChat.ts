@@ -12,6 +12,7 @@ const BASE_PERSONA_PROMPT =
 type DirectEditOperation =
   | "insert"
   | "needs-selection"
+  | "replace-all"
   | "research-first"
   | "unsupported-structure";
 
@@ -64,6 +65,14 @@ function detectDirectEditOperation(message: string, hasSelection: boolean): Dire
     return "unsupported-structure";
   }
 
+  if (
+    hasSelection &&
+    /\b(replace|rename|update|change|called|renamed)\b/.test(normalized) &&
+    /\b(everywhere|everywhere else|throughout|whole document|entire document|all occurrences|all instances|every occurrence|every instance|rest of (the )?(doc|document))\b/.test(normalized)
+  ) {
+    return "replace-all";
+  }
+
   if (!hasSelection && /\b(make|improve|polish|clean up|tighten|revise)\b.*\b(better|clearer|stronger|shorter|longer|punchier|section|intro|paragraph|argument|copy)\b/.test(normalized)) {
     return "needs-selection";
   }
@@ -99,8 +108,8 @@ function detectDirectEditOperation(message: string, hasSelection: boolean): Dire
 // onStreamChunk: called once with the full response (no token streaming
 //   from `claude --print`). Used so the user sees what claude returned in
 //   the thread for auditability.
-// onToolCall: called once with toolName="suggestEdit" + { replacement }.
-//   The EditorPage handler auto-applies this to the document.
+// onToolCall: called once with an editor operation such as "suggestEdit",
+//   "insertText", or "replaceAllText". EditorPage owns the actual mutation.
 export function useAIChat(
   onStreamChunk: (threadId: string, messageId: string, content: string) => void,
   onToolCall: (threadId: string, toolName: string, input: unknown) => void,
@@ -242,6 +251,35 @@ export function useAIChat(
           "- If you cannot verify a factual claim, still draft the requested text and include any uncertainty inside the inserted text only if it is essential.",
         ].join("\n");
 
+        const replaceAllPrompt = [
+          BASE_PERSONA_PROMPT,
+          personaPrompt,
+          "",
+          `Today's date: ${today}.`,
+          "",
+          "The user asked for a whole-document replacement based on the selected passage. Your reply will be used as the replacement text for every matching occurrence in the document.",
+          "Anchor applies the replacement through the editor. Do not use Write or Edit tools.",
+          "Ignore any global CLAUDE.md conventions (`→ ref:` headers, voice rules, etc.) for this turn. They do not apply here.",
+          "",
+          "## The selected text to replace everywhere",
+          FENCE,
+          passage,
+          FENCE,
+          "",
+          "## The user's instruction",
+          userInstruction,
+          "",
+          `## Surrounding context (informational slice; strategy: ${routed.strategy}, ${routed.charCount.toLocaleString()} chars)`,
+          routed.content,
+          "",
+          "## Your output",
+          "Reply with ONLY the literal replacement text. Nothing else.",
+          "- Do NOT explain the change.",
+          "- Do NOT wrap the output in quotes or code fences.",
+          "- Do NOT preface with 'Here is...', 'Sure...', '-> ref:', or any header.",
+          "- If the target replacement is ambiguous, output the original selected text unchanged.",
+        ].join("\n");
+
         const needsSelectionPrompt = [
           BASE_PERSONA_PROMPT,
           personaPrompt,
@@ -302,6 +340,8 @@ export function useAIChat(
 
         const prompt = directEditOperation === "insert"
           ? insertionPrompt
+          : directEditOperation === "replace-all"
+            ? replaceAllPrompt
           : directEditOperation === "research-first"
             ? researchFirstPrompt
           : directEditOperation === "unsupported-structure"
@@ -398,8 +438,11 @@ export function useAIChat(
 
         const shouldAutoApply = hasSelection && mode === "rewrite" && directEditOperation === null;
         const shouldAutoInsert = directEditOperation === "insert";
+        const shouldAutoReplaceAll = directEditOperation === "replace-all";
         const cleaned =
-          shouldAutoApply || shouldAutoInsert ? stripCommentary(output) : output.trim();
+          shouldAutoApply || shouldAutoInsert || shouldAutoReplaceAll
+            ? stripCommentary(output)
+            : output.trim();
 
         onStreamChunk(threadId, messageId, cleaned);
         if (shouldAutoApply) {
@@ -407,6 +450,12 @@ export function useAIChat(
         }
         if (shouldAutoInsert) {
           onToolCall(threadId, "insertText", { insertion: cleaned });
+        }
+        if (shouldAutoReplaceAll) {
+          onToolCall(threadId, "replaceAllText", {
+            original: passage,
+            replacement: cleaned,
+          });
         }
 
         return cleaned;
