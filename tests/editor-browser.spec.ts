@@ -9,6 +9,8 @@ const STORAGE_KEY = "anchor-browser-test-state";
 interface TauriMockOptions {
   aiFailure?: string;
   aiDelayMs?: number;
+  aiOutput?: string;
+  noteContent?: string;
 }
 
 async function installTauriMock(
@@ -24,6 +26,8 @@ async function installTauriMock(
       storageKey,
       aiFailure,
       aiDelayMs,
+      aiOutput,
+      noteContent,
     }) => {
       interface MockNote {
         id: string;
@@ -71,7 +75,7 @@ async function installTauriMock(
             id: "Browser Test",
             path: notePath("Browser Test"),
             title: "Browser Test",
-            content: [
+            content: noteContent ?? [
               "# Browser Test",
               "",
               originalText,
@@ -222,7 +226,7 @@ async function installTauriMock(
               if (aiFailure) {
                 return { success: false, output: "", error: aiFailure };
               }
-              return { success: true, output: replacementText, error: null };
+              return { success: true, output: aiOutput ?? replacementText, error: null };
             case "ai_invoke_claude":
               if (aiDelayMs) await delay(aiDelayMs);
               if (aiFailure) {
@@ -235,7 +239,7 @@ async function installTauriMock(
               }
               return {
                 success: true,
-                output: replacementText,
+                output: aiOutput ?? replacementText,
                 error: null,
                 session_id: "browser-test-session",
               };
@@ -272,6 +276,8 @@ async function installTauriMock(
       storageKey: STORAGE_KEY,
       aiFailure: options.aiFailure,
       aiDelayMs: options.aiDelayMs,
+      aiOutput: options.aiOutput,
+      noteContent: options.noteContent,
     },
   );
 }
@@ -493,6 +499,45 @@ test("multi-range move requests are treated as unsupported structural edits", as
   const prompt = await latestClaudePrompt(page);
   expect(prompt).toContain("structural or multi-range document edit");
   expect(prompt).toContain("cannot safely move text across two document locations");
+});
+
+test("selected rename can update every matching word in the document", async ({ page }) => {
+  await installTauriMock(page, {
+    aiOutput: "Martin",
+    noteContent: [
+      "# Browser Test",
+      "",
+      "John wrote the brief.",
+      "",
+      "The review mentions John again.",
+      "",
+      "Johnson should not change.",
+    ].join("\n"),
+  });
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor).toContainText("John wrote the brief.");
+  await selectEditorText(page, "John");
+  await clickSelectionAction(page, "Ask AI");
+
+  const messageInput = page.getByLabel("Comment message");
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("John is now called Martin. Update it to Martin everywhere else in the doc.");
+  await page.getByLabel("Send comment").click();
+
+  await expect(editor).toContainText("Martin wrote the brief.");
+  await expect(editor).toContainText("The review mentions Martin again.");
+  await expect(editor).toContainText("Johnson should not change.");
+  await expect(editor).not.toContainText("John wrote the brief.");
+
+  await expect.poll(() => savedMarkdown(page)).toContain("Martin wrote the brief.");
+  await expect.poll(() => savedMarkdown(page)).toContain("The review mentions Martin again.");
+  await expect.poll(() => savedMarkdown(page)).toContain("Johnson should not change.");
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("whole-document replacement");
+  expect(prompt).toContain("Reply with ONLY the literal replacement text");
 });
 
 test("applied AI diff can revert the passage", async ({ page }) => {

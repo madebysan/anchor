@@ -20,6 +20,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { DocumentSnapshot } from "@/lib/ai/context-router";
 import type { AppliedEdit, CommentThread, SuggestedEdit } from "@/types";
+import type { Mark } from "@tiptap/pm/model";
 import type { Editor as TiptapEditor } from "@tiptap/react";
 import { GripVertical } from "lucide-react";
 
@@ -161,6 +162,111 @@ function applyInsertionWithHighlight(
   }
 
   return range;
+}
+
+interface ReplaceAllResult {
+  count: number;
+  range: { from: number; to: number };
+}
+
+interface TextMatch {
+  from: number;
+  to: number;
+  isThreadMatch: boolean;
+  marks: readonly Mark[];
+}
+
+function isWordCharacter(character: string | undefined): boolean {
+  return !!character && /[\p{L}\p{N}_]/u.test(character);
+}
+
+function findTextMatchIndexes(text: string, search: string): number[] {
+  if (!search) return [];
+
+  const indexes: number[] = [];
+  const useTokenBoundaries = /^[\p{L}\p{N}_]+$/u.test(search);
+  let index = text.indexOf(search);
+
+  while (index !== -1) {
+    const before = text[index - 1];
+    const after = text[index + search.length];
+    if (
+      !useTokenBoundaries ||
+      (!isWordCharacter(before) && !isWordCharacter(after))
+    ) {
+      indexes.push(index);
+    }
+    index = text.indexOf(search, index + search.length);
+  }
+
+  return indexes;
+}
+
+function applyReplaceAllWithHighlight(
+  editor: TiptapEditor,
+  threadId: string,
+  original: string,
+  replacement: string,
+): ReplaceAllResult | null {
+  if (!original || original === replacement) return null;
+
+  const matches: TextMatch[] = [];
+  editor.state.doc.descendants((node, pos) => {
+    if (!node.isText) return;
+    const text = node.text ?? "";
+    const indexes = findTextMatchIndexes(text, original);
+    for (const index of indexes) {
+      matches.push({
+        from: pos + index,
+        to: pos + index + original.length,
+        isThreadMatch: node.marks.some(
+          (mark) => mark.type.name === "comment" && mark.attrs.commentId === threadId,
+        ),
+        marks: node.marks,
+      });
+    }
+  });
+
+  if (matches.length === 0) return null;
+
+  const editHighlight = editor.schema.marks.editHighlight;
+  const highlightId = `edit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  let tr = editor.state.tr;
+
+  for (const match of [...matches].reverse()) {
+    if (replacement.length === 0) {
+      tr = tr.delete(match.from, match.to);
+      continue;
+    }
+
+    const marks = editHighlight
+      ? [
+          ...match.marks.filter((mark) => mark.type !== editHighlight),
+          editHighlight.create({ id: highlightId }),
+        ]
+      : match.marks;
+    tr = tr.replaceWith(match.from, match.to, editor.schema.text(replacement, marks));
+  }
+
+  editor.view.dispatch(tr);
+
+  const anchorMatch = matches.find((match) => match.isThreadMatch) ?? matches[0];
+  const range = {
+    from: anchorMatch.from,
+    to: anchorMatch.from + replacement.length,
+  };
+
+  if (editHighlight) {
+    window.setTimeout(() => {
+      if (editor.isDestroyed) return;
+      const removeTr = editor.state.tr
+        .removeMark(0, editor.state.doc.content.size, editHighlight)
+        .setMeta("addToHistory", false);
+      editor.view.dispatch(removeTr);
+    }, 3200);
+  }
+
+  return { count: matches.length, range };
 }
 
 function DragHandle({
@@ -430,6 +536,32 @@ export default function EditorPage({
           ...t,
           selectedText: insertion,
           anchor: buildAnchorForRange(editor, range.from, range.to, insertion),
+        }));
+        return;
+      }
+
+      if (toolName === "replaceAllText") {
+        const original = (input as { original?: unknown }).original;
+        const replacement = (input as { replacement?: unknown }).replacement;
+        if (typeof original !== "string" || typeof replacement !== "string") return;
+
+        const result = applyReplaceAllWithHighlight(editor, threadId, original, replacement);
+        if (!result) return;
+
+        store.setLastAssistantAppliedEdit(threadId, {
+          originalText: original,
+          replacementText: replacement,
+        });
+
+        store.updateLastAssistantMessage(
+          threadId,
+          `Replaced ${result.count} occurrence${result.count === 1 ? "" : "s"} of "${original}" with "${replacement}".`,
+        );
+
+        store.updateThread(threadId, (t) => ({
+          ...t,
+          selectedText: replacement,
+          anchor: buildAnchorForRange(editor, result.range.from, result.range.to, replacement),
         }));
         return;
       }

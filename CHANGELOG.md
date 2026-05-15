@@ -37,6 +37,9 @@ Updated every session via `/save-session`.
 - **Safer AI edit routing:** vague quality edits without a selection now ask for
   a target, conditional research/edit chains stay in the thread until verified,
   and multi-range move requests no longer silently rewrite the selected text.
+- **Whole-document rename edits:** selected text can now drive a document-wide
+  replacement, so a request like "John is now called Martin, update it
+  everywhere" changes every exact word occurrence through the editor.
 - **Discussion grounding:** document-level discussion prompts now include the
   routed document snapshot so ordinary questions can answer from current editor
   context without modifying the file.
