@@ -9,7 +9,7 @@ import type { DocumentSnapshot } from "@/lib/ai/context-router";
 import CommentThread from "./CommentThread";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Plus, ArchiveRestore } from "lucide-react";
+import { MessageSquare, Plus, ArchiveRestore, Sparkles } from "lucide-react";
 
 interface TriggerOption {
   key: string;
@@ -24,6 +24,7 @@ interface CommentSidebarProps {
   onResolveThread: (threadId: string) => void;
   onUnresolveThread?: (threadId: string) => void;
   onAddDocumentComment?: () => void;
+  onAddDocumentAI?: () => void;
   onAcceptSuggestion?: (threadId: string, suggestion: SuggestedEdit, messageId: string) => void;
   onRejectSuggestion?: (threadId: string, suggestion: SuggestedEdit, messageId: string) => void;
   onRevertAppliedEdit?: (
@@ -50,6 +51,7 @@ export default function CommentSidebar({
   onResolveThread,
   onUnresolveThread,
   onAddDocumentComment,
+  onAddDocumentAI,
   onAcceptSuggestion,
   onRejectSuggestion,
   onRevertAppliedEdit,
@@ -80,12 +82,20 @@ export default function CommentSidebar({
           Select text and click &quot;Comment&quot; to comment on a passage,
           or add a document-level comment below.
         </p>
-        {onAddDocumentComment && (
-          <Button variant="outline" size="sm" onClick={onAddDocumentComment}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Comment
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {onAddDocumentAI && (
+            <Button variant="default" size="sm" onClick={onAddDocumentAI}>
+              <Sparkles className="h-4 w-4 mr-2" />
+              Ask AI
+            </Button>
+          )}
+          {onAddDocumentComment && (
+            <Button variant="outline" size="sm" onClick={onAddDocumentComment}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Comment
+            </Button>
+          )}
+        </div>
         </div>
       </div>
     );
@@ -125,6 +135,17 @@ export default function CommentSidebar({
                 onClick={onAddDocumentComment}
               >
                 <Plus className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {onAddDocumentAI && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                title="Ask AI at cursor"
+                onClick={onAddDocumentAI}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
               </Button>
             )}
           </div>

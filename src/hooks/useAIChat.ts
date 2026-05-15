@@ -9,6 +9,8 @@ import { getDocPath } from "@/lib/persistence";
 const BASE_PERSONA_PROMPT =
   "You are an AI writing assistant embedded in a document editor. The user has anchored a comment to a specific passage and given you an instruction.";
 
+type DirectEditOperation = "insert";
+
 interface UseAIChatReturn {
   sendMessage: (
     threadId: string,
@@ -40,6 +42,18 @@ function yieldForLoadingPaint(): Promise<void> {
       window.setTimeout(resolve, 0);
     });
   });
+}
+
+function detectDirectEditOperation(message: string, hasSelection: boolean): DirectEditOperation | null {
+  if (hasSelection) return null;
+  const normalized = message.trim().toLowerCase();
+  if (
+    /^(insert|add|write|draft|compose|append|prepend|put)\b/.test(normalized) ||
+    /^create\s+(a|an|the)?\s*(paragraph|section|sentence|bullet|list|note)\b/.test(normalized)
+  ) {
+    return "insert";
+  }
+  return null;
 }
 
 // Anchor AI hook wraps the local `claude` CLI via Tauri.
@@ -91,6 +105,8 @@ export function useAIChat(
         const personaPrompt = personaConfig?.prompt ?? "";
         const strategy = personaConfig?.contextStrategy ?? "tight";
         const mode = personaConfig?.mode ?? "rewrite";
+        const userInstruction = trigger?.promptText.trim() || userMessage;
+        const directEditOperation = detectDirectEditOperation(userInstruction, hasSelection);
         const routed = applyContextStrategy(strategy, doc, passage, thread.anchor);
         const priorThreadMessages = thread.messages.slice(0, -1);
         const threadHistory = formatThreadHistory(priorThreadMessages);
@@ -116,7 +132,7 @@ export function useAIChat(
           FENCE,
           "",
           "## The user's instruction",
-          userMessage,
+          userInstruction,
           "",
           "## Prior thread context",
           threadHistory,
@@ -151,7 +167,7 @@ export function useAIChat(
           FENCE,
           "",
           "## The user's instruction",
-          userMessage,
+          userInstruction,
           "",
           "## Prior thread context",
           threadHistory,
@@ -167,7 +183,40 @@ export function useAIChat(
           "Respond conversationally and concisely. Use markdown bullets when helpful.",
         ].join("\n");
 
-        const prompt = hasSelection
+        const insertionPrompt = [
+          BASE_PERSONA_PROMPT,
+          personaPrompt,
+          "",
+          `Today's date: ${today}.`,
+          "",
+          "The user placed the caret in the document and gave a direct insertion command. Your reply will be inserted into the document at that caret position.",
+          "Treat direct edit verbs like insert, add, write, draft, append, and prepend as commands, not requests for advice.",
+          "Do not argue that the request is off-topic. Do not ask whether the content belongs. Do not offer options unless the user explicitly asked for options.",
+          "Ignore any global CLAUDE.md conventions (`→ ref:` headers, voice rules, etc.) for this turn. They do not apply here.",
+          "",
+          "## The user's insertion instruction",
+          userInstruction,
+          "",
+          "## Prior thread context",
+          threadHistory,
+          "",
+          `## Document context (informational slice; strategy: ${routed.strategy}, ${routed.charCount.toLocaleString()} chars)`,
+          routed.content,
+          "",
+          "If the user's instruction needs broader context than this slice, use your Read tool on the working file to fetch what you need before producing the insertion. The file path was passed when this session started.",
+          "Do NOT use Write or Edit tools — your output is applied via the editor. Direct file writes get clobbered on the next editor save.",
+          "",
+          "## Your output",
+          "Reply with ONLY the literal text to insert at the caret. Nothing else.",
+          "- Do NOT explain where it should go.",
+          "- Do NOT wrap the output in quotes or code fences.",
+          "- Do NOT preface with 'Here is...', 'Sure...', 'Heads-up', or any header.",
+          "- If you cannot verify a factual claim, still draft the requested text and include any uncertainty inside the inserted text only if it is essential.",
+        ].join("\n");
+
+        const prompt = directEditOperation === "insert"
+          ? insertionPrompt
+          : hasSelection
           ? mode === "feedback"
             ? feedbackPrompt
             : rewritePrompt
@@ -185,7 +234,7 @@ export function useAIChat(
               "- If the user asks you to change the document, respond with the proposed change as text in your reply (e.g. show the new content and where it should go). The user will apply it themselves.",
               "",
               "## The user's question",
-              userMessage,
+              userInstruction,
               "",
               "## Prior thread context",
               threadHistory,
@@ -253,11 +302,16 @@ export function useAIChat(
         }
 
         const shouldAutoApply = hasSelection && mode === "rewrite";
-        const cleaned = shouldAutoApply ? stripCommentary(output) : output.trim();
+        const shouldAutoInsert = directEditOperation === "insert";
+        const cleaned =
+          shouldAutoApply || shouldAutoInsert ? stripCommentary(output) : output.trim();
 
         onStreamChunk(threadId, messageId, cleaned);
         if (shouldAutoApply) {
           onToolCall(threadId, "suggestEdit", { replacement: cleaned });
+        }
+        if (shouldAutoInsert) {
+          onToolCall(threadId, "insertText", { insertion: cleaned });
         }
 
         return cleaned;

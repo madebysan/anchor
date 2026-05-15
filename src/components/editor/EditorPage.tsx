@@ -99,11 +99,55 @@ function applyReplacementWithHighlight(
     marks.push(editHighlight.create({ id: highlightId }));
   }
 
-  const replacementNode = editor.schema.text(replacement, marks);
-  const tr = editor.state.tr.replaceWith(markFrom, markTo, replacementNode);
+  const tr = replacement.length > 0
+    ? editor.state.tr.replaceWith(markFrom, markTo, editor.schema.text(replacement, marks))
+    : editor.state.tr.delete(markFrom, markTo);
   editor.view.dispatch(tr);
 
   const range = { from: markFrom, to: markFrom + replacement.length };
+  if (editHighlight) {
+    window.setTimeout(() => {
+      if (editor.isDestroyed) return;
+      const to = Math.min(range.to, editor.state.doc.content.size);
+      if (to <= range.from) return;
+      const removeTr = editor.state.tr
+        .removeMark(range.from, to, editHighlight)
+        .setMeta("addToHistory", false);
+      editor.view.dispatch(removeTr);
+    }, 3200);
+  }
+
+  return range;
+}
+
+function applyInsertionWithHighlight(
+  editor: TiptapEditor,
+  thread: CommentThread,
+  insertion: string,
+): { from: number; to: number } | null {
+  if (!insertion) return null;
+
+  const insertionPosition =
+    typeof thread.anchor?.pmFrom === "number"
+      ? thread.anchor.pmFrom
+      : editor.state.selection.from;
+  const from = Math.max(0, Math.min(insertionPosition, editor.state.doc.content.size));
+
+  const marks = [];
+  const commentMark = editor.schema.marks.comment;
+  if (commentMark) {
+    marks.push(commentMark.create({ commentId: thread.id }));
+  }
+  const editHighlight = editor.schema.marks.editHighlight;
+  const highlightId = `edit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  if (editHighlight) {
+    marks.push(editHighlight.create({ id: highlightId }));
+  }
+
+  const tr = editor.state.tr.insert(from, editor.schema.text(insertion, marks));
+  editor.view.dispatch(tr);
+
+  const range = { from, to: from + insertion.length };
   if (editHighlight) {
     window.setTimeout(() => {
       if (editor.isDestroyed) return;
@@ -359,29 +403,48 @@ export default function EditorPage({
       useDocumentStore.getState().updateLastAssistantMessage(threadId, content);
     },
     (threadId, toolName, input) => {
-      if (
-        toolName !== "suggestEdit" ||
-        typeof input !== "object" ||
-        input === null ||
-        typeof (input as { replacement?: unknown }).replacement !== "string"
-      ) {
+      if (typeof input !== "object" || input === null) {
         return;
       }
-      const replacement = (input as { replacement: string }).replacement;
+
       const editor = editorRef.current;
       if (!editor) return;
 
       const store = useDocumentStore.getState();
       const threadBeforeEdit = store.threads.find((t) => t.id === threadId);
+      if (!threadBeforeEdit) return;
+
+      if (toolName === "insertText") {
+        const insertion = (input as { insertion?: unknown }).insertion;
+        if (typeof insertion !== "string") return;
+
+        const range = applyInsertionWithHighlight(editor, threadBeforeEdit, insertion);
+        if (!range) return;
+
+        store.setLastAssistantAppliedEdit(threadId, {
+          originalText: "",
+          replacementText: insertion,
+        });
+
+        store.updateThread(threadId, (t) => ({
+          ...t,
+          selectedText: insertion,
+          anchor: buildAnchorForRange(editor, range.from, range.to, insertion),
+        }));
+        return;
+      }
+
+      if (toolName !== "suggestEdit") return;
+      const replacement = (input as { replacement?: unknown }).replacement;
+      if (typeof replacement !== "string") return;
+
       const range = applyReplacementWithHighlight(editor, threadId, replacement);
       if (!range) return;
 
-      if (threadBeforeEdit) {
-        store.setLastAssistantAppliedEdit(threadId, {
-          originalText: threadBeforeEdit.selectedText,
-          replacementText: replacement,
-        });
-      }
+      store.setLastAssistantAppliedEdit(threadId, {
+        originalText: threadBeforeEdit.selectedText,
+        replacementText: replacement,
+      });
 
       // Update the thread's selectedText so subsequent follow-up messages
       // operate on the post-edit passage.
@@ -536,6 +599,27 @@ export default function EditorPage({
     createAnchoredThread("ai");
   }, [createAnchoredThread]);
 
+  const createDocumentThread = useCallback((intent: "note" | "ai") => {
+    const editor = editorRef.current;
+    const anchor = editor
+      ? buildAnchorForRange(
+          editor,
+          editor.state.selection.from,
+          editor.state.selection.from,
+          "",
+        )
+      : undefined;
+    useDocumentStore.getState().createThread("", anchor, intent);
+  }, []);
+
+  const handleAddDocumentComment = useCallback(() => {
+    createDocumentThread("note");
+  }, [createDocumentThread]);
+
+  const handleAddDocumentAI = useCallback(() => {
+    createDocumentThread("ai");
+  }, [createDocumentThread]);
+
   // ⌘⇧V / Ctrl+Shift+V opens a comment on the current selection (or a
   // document-level comment if nothing is selected). ⌘⇧M is already taken
   // by the maximize / hide-sidebars toggle.
@@ -556,11 +640,7 @@ export default function EditorPage({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [handleAddComment]);
-
-  const handleAddDocumentComment = useCallback(() => {
-    useDocumentStore.getState().createThread("", undefined, "note");
-  }, []);
+  }, [handleAddComment, handleAddDocumentComment]);
 
   const handleSelectThread = useCallback((id: string | null) => {
     useDocumentStore.getState().setActiveThreadId(id);
@@ -779,6 +859,7 @@ export default function EditorPage({
               onResolveThread={handleResolveThread}
               onUnresolveThread={handleUnresolveThread}
               onAddDocumentComment={handleAddDocumentComment}
+              onAddDocumentAI={handleAddDocumentAI}
               onAcceptSuggestion={handleAcceptSuggestion}
               onRejectSuggestion={handleRejectSuggestion}
               onRevertAppliedEdit={handleRevertAppliedEdit}
