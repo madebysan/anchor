@@ -30,6 +30,9 @@ Updated every session via `/save-session`.
   parallel behind one smooth startup state instead of separate loading flashes.
 - **Visual QA cleanup:** viewport safe-area metadata, touch-safe hover styling,
   and the render-error screen now pass the mobile static checks.
+- **Notarized release artifact:** Apple accepted submission
+  `21de2fc8-b4de-431c-a03e-c16430aded2a`; the stapled DMG passes Gatekeeper as
+  a Notarized Developer ID artifact.
 - Removed dead UI component exports, cleared stale Tauri build cache from the
   pre-rename path, and refreshed the file-watcher handoff note.
 - Verified the rename with `npm run lint`, `npm run build`,
