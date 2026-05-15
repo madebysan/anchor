@@ -177,8 +177,10 @@ mark.comment-highlight {
   transition: background-color 0.15s ease;
 }
 
-mark.comment-highlight:hover {
-  background-color: oklch(0.9 0.1 95 / 60%);
+@media (hover: hover) {
+  mark.comment-highlight:hover {
+    background-color: oklch(0.9 0.1 95 / 60%);
+  }
 }
 
 /* Active comment — the one currently selected in sidebar */
@@ -193,8 +195,10 @@ mark.comment-highlight.active {
   color: inherit;
 }
 
-.dark mark.comment-highlight:hover {
-  background-color: oklch(0.45 0.12 80 / 60%);
+@media (hover: hover) {
+  .dark mark.comment-highlight:hover {
+    background-color: oklch(0.45 0.12 80 / 60%);
+  }
 }
 
 .dark mark.comment-highlight.active {
