@@ -15,6 +15,8 @@ Updated every session via `/save-session`.
 - **Renamed app to Anchor:** updated product name, app window title, package
   metadata, Rust crate metadata, bundle identifier, visible onboarding/settings
   copy, README, distribution docs, and release script output naming.
+- **Flipped Anchor icon:** regenerated the app icon set from the horizontally
+  flipped mark so the symbol reads closer to a lowercase "a".
 - **Migration safety:** Anchor reads prior localStorage keys and the
   old Tauri app-config folder so existing notes-folder selection, active note,
   editor preferences, expanded folders, and old thread data can carry forward.
@@ -32,6 +34,9 @@ Updated every session via `/save-session`.
   and the render-error screen now pass the mobile static checks.
 - **Notarized release artifact:** Apple accepted submission
   `21de2fc8-b4de-431c-a03e-c16430aded2a`; the stapled DMG passes Gatekeeper as
+  a Notarized Developer ID artifact.
+- **Flipped-icon release artifact:** Apple accepted submission
+  `41cd2f68-5134-44ac-bc14-cb433d6b7674`; the stapled DMG passes Gatekeeper as
   a Notarized Developer ID artifact.
 - Removed dead UI component exports, cleared stale Tauri build cache from the
   pre-rename path, and refreshed the file-watcher handoff note.
