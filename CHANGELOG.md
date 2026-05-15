@@ -26,6 +26,10 @@ Updated every session via `/save-session`.
   WOFF fallback font assets, and added an explicit SVG favicon. Production
   preview Lighthouse improved from 88 to 97, with initial transfer dropping
   from 384 KiB to 191 KiB.
+- **Startup polish:** Claude availability and notes-folder config now load in
+  parallel behind one smooth startup state instead of separate loading flashes.
+- **Visual QA cleanup:** viewport safe-area metadata, touch-safe hover styling,
+  and the render-error screen now pass the mobile static checks.
 - Removed dead UI component exports, cleared stale Tauri build cache from the
   pre-rename path, and refreshed the file-watcher handoff note.
 - Verified the rename with `npm run lint`, `npm run build`,

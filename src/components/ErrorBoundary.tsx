@@ -21,24 +21,10 @@ export default class ErrorBoundary extends React.Component<
   render() {
     if (this.state.error) {
       return (
-        <div
-          style={{
-            padding: 32,
-            fontFamily: "system-ui, sans-serif",
-            color: "#111",
-            background: "#fff",
-            minHeight: "100vh",
-          }}
-        >
-          <h1 style={{ color: "#c00", marginBottom: 16 }}>Render error</h1>
+        <div className="min-h-dvh bg-background p-8 font-sans text-foreground">
+          <h1 className="mb-4 text-lg font-semibold text-destructive">Render error</h1>
           <pre
-            style={{
-              whiteSpace: "pre-wrap",
-              background: "#f5f5f5",
-              padding: 12,
-              borderRadius: 6,
-              fontSize: 13,
-            }}
+            className="whitespace-pre-wrap rounded-md bg-muted p-3 font-mono text-xs leading-relaxed"
           >
             {this.state.error.message}
             {"\n\n"}
