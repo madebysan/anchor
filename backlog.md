@@ -14,7 +14,8 @@ auto-apply and multi-document comment regression coverage, clearer Claude
 failure states, non-blocking comment loading, editor chrome trimming,
 before/after diff mode, startup performance polish, visual QA cleanup, and
 signed and notarized macOS distribution all shipped.** App name is now Anchor.
-Remaining branding work is icon/README/release polish.
+The right sidebar now separates anchored Comments from document-level Chat for
+Q&A and global edits. Remaining branding work is icon/README/release polish.
 
 ---
 

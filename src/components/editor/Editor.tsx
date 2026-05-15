@@ -51,7 +51,7 @@ interface EditorProps {
 const defaultContent = `<h1>Welcome to Anchor</h1>
 <p>This is a document editor where AI lives in the margins. Select any text and click "Comment" to start a conversation about it.</p>
 <h2>How it works</h2>
-<p>Anchor lets you have AI-powered conversations anchored to specific passages in your document. Instead of a separate chat sidebar, your AI interactions live right where the text is.</p>
+<p>Anchor keeps passage comments anchored in the margins, and keeps document-wide AI work in the Chat tab.</p>
 <p>Try selecting some text and adding a comment. You can type regular comments, or type <strong>@</strong> to see available AI triggers like <strong>@copywriter</strong>, <strong>@editor</strong>, <strong>@researcher</strong>, or <strong>@challenger</strong>.</p>
 <h2>Example passage</h2>
 <p>The quick brown fox jumped over the lazy dog. This sentence contains every letter of the English alphabet, making it useful for typography testing. It has been used by typists and designers since the late 19th century.</p>

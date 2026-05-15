@@ -258,7 +258,7 @@ function isCommentThread(value: unknown): value is CommentThread {
   return (
     typeof value.id === "string" &&
     typeof value.selectedText === "string" &&
-    (value.intent === undefined || value.intent === "note" || value.intent === "ai") &&
+    (value.intent === undefined || value.intent === "note" || value.intent === "ai" || value.intent === "chat") &&
     (anchor === undefined || isCommentAnchor(anchor)) &&
     Array.isArray(messages) &&
     messages.every(isThreadMessage) &&
@@ -296,6 +296,13 @@ function isAppliedEdit(value: unknown): value is NonNullable<CommentThread["mess
     typeof value.id === "string" &&
     typeof value.originalText === "string" &&
     typeof value.replacementText === "string" &&
+    (
+      value.scope === undefined ||
+      value.scope === "selection" ||
+      value.scope === "replace-all" ||
+      value.scope === "document"
+    ) &&
+    (value.occurrenceCount === undefined || typeof value.occurrenceCount === "number") &&
     (value.status === "applied" || value.status === "reverted")
   );
 }

@@ -16,6 +16,12 @@ Updated every session via `/save-session`.
 - **Ask AI at cursor:** the comments panel now offers a document-level AI entry
   point so new text can be drafted from the caret without selecting existing
   text first.
+- **Sidebar Chat mode:** the right sidebar now separates anchored Comments from
+  document-level Chat, so users can ask questions and request global edits
+  without selecting text first.
+- **Chat-driven global edits:** Chat can run document-wide rename/replace-all
+  actions and whole-document transformations such as translation through
+  editor-owned operations instead of Claude writing files directly.
 - **No copy-paste edit fallback:** document-level edit requests without a
   selected target now ask for a selection or caret insertion instead of drafting
   text for the user to paste manually.
@@ -43,6 +49,8 @@ Updated every session via `/save-session`.
 - **Discussion grounding:** document-level discussion prompts now include the
   routed document snapshot so ordinary questions can answer from current editor
   context without modifying the file.
+- Added browser coverage for Chat Q&A, no-selection document-wide rename,
+  whole-document translation, and the existing selected-text rewrite path.
 - Added browser coverage for AI rewrite diff rendering and reverting an
   applied edit back to the original selected passage.
 - Added browser coverage for document-level AI insertion so direct insert

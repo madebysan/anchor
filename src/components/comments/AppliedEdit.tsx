@@ -9,12 +9,19 @@ interface AppliedEditProps {
 
 export default function AppliedEdit({ edit, onRevert }: AppliedEditProps) {
   const isReverted = edit.status === "reverted";
+  const title = isReverted
+    ? "Edit reverted"
+    : edit.scope === "replace-all"
+      ? `Replaced ${edit.occurrenceCount ?? 0} occurrence${edit.occurrenceCount === 1 ? "" : "s"}`
+    : edit.scope === "document"
+      ? "Replaced document"
+    : "Applied edit";
 
   return (
     <div className="rounded-md border border-border bg-background p-3 text-sm">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-muted-foreground">
-          {isReverted ? "Edit reverted" : "Applied edit"}
+          {title}
         </p>
         {!isReverted && onRevert && (
           <Button
