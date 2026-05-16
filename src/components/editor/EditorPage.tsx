@@ -21,7 +21,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { DocumentSnapshot } from "@/lib/ai/context-router";
 import type { AppliedEdit, CommentThread, SuggestedEdit } from "@/types";
-import type { Mark } from "@tiptap/pm/model";
+import { DOMParser as ProseMirrorDOMParser, type Mark } from "@tiptap/pm/model";
 import type { Editor as TiptapEditor } from "@tiptap/react";
 import { GripVertical } from "lucide-react";
 
@@ -33,6 +33,19 @@ interface NotesChangedPayload {
 const NOTES_REFRESH_DEBOUNCE_MS = 250;
 const NOTES_POLL_INTERVAL_MS = 3000;
 const EDITOR_CONTENT_SYNC_DEBOUNCE_MS = 200;
+
+function looksLikeStructuredMarkdown(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (/^#{1,6}\s+\S/m.test(trimmed)) return true;
+  if (/^[-*+]\s+\S/m.test(trimmed)) return true;
+  if (/^\d+\.\s+\S/m.test(trimmed)) return true;
+  if (/^>\s+\S/m.test(trimmed)) return true;
+  if (/```[\s\S]*```/.test(trimmed)) return true;
+  if (/^\|.+\|\s*$/m.test(trimmed) && /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/m.test(trimmed)) return true;
+  if (/<table[\s>]/i.test(trimmed)) return true;
+  return false;
+}
 const AISettingsDialog = lazy(() => import("./AISettingsDialog"));
 
 function rangeHasCommentMark(
@@ -101,12 +114,30 @@ function applyReplacementWithHighlight(
     marks.push(editHighlight.create({ id: highlightId }));
   }
 
-  const tr = replacement.length > 0
-    ? editor.state.tr.replaceWith(markFrom, markTo, editor.schema.text(replacement, marks))
-    : editor.state.tr.delete(markFrom, markTo);
-  editor.view.dispatch(tr);
+  if (replacement.length === 0) {
+    editor.view.dispatch(editor.state.tr.delete(markFrom, markTo));
+    return { from: markFrom, to: markFrom };
+  }
 
-  const range = { from: markFrom, to: markFrom + replacement.length };
+  let range = { from: markFrom, to: markFrom + replacement.length };
+  if (looksLikeStructuredMarkdown(replacement)) {
+    const html = markdownToHtml(replacement);
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = html;
+    const slice = ProseMirrorDOMParser
+      .fromSchema(editor.state.schema)
+      .parseSlice(wrapper);
+    let tr = editor.state.tr.replaceRange(markFrom, markTo, slice);
+    range = { from: markFrom, to: markFrom + slice.size };
+    for (const mark of marks) {
+      tr = tr.addMark(range.from, range.to, mark);
+    }
+    editor.view.dispatch(tr);
+  } else {
+    const tr = editor.state.tr.replaceWith(markFrom, markTo, editor.schema.text(replacement, marks));
+    editor.view.dispatch(tr);
+  }
+
   if (editHighlight) {
     window.setTimeout(() => {
       if (editor.isDestroyed) return;

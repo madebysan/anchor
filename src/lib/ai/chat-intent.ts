@@ -34,6 +34,8 @@ const QUESTION_STARTERS =
   /^(what|why|how|when|where|who|which|can you explain|tell me|summarize)\b/;
 const QUALITY_EDIT_PATTERN =
   /\b(make|improve|polish|clean up|tighten|revise)\b.*\b(better|clearer|stronger|shorter|longer|punchier|section|intro|paragraph|argument|copy)\b/;
+const FORMAT_REPAIR_PATTERN =
+  /\b(fix|repair|format|convert|clean up)\b.*\b(table|markdown|format|formatting)\b|\b(table|markdown|format|formatting)\b.*\b(fix|repair|format|convert|clean up)\b/;
 
 export function classifyChatRequest({
   message,
@@ -165,5 +167,9 @@ function isQuestionRequest(normalized: string): boolean {
 
 function isDocumentEditRequest(normalized: string): boolean {
   if (isQuestionRequest(normalized)) return false;
-  return DOCUMENT_EDIT_VERBS.test(normalized) || QUALITY_EDIT_PATTERN.test(normalized);
+  return (
+    DOCUMENT_EDIT_VERBS.test(normalized) ||
+    QUALITY_EDIT_PATTERN.test(normalized) ||
+    FORMAT_REPAIR_PATTERN.test(normalized)
+  );
 }

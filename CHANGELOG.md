@@ -30,6 +30,8 @@ Updated every session via `/save-session`.
 - **Chat append edits:** follow-up requests like "add those bullet points at
   the end of the document" now append a new section directly instead of asking
   the user to move the caret.
+- **Markdown table edits:** generated markdown tables now render as real editor
+  tables, save back to markdown tables, and can be fixed by follow-up AI edits.
 - **No copy-paste edit fallback:** document-level edit requests without a
   selected target now ask for a selection or caret insertion instead of drafting
   text for the user to paste manually.

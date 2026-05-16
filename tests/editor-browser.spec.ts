@@ -10,6 +10,7 @@ interface TauriMockOptions {
   aiFailure?: string;
   aiDelayMs?: number;
   aiOutput?: string;
+  aiOutputs?: string[];
   noteContent?: string;
 }
 
@@ -27,6 +28,7 @@ async function installTauriMock(
       aiFailure,
       aiDelayMs,
       aiOutput,
+      aiOutputs,
       noteContent,
     }) => {
       interface MockNote {
@@ -108,6 +110,7 @@ async function installTauriMock(
       };
 
       const state = parseStoredState();
+      const queuedAiOutputs = [...(aiOutputs ?? [])];
 
       const persist = () => {
         localStorage.setItem(
@@ -226,7 +229,11 @@ async function installTauriMock(
               if (aiFailure) {
                 return { success: false, output: "", error: aiFailure };
               }
-              return { success: true, output: aiOutput ?? replacementText, error: null };
+              return {
+                success: true,
+                output: queuedAiOutputs.shift() ?? aiOutput ?? replacementText,
+                error: null,
+              };
             case "ai_invoke_claude":
               if (aiDelayMs) await delay(aiDelayMs);
               if (aiFailure) {
@@ -239,7 +246,7 @@ async function installTauriMock(
               }
               return {
                 success: true,
-                output: aiOutput ?? replacementText,
+                output: queuedAiOutputs.shift() ?? aiOutput ?? replacementText,
                 error: null,
                 session_id: "browser-test-session",
               };
@@ -277,6 +284,7 @@ async function installTauriMock(
       aiFailure: options.aiFailure,
       aiDelayMs: options.aiDelayMs,
       aiOutput: options.aiOutput,
+      aiOutputs: options.aiOutputs,
       noteContent: options.noteContent,
     },
   );
@@ -742,6 +750,54 @@ test("chat can append prior answer bullets as a new section at document end", as
   expect(prompt).toContain("Prior thread context");
   expect(prompt).toContain("Use prior thread context");
   expect(prompt).not.toContain("Place your caret");
+});
+
+test("chat appends and fixes markdown tables as real tables", async ({ page }) => {
+  const firstTable = [
+    "## Ghost vs Substack",
+    "",
+    "| Feature | Ghost | Substack |",
+    "| --- | --- | --- |",
+    "| Pricing | Paid | Free with platform fee |",
+    "| Hosting | Self-hosted or managed | Hosted only |",
+  ].join("\n");
+  const fixedTable = [
+    "## Ghost vs Substack vs Mataroa",
+    "",
+    "| Feature | Ghost | Substack | Mataroa |",
+    "| --- | --- | --- | --- |",
+    "| Pricing | Paid | Free with platform fee | Paid |",
+    "| Hosting | Self-hosted or managed | Hosted only | Hosted |",
+  ].join("\n");
+  await installTauriMock(page, {
+    aiOutputs: [firstTable, fixedTable],
+    noteContent: ["# Browser Test", "", "Body paragraph."].join("\n"),
+  });
+  await page.goto("/");
+
+  await page.getByRole("tab", { name: /Chat/ }).click();
+  const messageInput = page.getByRole("textbox", { name: "Chat message" });
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("add a markdown table comparing Ghost and Substack at the end of the document");
+  await page.getByRole("button", { name: "Send chat message" }).click();
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor.locator("table")).toHaveCount(1);
+  await expect(editor.locator("table")).toContainText("Ghost");
+  await expect(editor.locator("table")).toContainText("Substack");
+  await expect(editor.locator("table")).not.toContainText("Mataroa");
+  await expect.poll(() => savedMarkdown(page)).toContain("| Feature | Ghost | Substack |");
+
+  await messageInput.fill("the table doesn't look like a table fix it");
+  await page.getByRole("button", { name: "Send chat message" }).click();
+
+  await expect(editor.locator("table")).toHaveCount(1);
+  await expect(editor.locator("table")).toContainText("Mataroa");
+  await expect.poll(() => savedMarkdown(page)).toContain("| Feature | Ghost | Substack | Mataroa |");
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("The passage to replace");
+  expect(prompt).toContain("the table doesn't look like a table fix it");
 });
 
 test("selection Ask AI switches from Chat to the new comment thread", async ({ page }) => {
