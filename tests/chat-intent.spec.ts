@@ -16,6 +16,7 @@ test("chat edit requests default to whole-document edits without selection", () 
   expect(classify("translate to spanish").intent).toBe("replace-document");
   expect(classify("rewrite the intro").intent).toBe("replace-document");
   expect(classify("make the intro better").intent).toBe("replace-document");
+  expect(classify("the table doesn't look like a table fix it").intent).toBe("replace-document");
 });
 
 test("chat questions and summaries stay conversational", () => {

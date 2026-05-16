@@ -18,3 +18,19 @@ test("fenced code blocks survive markdown conversion", () => {
   expect(markdown).toContain("```ts");
   expect(markdown).toContain("const value = 1;");
 });
+
+test("markdown tables round-trip as markdown tables", () => {
+  const table = [
+    "| Feature | Ghost | Substack |",
+    "| --- | --- | --- |",
+    "| Pricing | Paid | Free with fee |",
+    "| Custom domain | Yes | Paid add-on |",
+  ].join("\n");
+  const html = markdownToHtml(table);
+  const markdown = htmlToMarkdown(html);
+
+  expect(html).toContain("<table>");
+  expect(markdown).toContain("| Feature | Ghost | Substack |");
+  expect(markdown).toContain("| --- | --- | --- |");
+  expect(markdown).toContain("| Pricing | Paid | Free with fee |");
+});

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { DOMParser as ProseMirrorDOMParser } from "@tiptap/pm/model";
 import StarterKit from "@tiptap/starter-kit";
+import { TableKit } from "@tiptap/extension-table";
 import Placeholder from "@tiptap/extension-placeholder";
 import { CommentMark } from "@/extensions/comment-mark";
 import { EditHighlight } from "@/extensions/edit-highlight";
@@ -82,6 +83,7 @@ export default function Editor({
     immediatelyRender: false,
     extensions: [
       StarterKit,
+      TableKit,
       Placeholder.configure({
         placeholder: "Start writing, or paste some text...",
       }),
