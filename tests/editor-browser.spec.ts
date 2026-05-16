@@ -786,6 +786,8 @@ test("chat appends and fixes markdown tables as real tables", async ({ page }) =
   await expect(editor.locator("table")).toContainText("Ghost");
   await expect(editor.locator("table")).toContainText("Substack");
   await expect(editor.locator("table")).not.toContainText("Mataroa");
+  await expect(editor.locator("mark.comment-highlight")).toHaveCount(0);
+  await expect(editor.locator("mark.edit-highlight")).toHaveCount(0, { timeout: 5000 });
   await expect.poll(() => savedMarkdown(page)).toContain("| Feature | Ghost | Substack |");
 
   await messageInput.fill("the table doesn't look like a table fix it");
@@ -793,11 +795,18 @@ test("chat appends and fixes markdown tables as real tables", async ({ page }) =
 
   await expect(editor.locator("table")).toHaveCount(1);
   await expect(editor.locator("table")).toContainText("Mataroa");
+  await expect(editor.locator("mark.comment-highlight")).toHaveCount(0);
+  await expect(editor.locator("mark.edit-highlight")).toHaveCount(0, { timeout: 5000 });
   await expect.poll(() => savedMarkdown(page)).toContain("| Feature | Ghost | Substack | Mataroa |");
 
   const prompt = await latestClaudePrompt(page);
   expect(prompt).toContain("The passage to replace");
   expect(prompt).toContain("the table doesn't look like a table fix it");
+
+  await page.reload();
+  const reloadedEditor = page.locator(".ProseMirror");
+  await expect(reloadedEditor.locator("table")).toHaveCount(1);
+  await expect(reloadedEditor.locator("mark.comment-highlight")).toHaveCount(0);
 });
 
 test("selection Ask AI switches from Chat to the new comment thread", async ({ page }) => {

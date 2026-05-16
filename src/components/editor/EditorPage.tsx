@@ -73,6 +73,7 @@ function restoreCommentMarks(editor: TiptapEditor, threads: CommentThread[]): vo
   let modified = false;
   for (const thread of threads) {
     if (thread.status !== "active") continue;
+    if (thread.intent === "chat") continue;
     const range = findThreadRange(editor, thread);
     if (!range) continue;
     if (rangeHasCommentMark(editor, range.from, range.to, thread.id)) continue;
@@ -85,27 +86,20 @@ function restoreCommentMarks(editor: TiptapEditor, threads: CommentThread[]): vo
 
 function applyReplacementWithHighlight(
   editor: TiptapEditor,
-  threadId: string,
+  thread: CommentThread,
   replacement: string,
 ): { from: number; to: number } | null {
-  const { doc } = editor.state;
-  let markFrom: number | null = null;
-  let markTo: number | null = null;
-
-  doc.descendants((node, pos) => {
-    node.marks.forEach((mark) => {
-      if (mark.type.name === "comment" && mark.attrs.commentId === threadId) {
-        if (markFrom === null) markFrom = pos;
-        markTo = pos + node.nodeSize;
-      }
-    });
-  });
-
-  if (markFrom === null || markTo === null) return null;
+  const threadId = thread.id;
+  const existingRange = thread.intent === "chat"
+    ? findStoredAnchorRange(editor, thread)
+    : findThreadRange(editor, thread);
+  if (!existingRange) return null;
+  const markFrom = existingRange.from;
+  const markTo = existingRange.to;
 
   const marks = [];
   const commentMark = editor.schema.marks.comment;
-  if (commentMark) {
+  if (commentMark && thread.intent !== "chat") {
     marks.push(commentMark.create({ commentId: threadId }));
   }
   const editHighlight = editor.schema.marks.editHighlight;
@@ -153,6 +147,23 @@ function applyReplacementWithHighlight(
   return range;
 }
 
+function findStoredAnchorRange(
+  editor: TiptapEditor,
+  thread: CommentThread,
+): { from: number; to: number } | null {
+  const from = thread.anchor?.pmFrom;
+  const to = thread.anchor?.pmTo;
+  if (typeof from !== "number" || typeof to !== "number") {
+    return findThreadRange(editor, thread);
+  }
+
+  const boundedFrom = Math.max(0, Math.min(from, editor.state.doc.content.size));
+  const boundedTo = Math.max(boundedFrom, Math.min(to, editor.state.doc.content.size));
+  if (boundedTo <= boundedFrom) return findThreadRange(editor, thread);
+
+  return { from: boundedFrom, to: boundedTo };
+}
+
 function applyInsertionWithHighlight(
   editor: TiptapEditor,
   thread: CommentThread,
@@ -175,7 +186,7 @@ function applyInsertionWithHighlight(
 
   const marks = [];
   const commentMark = editor.schema.marks.comment;
-  if (commentMark) {
+  if (commentMark && thread.intent !== "chat") {
     marks.push(commentMark.create({ commentId: thread.id }));
   }
   const editHighlight = editor.schema.marks.editHighlight;
@@ -222,7 +233,7 @@ function applyDocumentEndInsertionWithHighlight(
   const highlightId = `edit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
   let tr = editor.state.tr;
-  if (commentMark) {
+  if (commentMark && thread.intent !== "chat") {
     tr = tr.addMark(from, to, commentMark.create({ commentId: thread.id }));
   }
   if (editHighlight) {
@@ -722,7 +733,7 @@ export default function EditorPage({
       const replacement = (input as { replacement?: unknown }).replacement;
       if (typeof replacement !== "string") return;
 
-      const range = applyReplacementWithHighlight(editor, threadId, replacement);
+      const range = applyReplacementWithHighlight(editor, threadBeforeEdit, replacement);
       if (!range) return;
 
       store.setLastAssistantAppliedEdit(threadId, {
@@ -1018,9 +1029,12 @@ export default function EditorPage({
       const editor = editorRef.current;
       if (!editor) return;
 
+      const thread = useDocumentStore.getState().threads.find((item) => item.id === threadId);
+      if (!thread) return;
+
       const range = applyReplacementWithHighlight(
         editor,
-        threadId,
+        thread,
         suggestion.suggestedText,
       );
 
@@ -1086,7 +1100,10 @@ export default function EditorPage({
         return;
       }
 
-      const range = applyReplacementWithHighlight(editor, threadId, edit.originalText);
+      const thread = store.threads.find((item) => item.id === threadId);
+      if (!thread) return;
+
+      const range = applyReplacementWithHighlight(editor, thread, edit.originalText);
       if (!range) return;
 
       store.updateThread(threadId, (thread) => ({
