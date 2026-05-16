@@ -121,6 +121,11 @@ the product is stable enough to commit to identity:
   restoring sidecar-backed comments plus visual comment marks.
 - Current concrete Playwright targets are covered. Add new tests when a risky
   editor, persistence, or sidebar flow changes.
+- [ ] **Fresh DMG manual QA pass** - rebuild a notarized DMG from the latest
+  table-edit/chat-routing build, install it, and manually test the same real
+  flows that surfaced issues: append a new section from Chat, generate and fix
+  a markdown table, replace selected text through Ask AI, and run a
+  document-wide edit without selecting text.
 
 ---
 
