@@ -29,3 +29,6 @@ yarn-error.log*
 
 # claude
 .claude/settings.local.json
+
+# profiling runs
+/scripts/profile-logs
