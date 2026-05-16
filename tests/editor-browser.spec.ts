@@ -14,6 +14,14 @@ interface TauriMockOptions {
   noteContent?: string;
 }
 
+interface ExternalNotesApi {
+  addFolder: (id: string) => void;
+  addNote: (id: string, content: string) => void;
+  moveNote: (oldId: string, newId: string) => void;
+  deleteNote: (id: string) => void;
+  emitNotesChanged: (path?: string) => void;
+}
+
 async function installTauriMock(
   page: Page,
   options: TauriMockOptions = {},
@@ -39,8 +47,32 @@ async function installTauriMock(
         modified: number;
       }
 
+      interface MockFolder {
+        id: string;
+        path: string;
+        name: string;
+      }
+
+      type MockTreeNode =
+        | {
+            type: "file";
+            id: string;
+            path: string;
+            title: string;
+            content: string;
+            modified: number;
+          }
+        | {
+            type: "folder";
+            id: string;
+            path: string;
+            name: string;
+            children: MockTreeNode[];
+          };
+
       interface MockState {
         notes: MockNote[];
+        folders: MockFolder[];
         threads: Record<string, string>;
         invocations: Array<{ cmd: string; args: Record<string, unknown> }>;
       }
@@ -65,6 +97,7 @@ async function installTauriMock(
           unregisterListener: (event: string, eventId: number) => void;
         };
         __inlineMdTest: MockState;
+        __inlineMdTestApi: ExternalNotesApi;
       }
 
       const win = window as unknown as TestWindow;
@@ -94,6 +127,7 @@ async function installTauriMock(
             modified: nowSeconds(),
           },
         ],
+        folders: [],
         threads: {},
         invocations: [],
       });
@@ -104,6 +138,7 @@ async function installTauriMock(
         const parsed = JSON.parse(raw) as Partial<MockState>;
         return {
           notes: parsed.notes ?? freshState().notes,
+          folders: parsed.folders ?? [],
           threads: parsed.threads ?? {},
           invocations: [],
         };
@@ -115,7 +150,11 @@ async function installTauriMock(
       const persist = () => {
         localStorage.setItem(
           storageKey,
-          JSON.stringify({ notes: state.notes, threads: state.threads }),
+          JSON.stringify({
+            notes: state.notes,
+            folders: state.folders,
+            threads: state.threads,
+          }),
         );
       };
 
@@ -141,6 +180,21 @@ async function installTauriMock(
       const findNote = (id: string) => state.notes.find((note) => note.id === id);
       const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+      const upsertFolder = (id: string): MockFolder => {
+        const existing = state.folders.find((folder) => folder.id === id);
+        if (existing) return existing;
+        const name = id.split("/").pop() ?? id;
+        const folder = {
+          id,
+          path: `/mock-notes/${id}`,
+          name,
+        };
+        state.folders.push(folder);
+        persist();
+        publish();
+        return folder;
+      };
+
       const upsertNote = (id: string, content: string): MockNote => {
         const title = id.split("/").pop() ?? id;
         const next: MockNote = {
@@ -161,8 +215,80 @@ async function installTauriMock(
         return next;
       };
 
+      const buildNoteTree = (): MockTreeNode[] => {
+        const roots: MockTreeNode[] = [];
+        const folders = new Map<string, Extract<MockTreeNode, { type: "folder" }>>();
+
+        const ensureFolder = (id: string): Extract<MockTreeNode, { type: "folder" }> => {
+          const existing = folders.get(id);
+          if (existing) return existing;
+
+          const slashIndex = id.lastIndexOf("/");
+          const parentId = slashIndex === -1 ? "" : id.slice(0, slashIndex);
+          const name = slashIndex === -1 ? id : id.slice(slashIndex + 1);
+          const folder: Extract<MockTreeNode, { type: "folder" }> = {
+            type: "folder",
+            id,
+            path: `/mock-notes/${id}`,
+            name,
+            children: [],
+          };
+          folders.set(id, folder);
+
+          if (parentId) {
+            ensureFolder(parentId).children.push(folder);
+          } else {
+            roots.push(folder);
+          }
+
+          return folder;
+        };
+
+        for (const folder of state.folders) {
+          ensureFolder(folder.id);
+        }
+
+        for (const note of state.notes) {
+          const slashIndex = note.id.lastIndexOf("/");
+          const fileNode: MockTreeNode = { type: "file", ...note };
+          if (slashIndex === -1) {
+            roots.push(fileNode);
+          } else {
+            ensureFolder(note.id.slice(0, slashIndex)).children.push(fileNode);
+          }
+        }
+
+        return roots;
+      };
+
       let nextCallbackId = 1;
       const callbacks = new Map<number, (payload: unknown) => void>();
+      const emitNotesChanged = (path?: string) => {
+        for (const callback of callbacks.values()) {
+          callback({ event: "notes-changed", payload: { path } });
+        }
+      };
+
+      win.__inlineMdTestApi = {
+        addFolder: (id) => {
+          upsertFolder(id);
+        },
+        addNote: (id, content) => {
+          upsertNote(id, content);
+        },
+        moveNote: (oldId, newId) => {
+          const note = findNote(oldId);
+          if (!note) throw new Error(`Missing note: ${oldId}`);
+          state.notes = state.notes.filter((item) => item.id !== oldId);
+          upsertNote(newId, note.content);
+        },
+        deleteNote: (id) => {
+          state.notes = state.notes.filter((note) => note.id !== id);
+          persist();
+          publish();
+        },
+        emitNotesChanged,
+      };
 
       win.__TAURI_INTERNALS__ = {
         invoke: async (cmd, rawArgs = {}) => {
@@ -175,10 +301,7 @@ async function installTauriMock(
             case "get_notes_folder":
               return "/mock-notes";
             case "list_note_tree":
-              return state.notes.map((note) => ({
-                type: "file",
-                ...note,
-              }));
+              return buildNoteTree();
             case "read_note": {
               const id = stringArg(args, "id");
               const note = findNote(id);
@@ -208,6 +331,9 @@ async function installTauriMock(
               state.notes = state.notes.filter((note) => note.id !== stringArg(args, "id"));
               persist();
               publish();
+              return null;
+            case "create_folder":
+              upsertFolder(stringArg(args, "id"));
               return null;
             case "rename_note": {
               const oldId = stringArg(args, "oldId");
@@ -379,6 +505,31 @@ async function latestClaudePrompt(page: Page): Promise<string> {
       win.__inlineMdTest?.invocations.filter((item) => item.cmd === "ai_invoke_claude") ?? [];
     return invocations.at(-1)?.args.prompt ?? "";
   });
+}
+
+async function expectNoEditorHighlights(page: Page): Promise<void> {
+  const editor = page.locator(".ProseMirror");
+  await expect(editor.locator("mark.comment-highlight")).toHaveCount(0);
+  await expect(editor.locator("mark.edit-highlight")).toHaveCount(0, { timeout: 5000 });
+}
+
+async function submitChatMessage(page: Page, message: string): Promise<void> {
+  await page.getByRole("tab", { name: /Chat/ }).click();
+  const messageInput = page.getByRole("textbox", { name: "Chat message" });
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill(message);
+  await page.getByRole("button", { name: "Send chat message" }).click();
+}
+
+async function clickLatestRevert(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Revert" }).last().click();
+}
+
+async function emitExternalNotesChange(page: Page, path?: string): Promise<void> {
+  await page.evaluate((changedPath) => {
+    const win = window as unknown as { __inlineMdTestApi: ExternalNotesApi };
+    win.__inlineMdTestApi.emitNotesChanged(changedPath);
+  }, path);
 }
 
 test("comment rewrite auto-applies, highlights, and survives markdown reload", async ({ page }) => {
@@ -807,6 +958,166 @@ test("chat appends and fixes markdown tables as real tables", async ({ page }) =
   const reloadedEditor = page.locator(".ProseMirror");
   await expect(reloadedEditor.locator("table")).toHaveCount(1);
   await expect(reloadedEditor.locator("mark.comment-highlight")).toHaveCount(0);
+});
+
+test("release candidate revert matrix covers chat append, document replace, and replace-all", async ({ page }) => {
+  await installTauriMock(page, {
+    noteContent: ["# Browser Test", "", "John met John near the pier."].join("\n"),
+    aiOutputs: [
+      ["## Action Items", "", "- Confirm the plan", "- Send the recap"].join("\n"),
+      ["# Browser Test", "", "Documento traducido."].join("\n"),
+      "Martin",
+    ],
+  });
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor).toContainText("John met John near the pier.");
+
+  await submitChatMessage(page, "add an action items section at the end of the document");
+  await expect(editor).toContainText("Action Items");
+  await expect(editor.locator("li")).toContainText(["Confirm the plan", "Send the recap"]);
+  await expectNoEditorHighlights(page);
+  await clickLatestRevert(page);
+  await expect(editor).not.toContainText("Action Items");
+  await expect(editor).toContainText("John met John near the pier.");
+  await expectNoEditorHighlights(page);
+
+  await submitChatMessage(page, "translate the document to spanish");
+  await expect(editor).toContainText("Documento traducido.");
+  await expect(editor).not.toContainText("John met John near the pier.");
+  await expectNoEditorHighlights(page);
+  await clickLatestRevert(page);
+  await expect(editor).toContainText("John met John near the pier.");
+  await expect(editor).not.toContainText("Documento traducido.");
+  await expectNoEditorHighlights(page);
+
+  await submitChatMessage(page, "John is now called Martin everywhere");
+  await expect(editor).toContainText("Martin met Martin near the pier.");
+  await expect(editor).not.toContainText("John met John near the pier.");
+  await expectNoEditorHighlights(page);
+  await clickLatestRevert(page);
+  await expect(editor).toContainText("John met John near the pier.");
+  await expect(editor).not.toContainText("Martin met Martin near the pier.");
+  await expectNoEditorHighlights(page);
+});
+
+test("chat document edits preserve mixed markdown shapes without ghost highlights", async ({ page }) => {
+  const mixedMarkdown = [
+    "# Release Candidate Notes",
+    "",
+    "## Summary",
+    "",
+    "- Chat edits apply directly.",
+    "- Comments stay anchored.",
+    "",
+    "1. Run automated QA.",
+    "2. Build one DMG.",
+    "",
+    "> Manual QA should be the final pass, not the first detector.",
+    "",
+    "```js",
+    "console.log('anchor qa');",
+    "```",
+    "",
+    "| Area | Status |",
+    "| --- | --- |",
+    "| Chat | Covered |",
+  ].join("\n");
+
+  await installTauriMock(page, { aiOutput: mixedMarkdown });
+  await page.goto("/");
+
+  await submitChatMessage(page, "rewrite this document into a structured markdown brief");
+
+  const editor = page.locator(".ProseMirror");
+  await expect(editor.getByRole("heading", { name: "Release Candidate Notes" })).toBeVisible();
+  await expect(editor.locator("ul li")).toHaveCount(2);
+  await expect(editor.locator("ol li")).toHaveCount(2);
+  await expect(editor.locator("blockquote")).toContainText("Manual QA should be the final pass");
+  await expect(editor.locator("pre code")).toContainText("console.log('anchor qa');");
+  await expect(editor.locator("table")).toContainText("Chat");
+  await expectNoEditorHighlights(page);
+  await expect.poll(() => savedMarkdown(page)).toContain("| Area | Status |");
+
+  await page.reload();
+  const reloadedEditor = page.locator(".ProseMirror");
+  await expect(reloadedEditor.locator("table")).toContainText("Covered");
+  await expect(reloadedEditor.locator("mark.comment-highlight")).toHaveCount(0);
+});
+
+test("chat follow-up edits target the previous inserted range without visible anchors", async ({ page }) => {
+  const firstList = ["## Weekly Plan", "", "- Monday planning", "- Tuesday writing"].join("\n");
+  const replacementTable = [
+    "## Weekly Plan",
+    "",
+    "| Day | Focus |",
+    "| --- | --- |",
+    "| Monday | Planning |",
+    "| Tuesday | Writing |",
+  ].join("\n");
+  await installTauriMock(page, {
+    aiOutputs: [firstList, replacementTable],
+    noteContent: ["# Browser Test", "", "Intro stays in place."].join("\n"),
+  });
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await submitChatMessage(page, "add a weekly plan list at the end of the document");
+  await expect(editor).toContainText("Intro stays in place.");
+  await expect(editor.locator("ul li")).toHaveCount(2);
+  await expectNoEditorHighlights(page);
+
+  await submitChatMessage(page, "convert that list into a table");
+  await expect(editor).toContainText("Intro stays in place.");
+  await expect(editor.locator("ul li")).toHaveCount(0);
+  await expect(editor.locator("table")).toContainText("Monday");
+  await expect(editor.locator("table")).toContainText("Tuesday");
+  await expectNoEditorHighlights(page);
+  await expect.poll(() => savedMarkdown(page)).toContain("| Day | Focus |");
+});
+
+test("external filesystem refresh covers empty folders, new notes, active moves, and active deletes", async ({ page }) => {
+  await installTauriMock(page, {
+    noteContent: ["# Browser Test", "", "Original body from the active file."].join("\n"),
+  });
+  await page.goto("/");
+
+  const documentsSidebar = page.getByLabel("Documents");
+  const editor = page.locator(".ProseMirror");
+  await expect(documentsSidebar).toContainText("Browser Test");
+  await expect(editor).toContainText("Original body from the active file.");
+
+  await page.evaluate(() => {
+    const win = window as unknown as { __inlineMdTestApi: ExternalNotesApi };
+    win.__inlineMdTestApi.addFolder("Inbox");
+  });
+  await emitExternalNotesChange(page, "/mock-notes/Inbox");
+  await expect(documentsSidebar.getByText("Inbox")).toBeVisible();
+
+  await page.evaluate(() => {
+    const win = window as unknown as { __inlineMdTestApi: ExternalNotesApi };
+    win.__inlineMdTestApi.addNote("Inbox/From Finder", "# From Finder\n\nNew body from Finder.");
+  });
+  await emitExternalNotesChange(page, "/mock-notes/Inbox/From Finder.md");
+  await documentsSidebar.getByRole("button", { name: /Inbox/ }).click();
+  await expect(documentsSidebar).toContainText("From Finder");
+
+  await page.evaluate(() => {
+    const win = window as unknown as { __inlineMdTestApi: ExternalNotesApi };
+    win.__inlineMdTestApi.moveNote("Browser Test", "Inbox/Browser Test");
+  });
+  await emitExternalNotesChange(page, "/mock-notes/Inbox/Browser Test.md");
+  await expect(editor).toContainText("Original body from the active file.");
+  await expect(documentsSidebar).toContainText("Browser Test");
+
+  await page.evaluate(() => {
+    const win = window as unknown as { __inlineMdTestApi: ExternalNotesApi };
+    win.__inlineMdTestApi.deleteNote("Inbox/Browser Test");
+  });
+  await emitExternalNotesChange(page, "/mock-notes/Inbox/Browser Test.md");
+  await expect(editor).toContainText("New body from Finder.");
+  await expect(editor).not.toContainText("Original body from the active file.");
 });
 
 test("selection Ask AI switches from Chat to the new comment thread", async ({ page }) => {
