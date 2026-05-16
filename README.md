@@ -1,57 +1,66 @@
-# Anchor
+<p><img src="assets/app-icon.png" width="128" height="128" alt="Anchor app icon"></p>
 
-A desktop document editor where AI instructions live anchored to your text. Highlight a passage, type an instruction, and your local Claude Code edits the file in place. ⌘Z if you don't like it.
+<h1>Anchor</h1>
 
-No API keys. Markdown files on disk. Cross-platform via Tauri.
+<p>Write markdown files on your Mac and ask Claude Code to edit the exact passage you mean.<br>
+Comments stay tied to text. Chat works on the whole document.</p>
 
-## How it works
+<p><strong>Version 0.1.0</strong> · macOS · Apple Silicon</p>
 
-1. Open a folder of `.md` files.
-2. Pick a note. Highlight a passage.
-3. Add a comment with an instruction (`@editor fix the grammar`, `@copywriter tighten this`).
-4. Local Claude Code reads the file, applies the edit, saves.
-5. The change is highlighted. Keep it (do nothing) or ⌘Z to revert.
+<p>
+  <img src="https://img.shields.io/badge/Tauri-24c8db" alt="Tauri">
+  <img src="https://img.shields.io/badge/React-61dafb" alt="React">
+  <img src="https://img.shields.io/badge/TypeScript-3178c6" alt="TypeScript">
+  <img src="https://img.shields.io/badge/macOS-000000" alt="macOS">
+</p>
 
-## Why this exists
+<p><a href="https://github.com/madebysan/anchor/releases/latest">Download Anchor</a></p>
 
-inlineai (the web parent) is a Vercel-deployed React app that calls the Anthropic API directly. Each comment costs tokens, every key is in the bundle, and notes live in localStorage. Anchor fixes all three:
+Anchor is a local markdown editor built around a small annoyance: AI edits are useful, but copy/paste from a chat thread is not. In Anchor, you can select a paragraph and ask for a rewrite directly in place, or use the Chat tab for document-wide changes like summaries, translation, global renames, and appending new sections.
 
-- **Uses Claude Code locally.** Auth lives in your `~/.claude/`. Your Pro/Max subscription quota covers it. No API key flow.
-- **Files on disk.** Notes are real `.md` files in a folder you choose. Open them in any editor. No storage quota.
-- **Native desktop.** Tauri shell, ~10MB binary, no bundled Chromium.
+It uses your local [Claude Code](https://docs.anthropic.com/en/docs/claude-code) install. There is no API-key screen in Anchor and no hosted document store. Your notes stay as `.md` files in the folder you choose.
 
-## Status
+## Install
 
-Forked from inlineai 2026-05-06, then shipped as a working .app the same day.
+Download the latest DMG from [Releases](https://github.com/madebysan/anchor/releases/latest), open it, and drag Anchor into Applications.
 
-**What works:**
-- Tauri shell + Vite + React + Tiptap editor
-- Local Claude Code integration: per-doc sessions (token-cheap follow-ups across comments), prompt-injected today's date, `--resume` with auto-retry on session expiry
-- Hierarchical sidebar — folders + nested `.md` files, empty folders, search, expand/collapse persistence, context menus for common file/folder actions
-- Personas: editor / copywriter / researcher / challenger; default-persona setting; `Note:` opt-out for plain notes; per-comment persona override dropdown
-- Auto-apply UX — claude's response replaces the highlighted passage in the editor; ⌘Z reverts
-- Comment anchors restore visual highlights after markdown reload when the original passage can still be found
-- Settings dialog (General / Personas / Shortcuts) with notes folder, theme, editor size, line height, reset
-- Native save dialogs for export, native folder picker for notes location, Reveal in Finder
-- macOS `.app` bundle with PATH augmentation so it finds `claude` outside Finder's default PATH
+Requirements:
 
-**Known limitations:**
-- Comment anchor restoration is still best-effort. If the anchored passage is heavily rewritten outside the app, Anchor may not be able to reattach the visual highlight.
-- File moving is intentionally conservative: move-to-folder uses known folders from the sidebar rather than a free-form picker.
-- Release builds are signed and notarized when built through the release scripts.
+- macOS on Apple Silicon.
+- Claude Code installed and signed in from Terminal.
+- A folder of markdown files, or an empty folder where Anchor can create them.
 
-See [`backlog.md`](backlog.md) for the work list.
+On first launch, pick the folder Anchor should use. The sidebar follows the folder structure on disk, including empty folders, and refreshes when files change outside the app.
 
-## Build
+## How I use it
+
+Select text and choose **Add Comment** when you just want to leave yourself a note. Choose **Ask AI** when you want Claude to rewrite that passage. The edit applies directly in the document and can be reverted from the thread.
+
+Use **Chat** for anything that should treat the whole document as context: summarize this, translate the document, rename John to Martin everywhere, append a table at the end, or fix the section that was just added.
+
+## Working With Files
+
+Anchor reads and writes plain markdown. Comment threads live in sidecar files next to the note, using the pattern `<note>.md.threads.json`. If you open the markdown elsewhere, the text is still just markdown.
+
+## Development
 
 ```bash
 npm install
-npm run tauri dev      # dev window with hot reload
-npm run tauri build    # signed/notarizable .app + .dmg
+npm run tauri dev
 ```
 
-Requires Node 18+ and Rust 1.77+ (`rustup` or `brew install rust`).
+Release builds use:
 
-## Made by
+```bash
+npm run release:mac
+```
 
-[santiagoalonso.com](https://santiagoalonso.com)
+That builds the app, signs the DMG, submits it for notarization, staples the result, and runs the local Gatekeeper check.
+
+## Known Limitations
+
+The current release is Apple Silicon only. Comment anchor restoration is best-effort if the underlying passage is heavily rewritten outside the app. Structural edits that move text between two separate locations are intentionally not auto-applied yet.
+
+For feedback, open an issue in this repo.
+
+Made by [santiagoalonso.com](https://santiagoalonso.com)

@@ -20,6 +20,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+__pycache__/
 
 # env
 .env*
@@ -28,7 +29,14 @@ yarn-error.log*
 *.tsbuildinfo
 
 # claude
+.claude/
 .claude/settings.local.json
 
 # profiling runs
+/scripts/profile-anchor.py
 /scripts/profile-logs
+
+# local planning / agent notes
+AGENTS.md
+backlog.md
+plan.md
