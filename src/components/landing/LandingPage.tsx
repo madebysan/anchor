@@ -311,7 +311,7 @@ export default function LandingPage() {
             )}
           </section>
 
-          <section className="border-t border-[var(--landing-line)] py-12">
+          <section className="py-12">
             <h2 className="anchor-landing-display text-balance text-[clamp(2.25rem,5vw,3.25rem)] leading-none">
               Keep the document in charge.
             </h2>
