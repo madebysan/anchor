@@ -32,7 +32,7 @@ export default function InstallClaudeScreen({
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col items-center justify-center gap-8 bg-background p-8 text-center">
+    <main className="flex h-screen w-screen flex-col items-center justify-center gap-8 bg-background p-8 text-center">
       <div className="max-w-lg space-y-4">
         <h1 className="text-3xl font-semibold tracking-tight">
           {isInstalled ? "Finish Claude Code Setup" : "Install Claude Code"}
@@ -57,7 +57,7 @@ export default function InstallClaudeScreen({
                   href="https://claude.ai/code"
                   target="_blank"
                   rel="noreferrer"
-                  className="underline hover:text-foreground"
+                  className="inline-flex min-h-11 items-center align-middle underline hover:text-foreground"
                 >
                   claude.ai/code
                 </a>{" "}
@@ -73,10 +73,10 @@ export default function InstallClaudeScreen({
         </div>
       </div>
       <div className="flex flex-col items-center gap-3">
-        <Button onClick={recheck} size="lg" disabled={checking}>
+        <Button onClick={recheck} size="lg" disabled={checking} className="min-h-11">
           {checking ? "Checking…" : "Recheck"}
         </Button>
       </div>
-    </div>
+    </main>
   );
 }

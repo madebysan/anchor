@@ -28,7 +28,7 @@ export default function OnboardingScreen({ onFolderChosen }: OnboardingScreenPro
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col items-center justify-center gap-8 bg-background p-8 text-center">
+    <main className="flex h-screen w-screen flex-col items-center justify-center gap-8 bg-background p-8 text-center">
       <div className="max-w-md space-y-4">
         <h1 className="text-3xl font-semibold tracking-tight">Anchor</h1>
         <p className="text-base text-muted-foreground">
@@ -44,6 +44,6 @@ export default function OnboardingScreen({ onFolderChosen }: OnboardingScreenPro
       {error && (
         <p className="max-w-md text-sm text-destructive">{error}</p>
       )}
-    </div>
+    </main>
   );
 }

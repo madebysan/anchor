@@ -191,6 +191,19 @@
   }
 }
 
+:where(
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [tabindex]:not([tabindex="-1"])
+):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
 .anchor-landing {
   --landing-bg: oklch(0.985 0.008 88);
   --landing-ink: oklch(0.18 0.005 75);
@@ -218,6 +231,15 @@
 
 .anchor-landing .font-mono {
   font-family: var(--font-ibm-plex-mono);
+}
+
+.anchor-landing :where(
+  a,
+  button,
+  [role="button"],
+  [tabindex]:not([tabindex="-1"])
+):focus-visible {
+  outline-color: var(--landing-ink);
 }
 
 .anchor-motion-in {
