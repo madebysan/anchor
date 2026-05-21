@@ -292,8 +292,14 @@
   transform: translateY(-2px);
 }
 
+.anchor-cta-button--primary {
+  background: var(--landing-ink);
+  color: var(--landing-bg);
+}
+
 .anchor-cta-button--primary:hover {
   background: oklch(0.23 0.006 75);
+  color: var(--landing-bg);
 }
 
 .anchor-cta-button--secondary:hover {
@@ -314,6 +320,11 @@
 
 .anchor-cta-button--secondary .anchor-cta-icon {
   background: var(--landing-soft);
+}
+
+.anchor-cta-button--primary .anchor-cta-icon {
+  background: oklch(1 0 0 / 14%);
+  color: var(--landing-bg);
 }
 
 .anchor-note-card-stack {
