@@ -463,6 +463,65 @@ async function selectEditorText(page: Page, text: string): Promise<void> {
   }, text);
 }
 
+async function selectEditorTextRange(
+  page: Page,
+  startText: string,
+  endText: string,
+): Promise<void> {
+  await page.locator(".ProseMirror").click();
+  await page.evaluate(
+    ({ startText: rangeStartText, endText: rangeEndText }) => {
+      const editor = document.querySelector(".ProseMirror");
+      if (!(editor instanceof HTMLElement)) {
+        throw new Error("Missing editor");
+      }
+
+      const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+      let current = walker.nextNode();
+      let startNode: Node | null = null;
+      let startOffset = 0;
+      let endNode: Node | null = null;
+      let endOffset = 0;
+
+      while (current) {
+        const content = current.textContent ?? "";
+        if (!startNode) {
+          const startIndex = content.indexOf(rangeStartText);
+          if (startIndex !== -1) {
+            startNode = current;
+            startOffset = startIndex;
+          }
+        }
+
+        if (startNode) {
+          const endIndex = content.indexOf(rangeEndText);
+          if (endIndex !== -1) {
+            endNode = current;
+            endOffset = endIndex + rangeEndText.length;
+          }
+        }
+
+        if (startNode && endNode) break;
+        current = walker.nextNode();
+      }
+
+      if (!startNode || !endNode) {
+        throw new Error(`Could not select range: ${rangeStartText} -> ${rangeEndText}`);
+      }
+
+      const range = document.createRange();
+      range.setStart(startNode, startOffset);
+      range.setEnd(endNode, endOffset);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      editor.focus();
+      document.dispatchEvent(new Event("selectionchange"));
+    },
+    { startText, endText },
+  );
+}
+
 async function setEditorCaretAfterText(page: Page, text: string): Promise<void> {
   await page.locator(".ProseMirror").click();
   await page.evaluate((targetText) => {
@@ -635,6 +694,58 @@ test("comment rewrite preserves markdown list formatting returned by Claude", as
 
   const prompt = await latestClaudePrompt(page);
   expect(prompt).toContain("If the passage is a list, return a list");
+});
+
+test("comment rewrite preserves selected list shape when Claude returns a flattened paragraph", async ({ page }) => {
+  const openQuestions = [
+    "Should the set be black and white or muted color?",
+    "Does the route need a stronger ending shot?",
+    "Is this a standalone post, or the first entry in a recurring weekend series?",
+    "Should the captions mention camera settings, or would that make the piece feel too technical?",
+  ];
+  const flattenedAnswer = [
+    `${openQuestions[0]} Muted color, the morning palette is part of the story.`,
+    `${openQuestions[1]} Yes, end on a wide frame at the park entrance.`,
+    `${openQuestions[2]} First entry in a recurring series, posted every other Sunday.`,
+    `${openQuestions[3]} Skip the settings; keep captions short and observational.`,
+  ].join(" ");
+
+  await installTauriMock(page, {
+    aiOutput: flattenedAnswer,
+    noteContent: [
+      "# Browser Test",
+      "",
+      "## Open Questions",
+      "",
+      ...openQuestions.map((question) => `- ${question}`),
+    ].join("\n"),
+  });
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await selectEditorTextRange(page, openQuestions[0], openQuestions[openQuestions.length - 1]);
+  await clickSelectionAction(page, "Ask AI");
+
+  const messageInput = page.getByLabel("Comment message");
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("add answers to these questions");
+  await page.getByLabel("Send comment").click();
+
+  await expect(editor.locator("ul li")).toHaveCount(4);
+  await expect(editor.locator("ul li").nth(0)).toContainText("Muted color");
+  await expect(editor.locator("ul li").nth(1)).toContainText("Yes, end on a wide frame");
+  await expect(editor.locator("ul li").nth(3)).toContainText("Skip the settings");
+
+  await expect.poll(() => savedMarkdown(page)).toMatch(
+    /^-\s+Should the set be black and white or muted color\? Muted color/m,
+  );
+  const markdown = await savedMarkdown(page);
+  expect(markdown).toMatch(/^-\s+Should the set be black and white or muted color\? Muted color/m);
+  expect(markdown).toMatch(/^-\s+Does the route need a stronger ending shot\? Yes/m);
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("- Should the set be black and white or muted color?");
+  expect(prompt).toContain("keep one output list item for each input list item");
 });
 
 test("explicit persona in a plain comment applies the selected passage edit", async ({ page }) => {
