@@ -202,7 +202,7 @@ export default function LandingPage() {
         <header className="flex justify-center">
           <a
             href="#product"
-            className="inline-flex size-11 items-center justify-center rounded-2xl bg-white/70 shadow-[0_10px_28px_var(--landing-card-shadow)] transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_var(--landing-card-hover-shadow)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--landing-ink)]"
+            className="inline-flex size-[3.4375rem] items-center justify-center rounded-[1.35rem] bg-white/70 shadow-[0_10px_28px_var(--landing-card-shadow)] transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_var(--landing-card-hover-shadow)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--landing-ink)]"
             aria-label="Anchor landing page"
           >
             <img
@@ -210,7 +210,7 @@ export default function LandingPage() {
               width={256}
               height={256}
               alt=""
-              className="size-8 rounded-xl"
+              className="size-10 rounded-[0.9rem]"
             />
           </a>
         </header>
