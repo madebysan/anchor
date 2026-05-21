@@ -153,6 +153,39 @@ const personaItems = [
   },
 ] as const;
 
+const faqItems = [
+  {
+    question: "Do I need a Claude API key?",
+    answer:
+      "No. Anchor uses the Claude Code app you already sign in to. There is no API key screen in Anchor.",
+  },
+  {
+    question: "Where do my notes and threads live?",
+    answer:
+      "Your notes stay as markdown files in the folder you choose. Anchor stores sidecar thread files next to those notes, so the context stays portable with the project.",
+  },
+  {
+    question: "Does Anchor upload my whole workspace?",
+    answer:
+      "No hosted workspace. When you ask for help, Anchor sends the selected passage or the needed note context through Claude Code for that request.",
+  },
+  {
+    question: "Can I use an existing notes folder?",
+    answer:
+      "Yes. Point Anchor at a local markdown folder and keep using the file structure you already have.",
+  },
+  {
+    question: "What are AI writing agents here?",
+    answer:
+      "They are personas you define with instructions, context, and standards. One can rewrite in your voice, another can review logic, another can turn notes into tasks.",
+  },
+  {
+    question: "What happens if an AI edit is wrong?",
+    answer:
+      "Applied edits keep a visible revert path. The markdown file remains the source of truth, so you can review the change before moving on.",
+  },
+] as const;
+
 export default function LandingPage() {
   const [isScreenshotLoaded, setIsScreenshotLoaded] = useState(false);
   const [isDemoVideoActive, setIsDemoVideoActive] = useState(false);
@@ -489,6 +522,34 @@ export default function LandingPage() {
                   </article>
                 );
               })}
+            </div>
+          </section>
+
+          <section className="border-t border-[var(--landing-line)] py-12">
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.08em] text-[var(--landing-muted)]">
+              FAQ
+            </p>
+            <h2 className="anchor-landing-display mt-3 max-w-[560px] text-balance text-[clamp(2.25rem,5vw,3.25rem)] leading-none">
+              Practical questions before you try it.
+            </h2>
+
+            <div className="mt-8 divide-y divide-[var(--landing-line)] border-y border-[var(--landing-line)]">
+              {faqItems.map((item) => (
+                <details key={item.question} className="group py-4">
+                  <summary className="flex cursor-pointer list-none items-start justify-between gap-5 text-lg font-bold marker:hidden focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--landing-ink)] [&::-webkit-details-marker]:hidden">
+                    <span>{item.question}</span>
+                    <span
+                      aria-hidden="true"
+                      className="mt-1 font-mono text-xl leading-none text-[var(--landing-muted)] transition-transform duration-200 group-open:rotate-45"
+                    >
+                      +
+                    </span>
+                  </summary>
+                  <p className="mt-3 max-w-[590px] text-pretty leading-7 text-[var(--landing-muted)]">
+                    {item.answer}
+                  </p>
+                </details>
+              ))}
             </div>
           </section>
 
