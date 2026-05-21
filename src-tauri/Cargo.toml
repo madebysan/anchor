@@ -1,6 +1,6 @@
 [package]
 name = "anchor"
-version = "0.1.0"
+version = "0.1.1"
 description = "Document editor where AI instructions are anchored to text passages."
 authors = ["Santiago Alonso"]
 license = "MIT"

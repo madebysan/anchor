@@ -7,11 +7,17 @@ hung on this machine before.
 ## Unsigned Local Build
 
 ```bash
-npm run tauri build -- --bundles app --no-sign
+npm run tauri build -- --target universal-apple-darwin --bundles app --no-sign
 ```
 
 The macOS app lands at
-`src-tauri/target/release/bundle/macos/Anchor.app`.
+`src-tauri/target/universal-apple-darwin/release/bundle/macos/Anchor.app`.
+
+Universal builds require Rust std targets for both Mac architectures:
+
+```bash
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+```
 
 ## Unsigned Local DMG
 
@@ -34,7 +40,7 @@ identity, creates the DMG, signs the DMG, verifies the image checksum, and
 prints the artifact path:
 
 ```text
-src-tauri/target/release/bundle/dmg/Anchor_0.1.0_aarch64.dmg
+src-tauri/target/universal-apple-darwin/release/bundle/dmg/Anchor_0.1.1_universal.dmg
 ```
 
 Current signing identity:
@@ -62,20 +68,21 @@ npm run release:mac
 Expected validation commands:
 
 ```bash
-spctl --assess --type open --context context:primary-signature --verbose=4 "src-tauri/target/release/bundle/dmg/Anchor_0.1.0_aarch64.dmg"
-spctl --assess --type execute --verbose=4 "src-tauri/target/release/bundle/macos/Anchor.app"
-codesign --verify --deep --strict --verbose=4 "src-tauri/target/release/bundle/macos/Anchor.app"
-hdiutil verify "src-tauri/target/release/bundle/dmg/Anchor_0.1.0_aarch64.dmg"
+spctl --assess --type open --context context:primary-signature --verbose=4 "src-tauri/target/universal-apple-darwin/release/bundle/dmg/Anchor_0.1.1_universal.dmg"
+spctl --assess --type execute --verbose=4 "src-tauri/target/universal-apple-darwin/release/bundle/macos/Anchor.app"
+codesign --verify --deep --strict --verbose=4 "src-tauri/target/universal-apple-darwin/release/bundle/macos/Anchor.app"
+hdiutil verify "src-tauri/target/universal-apple-darwin/release/bundle/dmg/Anchor_0.1.1_universal.dmg"
 ```
 
 Last verified notarized release:
 
 ```text
 Status: Accepted
-Release: Anchor 0.1.0
-Tag: v0.1.0
-Asset: Anchor-0.1.0-Apple-Silicon.dmg
-SHA256: db5eca71d7e46740890ed607655a3c760bc75ded7e57b03579cdea79947c2ac7
+Release: Anchor 0.1.1
+Tag: v0.1.1
+Asset: Anchor-0.1.1-macOS-universal.dmg
+Notarization ID: e68bb318-5057-4743-b1d2-8a4ddb735f62
+SHA256: 7c5db4a6034436a387a3013bd821438741dc11cfb0482851a9da70e7dec2c85e
 ```
 
 ## DMG Design
