@@ -2,6 +2,7 @@ use crate::config::ConfigState;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
+use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Output, Stdio};
@@ -252,7 +253,7 @@ fn check_claude_status_blocking() -> ClaudeStatus {
 
 fn claude_auth_status_command() -> Command {
     let mut cmd = Command::new("claude");
-    remove_claude_billing_env(&mut cmd);
+    configure_claude_process(&mut cmd);
     cmd.arg("auth")
         .arg("status")
         .stdin(Stdio::null())
@@ -387,8 +388,76 @@ fn remove_claude_billing_env(cmd: &mut Command) {
     cmd.env_remove("ANTHROPIC_AUTH_TOKEN");
 }
 
-fn apply_claude_base_args(cmd: &mut Command, tool_policy: ClaudeToolPolicy) {
+fn claude_working_dir() -> PathBuf {
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(home) = env::var_os("HOME") {
+            return PathBuf::from(home)
+                .join("Library")
+                .join("Application Support")
+                .join("com.santiagoalonso.anchor")
+                .join("claude");
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(appdata) = env::var_os("APPDATA") {
+            return PathBuf::from(appdata)
+                .join("com.santiagoalonso.anchor")
+                .join("claude");
+        }
+    }
+
+    if let Some(data_home) = env::var_os("XDG_DATA_HOME") {
+        return PathBuf::from(data_home)
+            .join("com.santiagoalonso.anchor")
+            .join("claude");
+    }
+
+    if let Some(home) = env::var_os("HOME") {
+        return PathBuf::from(home)
+            .join(".local")
+            .join("share")
+            .join("com.santiagoalonso.anchor")
+            .join("claude");
+    }
+
+    env::temp_dir()
+        .join("com.santiagoalonso.anchor")
+        .join("claude")
+}
+
+fn prepare_claude_working_dir() -> Result<PathBuf, String> {
+    let dir = claude_working_dir();
+    fs::create_dir_all(&dir).map_err(|e| format!("create claude working dir: {e}"))?;
+
+    // san's local Claude/Codex hooks honor this sentinel. Creating it in
+    // Anchor's private CLI cwd prevents hook-written recent.md files from
+    // touching watched source folders during dev.
+    let no_recent = dir.join(".no-recent");
+    if !no_recent.exists() {
+        fs::write(&no_recent, "").map_err(|e| format!("write claude .no-recent: {e}"))?;
+    }
+
+    Ok(dir)
+}
+
+fn configure_claude_process(cmd: &mut Command) {
     remove_claude_billing_env(cmd);
+
+    match prepare_claude_working_dir() {
+        Ok(dir) => {
+            cmd.current_dir(dir);
+        }
+        Err(e) => {
+            log::warn!("claude working dir setup failed: {e}");
+        }
+    }
+}
+
+fn apply_claude_base_args(cmd: &mut Command, tool_policy: ClaudeToolPolicy) {
+    configure_claude_process(cmd);
 
     cmd.arg("--dangerously-skip-permissions").arg("--print");
 
@@ -632,6 +701,19 @@ mod tests {
             .any(|(key, value)| key == OsStr::new("ANTHROPIC_API_KEY") && value.is_none());
 
         assert!(removes_api_key);
+    }
+
+    #[test]
+    fn sets_private_working_dir_for_claude_process() {
+        let mut cmd = Command::new("claude");
+        apply_claude_base_args(&mut cmd, ClaudeToolPolicy::NoTools);
+
+        let current_dir = cmd
+            .get_current_dir()
+            .expect("claude command should have a private cwd");
+
+        assert!(current_dir.ends_with(Path::new("com.santiagoalonso.anchor/claude")));
+        assert!(current_dir.join(".no-recent").exists());
     }
 
     #[test]
