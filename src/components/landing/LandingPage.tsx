@@ -486,25 +486,44 @@ export default function LandingPage() {
           </section>
 
           <section className="border-t border-[var(--landing-line)] py-12 sm:py-16">
-            <h2 className="anchor-landing-display max-w-[620px] text-balance text-[clamp(3.2rem,8vw,5.5rem)] leading-[0.93]">
+            <h2 className="anchor-landing-display max-w-[560px] text-balance text-[clamp(2.35rem,5vw,3.45rem)] leading-[0.96]">
               Keep the file. Ask Claude at the exact spot.
             </h2>
-            <Button
-              asChild
-              className="anchor-cta-button anchor-cta-button--primary mt-7 h-auto rounded-full px-4 py-2.5 text-base font-bold"
-            >
-              <a href={releaseUrl}>
-                <span className="anchor-cta-icon">
-                  <Download aria-hidden="true" className="size-4" />
-                </span>
-                <span className="flex flex-col items-start leading-none">
-                  <span>Download for Mac</span>
-                  <span className="mt-1 font-mono text-[0.68rem] font-normal uppercase tracking-[0.08em] opacity-70">
-                    Latest release
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Button
+                asChild
+                className="anchor-cta-button anchor-cta-button--primary h-auto rounded-full px-4 py-2.5 text-base font-bold"
+              >
+                <a href={releaseUrl}>
+                  <span className="anchor-cta-icon">
+                    <Download aria-hidden="true" className="size-4" />
                   </span>
-                </span>
-              </a>
-            </Button>
+                  <span className="flex flex-col items-start leading-none">
+                    <span>Download for Mac</span>
+                    <span className="mt-1 font-mono text-[0.68rem] font-normal uppercase tracking-[0.08em] opacity-70">
+                      Latest release
+                    </span>
+                  </span>
+                </a>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                className="anchor-cta-button anchor-cta-button--secondary h-auto rounded-full border-[var(--landing-line)] bg-white/55 px-4 py-2.5 text-base"
+              >
+                <a href={githubUrl}>
+                  <span className="anchor-cta-icon">
+                    <Github aria-hidden="true" className="size-4" />
+                  </span>
+                  <span className="flex flex-col items-start leading-none">
+                    <span>View source</span>
+                    <span className="mt-1 font-mono text-[0.68rem] font-normal uppercase tracking-[0.08em] opacity-65">
+                      GitHub repo
+                    </span>
+                  </span>
+                </a>
+              </Button>
+            </div>
           </section>
         </main>
 
