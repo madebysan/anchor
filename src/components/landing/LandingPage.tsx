@@ -391,7 +391,7 @@ export default function LandingPage() {
 
           <section
             id="local-first"
-            className="border-t border-[var(--landing-line)] py-12"
+            className="py-12"
           >
             <p className="font-mono text-xs font-bold uppercase tracking-[0.08em] text-[var(--landing-muted)]">
               Who it is for
