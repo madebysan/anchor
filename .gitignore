@@ -41,4 +41,8 @@ recent.md
 AGENTS.md
 backlog.md
 plan.md
+
+# project-cleanup:start
+_archived/
+# project-cleanup:end
 .vercel
