@@ -425,7 +425,7 @@ export default function LandingPage() {
               })}
             </div>
 
-            <div className="mt-8 grid border-t border-[var(--landing-line)] sm:grid-cols-2">
+            <div className="mt-7 grid border-t border-[var(--landing-line)] sm:grid-cols-2">
               {detailItems.map((item, index) => {
                 const Icon = item.icon;
                 const isLastItem = index === detailItems.length - 1;
@@ -435,18 +435,18 @@ export default function LandingPage() {
                   <article
                     key={item.title}
                     className={[
-                      "min-h-20 border-[var(--landing-line)] py-4 sm:pr-5 sm:even:pl-5 sm:odd:border-r",
+                      "grid min-h-20 grid-cols-[2.25rem_1fr] gap-x-3 gap-y-2 border-[var(--landing-line)] px-1 py-4 sm:px-6 sm:py-5 sm:odd:border-r",
                       isLastItem ? "border-b-0" : "border-b",
                       isDesktopLastRow ? "sm:border-b-0" : "sm:border-b",
                     ].join(" ")}
                   >
-                    <div className="mb-3 flex items-center gap-3">
-                      <span className="inline-flex size-8 items-center justify-center rounded-full bg-[var(--landing-soft)]">
-                        <Icon aria-hidden="true" className="size-4" />
-                      </span>
-                      <h3 className="font-bold">{item.title}</h3>
-                    </div>
-                    <p className="font-mono text-sm leading-6 text-[var(--landing-muted)]">
+                    <span className="inline-flex size-8 items-center justify-center rounded-full bg-[var(--landing-soft)]">
+                      <Icon aria-hidden="true" className="size-4" />
+                    </span>
+                    <h3 className="min-w-0 self-center font-bold">
+                      {item.title}
+                    </h3>
+                    <p className="col-start-2 font-mono text-sm leading-6 text-pretty text-[var(--landing-muted)]">
                       {item.description}
                     </p>
                   </article>
