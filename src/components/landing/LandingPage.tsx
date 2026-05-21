@@ -28,6 +28,9 @@ import { Button } from "@/components/ui/button";
 const releaseUrl = "https://github.com/madebysan/anchor/releases/latest";
 const githubUrl = "https://github.com/madebysan/anchor";
 const demoVideoUrl = "/anchor-demo.mp4";
+const pageTitle = "Anchor - AI Writing Agents for Local Markdown Drafts";
+const pageDescription =
+  "Anchor lets you collaborate with AI writers inside local markdown notes, from first idea to final draft, without copying files into a hosted workspace.";
 
 const workflowItems = [
   {
@@ -197,11 +200,8 @@ export default function LandingPage() {
     const description = document.querySelector('meta[name="description"]');
     const previousDescription = description?.getAttribute("content");
 
-    document.title = "Anchor - AI Writing Agents for Local Markdown";
-    description?.setAttribute(
-      "content",
-      "Build your own team of AI writing agents for local markdown notes, with Claude Code working beside the file you keep.",
-    );
+    document.title = pageTitle;
+    description?.setAttribute("content", pageDescription);
 
     return () => {
       document.title = previousTitle;
