@@ -554,7 +554,7 @@ export default function LandingPage() {
 
           <section className="py-12 sm:py-16">
             <h2 className="anchor-landing-display max-w-[560px] text-balance text-[clamp(2.35rem,5vw,3.45rem)] leading-[0.96]">
-              Keep the file. Ask Claude at the exact spot.
+              Keep momentum from first note to final draft.
             </h2>
             <div className="mt-7 flex flex-wrap gap-3">
               <Button
