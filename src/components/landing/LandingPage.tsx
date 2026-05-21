@@ -289,7 +289,7 @@ export default function LandingPage() {
               preload="metadata"
               poster={appScreenshot}
               onLoadedData={() => setIsDemoVideoLoaded(true)}
-              className="anchor-screenshot-image block aspect-video w-full rounded-[1.125rem] border border-[var(--landing-line)] bg-black object-contain shadow-[0_20px_60px_var(--landing-shadow)]"
+              className="anchor-screenshot-image block aspect-[16/10] w-full rounded-[1.125rem] border border-[var(--landing-line)] bg-black object-cover shadow-[0_20px_60px_var(--landing-shadow)]"
             >
               <a href={demoVideoUrl}>Download the Anchor demo video</a>
             </video>
