@@ -528,7 +528,17 @@ export default function LandingPage() {
         </main>
 
         <footer className="flex flex-col gap-4 border-t border-[var(--landing-line)] py-8 text-sm text-[var(--landing-muted)] sm:flex-row sm:items-start sm:justify-between">
-          <p>Made by santiagoalonso.com</p>
+          <p>
+            Made by{" "}
+            <a
+              href="https://santiagoalonso.com"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-[var(--landing-ink)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--landing-ink)]"
+            >
+              santiagoalonso.com
+            </a>
+          </p>
           <div className="flex gap-4">
             <a
               href={githubUrl}
