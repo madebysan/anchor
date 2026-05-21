@@ -21,7 +21,14 @@ interface StartupState {
 }
 
 function isLandingRoute() {
-  return window.location.pathname === "/landing";
+  const isTauriRuntime =
+    "__TAURI__" in window || "__TAURI_INTERNALS__" in window;
+
+  if (isTauriRuntime) {
+    return window.location.pathname === "/landing";
+  }
+
+  return true;
 }
 
 function LoadingScreen({ label }: { label: string }) {
