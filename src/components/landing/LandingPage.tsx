@@ -426,12 +426,19 @@ export default function LandingPage() {
             </div>
 
             <div className="mt-8 grid border-t border-[var(--landing-line)] sm:grid-cols-2">
-              {detailItems.map((item) => {
+              {detailItems.map((item, index) => {
                 const Icon = item.icon;
+                const isLastItem = index === detailItems.length - 1;
+                const isDesktopLastRow = index >= detailItems.length - 2;
+
                 return (
                   <article
                     key={item.title}
-                    className="min-h-20 border-b border-[var(--landing-line)] py-4 sm:pr-5 sm:even:pl-5 sm:odd:border-r"
+                    className={[
+                      "min-h-20 border-[var(--landing-line)] py-4 sm:pr-5 sm:even:pl-5 sm:odd:border-r",
+                      isLastItem ? "border-b-0" : "border-b",
+                      isDesktopLastRow ? "sm:border-b-0" : "sm:border-b",
+                    ].join(" ")}
                   >
                     <div className="mb-3 flex items-center gap-3">
                       <span className="inline-flex size-8 items-center justify-center rounded-full bg-[var(--landing-soft)]">
