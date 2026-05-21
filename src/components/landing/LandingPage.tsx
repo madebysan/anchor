@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   Code2,
   Download,
   FileText,
   Github,
+  Languages,
+  ListChecks,
   MessageSquare,
   Play,
+  TextCursorInput,
   Undo2,
 } from "lucide-react";
 
@@ -36,20 +40,39 @@ const workflowItems = [
   },
 ] as const;
 
+type PromptCardTone = "rewrite" | "whole" | "structure";
+
+interface PromptCard {
+  prompt: string;
+  title: string;
+  detail: string;
+  tone: PromptCardTone;
+  icon: LucideIcon;
+}
+
 const promptCards = [
   {
     prompt: "Tighten this paragraph. Keep the point.",
     title: "Rewrite one passage",
+    detail: "Selection stays scoped",
+    tone: "rewrite",
+    icon: TextCursorInput,
   },
   {
     prompt: "Turn this note into next steps.",
     title: "Work from the whole note",
+    detail: "Whole-note context",
+    tone: "whole",
+    icon: ListChecks,
   },
   {
     prompt: "Translate this section. Keep the headings.",
     title: "Keep structure intact",
+    detail: "Shape stays intact",
+    tone: "structure",
+    icon: Languages,
   },
-] as const;
+] satisfies readonly PromptCard[];
 
 const localFirstItems = [
   {
@@ -255,24 +278,63 @@ export default function LandingPage() {
               ))}
             </div>
 
-            <div className="relative mt-9 min-h-[320px] sm:min-h-[300px]">
-              {promptCards.map((card, index) => (
-                <article
-                  key={card.title}
-                  className={[
-                    "rounded-2xl border border-[var(--landing-line)] bg-white p-5 shadow-[0_16px_45px_var(--landing-card-shadow)] transition-transform duration-200 hover:-translate-y-1",
-                    "sm:absolute sm:min-h-[230px] sm:w-[250px]",
-                    index === 0 ? "sm:left-0 sm:top-6 sm:-rotate-2" : "",
-                    index === 1 ? "mt-4 sm:left-[150px] sm:top-0 sm:z-10 sm:mt-0" : "",
-                    index === 2 ? "mt-4 sm:right-0 sm:top-10 sm:rotate-2 sm:mt-0" : "",
-                  ].join(" ")}
-                >
-                  <p className="font-mono text-sm leading-6 text-[var(--landing-ink)]">
-                    "{card.prompt}"
-                  </p>
-                  <h3 className="mt-8 text-lg font-bold">{card.title}</h3>
-                </article>
-              ))}
+            <div
+              className="anchor-note-card-stack"
+              aria-label="Example Anchor requests"
+            >
+              {promptCards.map((card) => {
+                const Icon = card.icon;
+                return (
+                  <article
+                    key={card.title}
+                    className={[
+                      "anchor-note-card",
+                      `anchor-note-card--${card.tone}`,
+                    ].join(" ")}
+                  >
+                    <div className="anchor-note-card-shell">
+                      <div
+                        className="anchor-note-card-corners"
+                        aria-hidden="true"
+                      >
+                        <span />
+                        <span />
+                      </div>
+
+                      <div className="anchor-note-card-content">
+                        <span
+                          className={[
+                            "anchor-note-card-badge",
+                            `anchor-note-card-badge--${card.tone}`,
+                          ].join(" ")}
+                        >
+                          <Icon aria-hidden="true" className="size-7" />
+                        </span>
+
+                        <div>
+                          <p className="font-mono text-base leading-snug text-[var(--landing-muted)]">
+                            "{card.prompt}"
+                          </p>
+                          <h3 className="mt-4 text-base font-bold">
+                            {card.title}
+                          </h3>
+                          <p className="mt-1 font-mono text-xs leading-5 text-[var(--landing-muted)]">
+                            {card.detail}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div
+                        className="anchor-note-card-corners"
+                        aria-hidden="true"
+                      >
+                        <span />
+                        <span />
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </section>
 
