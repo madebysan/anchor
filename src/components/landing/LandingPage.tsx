@@ -232,7 +232,7 @@ export default function LandingPage() {
               Anchor / Local markdown + Claude Code
             </p>
             <h1 className="anchor-landing-display anchor-motion-in anchor-motion-delay-1 max-w-[660px] text-balance text-[clamp(2.85rem,5vw,3.65rem)] leading-[0.96]">
-              Edit markdown with AI anchored to the words you mean.
+              Collaborate with AI writers inside your local notes.
             </h1>
             <p className="anchor-motion-in anchor-motion-delay-2 mt-4 max-w-[590px] text-pretty text-lg leading-8 text-[var(--landing-muted)]">
               Anchor opens your local notes folder. Select a sentence, ask
