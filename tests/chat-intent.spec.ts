@@ -70,6 +70,17 @@ test("selection comments still route to selected-passage edits", () => {
   }).intent).toBe("selected-passage");
 });
 
+test("selected audience change stays a selected-passage edit", () => {
+  const result = classify("change the audience to be kids and teenage photographers", {
+    hasSelection: true,
+    isChatThread: false,
+    selectedText: "This is for adult beginner photographers.",
+  });
+
+  expect(result.intent).toBe("selected-passage");
+  expect(result.replaceAllInstruction).toBeNull();
+});
+
 test("non-chat no-selection edits still ask for a target", () => {
   expect(classify("rewrite this", {
     isChatThread: false,
