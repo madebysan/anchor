@@ -224,8 +224,7 @@ pub fn rename_note(
     fs::rename(&old_path, &new_path).map_err(|e| format!("rename: {e}"))?;
     if old_threads_path.exists() {
         if let Some(parent) = new_threads_path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("create thread parent dirs: {e}"))?;
+            fs::create_dir_all(parent).map_err(|e| format!("create thread parent dirs: {e}"))?;
         }
         fs::rename(&old_threads_path, &new_threads_path)
             .map_err(|e| format!("rename threads: {e}"))?;
