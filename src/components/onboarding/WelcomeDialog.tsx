@@ -117,8 +117,9 @@ export default function WelcomeDialog() {
         <DialogHeader>
           <DialogTitle>Welcome to Anchor</DialogTitle>
           <DialogDescription>
-            Work in markdown, anchor comments to exact passages, and ask Claude Code
-            to edit the selected text or the whole document.
+            Use the comment workflow you already know from shared docs, but tag
+            Claude Code as the editor. Leave feedback, ask for changes, and keep
+            iterating in your markdown.
           </DialogDescription>
         </DialogHeader>
 
@@ -128,7 +129,7 @@ export default function WelcomeDialog() {
             <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
               <li>Select a sentence, then choose Ask AI for a focused rewrite.</li>
               <li>Use Add Comment when you want a note without calling Claude.</li>
-              <li>Use Chat when the request should use the full document.</li>
+              <li>Use Chat for questions, research notes, or full-document edits.</li>
             </ul>
           </div>
 
