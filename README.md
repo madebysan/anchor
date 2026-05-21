@@ -2,7 +2,7 @@
 
 <h1>Anchor</h1>
 
-<p>Edit markdown with AI anchored to the words you mean.<br>
+<p>Collaborate with AI writers inside your local notes.<br>
 Select a passage, ask Claude Code for a change, and review the edit where you wrote it.</p>
 
 <p><strong>Version 0.1.1</strong> · macOS · Universal</p>
@@ -16,7 +16,7 @@ Select a passage, ask Claude Code for a change, and review the edit where you wr
 
 <p>
   <a href="https://github.com/madebysan/anchor/releases/latest">Download for Mac</a> ·
-  <a href="https://anchor.santiagoalonso.com">Website</a>
+  <a href="https://anchor.santiagoalonso.com">anchor.santiagoalonso.com</a>
 </p>
 
 <video src="public/anchor-demo.mp4" controls muted playsinline>
