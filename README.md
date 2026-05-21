@@ -2,8 +2,8 @@
 
 <h1>Anchor</h1>
 
-<p>Collaborate with AI editors the way you already work with a team.<br>
-Leave comments, ask for edits or research notes, and iterate inside your markdown.</p>
+<p>Edit markdown with AI anchored to the words you mean.<br>
+Select a passage, ask Claude Code for a change, and review the edit where you wrote it.</p>
 
 <p><strong>Version 0.1.1</strong> · macOS · Universal</p>
 
@@ -15,15 +15,15 @@ Leave comments, ask for edits or research notes, and iterate inside your markdow
 </p>
 
 <p>
-  <a href="https://github.com/madebysan/anchor/releases/latest">Download Anchor</a> ·
-  <a href="https://anchor.santiagoalonso.com">Landing page</a>
+  <a href="https://github.com/madebysan/anchor/releases/latest">Download for Mac</a> ·
+  <a href="https://anchor.santiagoalonso.com">Website</a>
 </p>
 
 <video src="public/anchor-demo.mp4" controls muted playsinline>
   <a href="public/anchor-demo.mp4">Watch the Anchor demo video</a>
 </video>
 
-Anchor brings the comment loop from Google Docs into a local markdown editor. The difference is that the editor you tag is Claude Code. Leave feedback on a passage, ask for a rewrite, or use the Chat tab for document-wide changes like summaries, translation, global renames, research notes, and appending new sections.
+Anchor brings the comment loop from Google Docs into a local markdown editor. Select a sentence, leave a note, or ask Claude Code to rewrite the passage. The edit lands inside the document with the thread beside it and a revert path if it misses.
 
 It uses your local [Claude Code](https://docs.anthropic.com/en/docs/claude-code) install. There is no API-key screen in Anchor and no hosted document store. On launch, Anchor checks that Claude Code is installed and signed in before it opens the editor. If you have `ANTHROPIC_API_KEY` set in your shell, Anchor removes it before launching Claude so Claude Code uses your signed-in account instead of API credits. Your notes stay as `.md` files in the folder you choose. When you ask AI to work on text, the selected passage or relevant document context is sent through Claude Code; Anchor does not send notes anywhere on its own.
 
@@ -39,11 +39,11 @@ Requirements:
 
 On first launch, pick the folder Anchor should use. The sidebar follows the folder structure on disk, including empty folders, and refreshes when files change outside the app.
 
-## How I use it
+## How It Works
 
-Select text and choose **Add Comment** when you just want to leave yourself a note. Choose **Ask AI** when you want Claude to rewrite that passage. The edit applies directly in the document and can be reverted from the thread.
+Use **Add Comment** for plain notes and **Ask AI** when you want the selected passage rewritten. Anchor keeps the request tied to that passage, so follow-ups do not drift away from the sentence you meant.
 
-Use **Chat** for anything that should treat the whole document as context: summarize this, translate the document, rename John to Martin everywhere, append a table at the end, or fix the section that was just added.
+Use **Chat** when the request needs the whole note: summarize this, translate the document, rename John to Martin everywhere, append a table at the end, or fix the section that was just added.
 
 ## Working With Files
 
