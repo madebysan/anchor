@@ -12,8 +12,9 @@ use tauri::Manager;
 /// invisible. Augment PATH at startup with common dev-tool locations so our
 /// own `find_in_path` and subprocess spawns can locate them.
 fn augment_path() {
-    let mut paths: Vec<PathBuf> =
-        std::env::var_os("PATH").map(|p| std::env::split_paths(&p).collect()).unwrap_or_default();
+    let mut paths: Vec<PathBuf> = std::env::var_os("PATH")
+        .map(|p| std::env::split_paths(&p).collect())
+        .unwrap_or_default();
 
     let mut extras: Vec<PathBuf> = vec![
         PathBuf::from("/opt/homebrew/bin"),

@@ -74,7 +74,8 @@ fn handle_event(app: &AppHandle, state: &WatcherState, event: Event) {
             .and_then(|e| e.to_str())
             .map(|e| e.to_ascii_lowercase());
         let is_markdown = extension.as_deref() == Some("md");
-        let is_structural = matches!(kind, "created" | "removed" | "renamed") && extension.is_none();
+        let is_structural =
+            matches!(kind, "created" | "removed" | "renamed") && extension.is_none();
 
         // Markdown file changes are always relevant. Directory create/remove/
         // rename events are also relevant because they can move notes around

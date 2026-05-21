@@ -155,8 +155,17 @@ fn ensure_inside(folder: &Path, target: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn claude_failure_message(status: ExitStatus, stderr: &str) -> String {
+fn claude_failure_message(status: ExitStatus, stdout: &str, stderr: &str) -> String {
     let trimmed = stderr.trim();
+    if !trimmed.is_empty() {
+        return trimmed.to_string();
+    }
+
+    if let Some(message) = claude_json_error_message(stdout) {
+        return message;
+    }
+
+    let trimmed = stdout.trim();
     if !trimmed.is_empty() {
         return trimmed.to_string();
     }
@@ -167,12 +176,30 @@ fn claude_failure_message(status: ExitStatus, stderr: &str) -> String {
     }
 }
 
+fn claude_json_error_message(stdout: &str) -> Option<String> {
+    let parsed = serde_json::from_str::<ClaudeJsonResult>(stdout).ok()?;
+    if !parsed.is_error {
+        return None;
+    }
+    let result = parsed.result?.trim().to_string();
+    if result.is_empty() {
+        None
+    } else {
+        Some(result)
+    }
+}
+
 enum ClaudeToolPolicy {
     NoTools,
     ReadOnly,
 }
 
 fn apply_claude_base_args(cmd: &mut Command, tool_policy: ClaudeToolPolicy) {
+    // Anchor uses Claude Code subscription auth. Do not inherit API-billing
+    // credentials from the parent shell if the user has them exported.
+    cmd.env_remove("ANTHROPIC_API_KEY");
+    cmd.env_remove("ANTHROPIC_AUTH_TOKEN");
+
     cmd.arg("--dangerously-skip-permissions").arg("--print");
 
     match tool_policy {
@@ -244,10 +271,11 @@ fn ai_chat_claude_blocking(
             error: None,
         })
     } else {
+        let error = claude_failure_message(output.status, &stdout, &stderr);
         Ok(AiExecutionResult {
             success: false,
             output: stdout,
-            error: Some(claude_failure_message(output.status, &stderr)),
+            error: Some(error),
         })
     }
 }
@@ -299,8 +327,7 @@ fn ai_invoke_claude_blocking(
 ) -> Result<AiSessionResult, String> {
     let mut cmd = Command::new("claude");
     apply_claude_base_args(&mut cmd, ClaudeToolPolicy::ReadOnly);
-    cmd.arg("--output-format")
-        .arg("json");
+    cmd.arg("--output-format").arg("json");
 
     if let Some(sid) = &session_id {
         cmd.arg("--resume").arg(sid);
@@ -338,10 +365,11 @@ fn ai_invoke_claude_blocking(
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
 
     if !output.status.success() {
+        let error = claude_failure_message(output.status, &stdout, &stderr);
         return Ok(AiSessionResult {
             success: false,
             output: stdout,
-            error: Some(claude_failure_message(output.status, &stderr)),
+            error: Some(error),
             session_id: None,
         });
     }
@@ -360,10 +388,16 @@ fn ai_invoke_claude_blocking(
     };
 
     if parsed.is_error {
+        let result = parsed.result.unwrap_or_default();
+        let error = if result.trim().is_empty() {
+            "claude reported is_error=true".to_string()
+        } else {
+            result.clone()
+        };
         return Ok(AiSessionResult {
             success: false,
-            output: parsed.result.unwrap_or_default(),
-            error: Some("claude reported is_error=true".to_string()),
+            output: result,
+            error: Some(error),
             session_id: parsed.session_id,
         });
     }
@@ -374,4 +408,45 @@ fn ai_invoke_claude_blocking(
         error: None,
         session_id: parsed.session_id,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::OsStr;
+
+    #[cfg(unix)]
+    fn exit_status(code: i32) -> ExitStatus {
+        use std::os::unix::process::ExitStatusExt;
+        ExitStatus::from_raw(code << 8)
+    }
+
+    #[test]
+    fn strips_api_key_from_claude_process() {
+        let mut cmd = Command::new("claude");
+        apply_claude_base_args(&mut cmd, ClaudeToolPolicy::NoTools);
+
+        let removes_api_key = cmd
+            .get_envs()
+            .any(|(key, value)| key == OsStr::new("ANTHROPIC_API_KEY") && value.is_none());
+
+        assert!(removes_api_key);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn failure_message_keeps_stdout_error_detail() {
+        let message = claude_failure_message(exit_status(1), "Credit balance is too low\n", "");
+
+        assert_eq!(message, "Credit balance is too low");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn failure_message_reads_json_error_result() {
+        let stdout = r#"{"is_error":true,"result":"Credit balance is too low"}"#;
+        let message = claude_failure_message(exit_status(1), stdout, "");
+
+        assert_eq!(message, "Credit balance is too low");
+    }
 }
