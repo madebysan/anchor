@@ -26,12 +26,12 @@ function isLandingRoute() {
 
 function LoadingScreen({ label }: { label: string }) {
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-background text-sm text-muted-foreground">
+    <main className="flex h-screen w-screen items-center justify-center bg-background text-sm text-muted-foreground">
       <div className="flex items-center gap-2">
         <span className="size-3 rounded-full border border-muted-foreground/30 border-t-muted-foreground motion-safe:animate-spin" />
         {label}
       </div>
-    </div>
+    </main>
   );
 }
 

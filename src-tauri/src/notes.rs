@@ -313,42 +313,55 @@ pub fn write_export_file(path: String, content: String) -> Result<(), String> {
     fs::write(&path, &content).map_err(|e| format!("write: {e}"))
 }
 
-// Reveal a path in the OS file manager. macOS uses `open`, Windows
-// `explorer`, Linux `xdg-open`. No scope check — the caller passes the
-// configured notes folder, not arbitrary user input.
+// Open or reveal a path in the OS file manager. The target must stay inside
+// the configured notes folder because these commands are callable from the
+// app webview.
 #[tauri::command]
-pub fn open_path(path: String) -> Result<(), String> {
+pub fn open_path(state: State<'_, ConfigState>, path: String) -> Result<(), String> {
     use std::process::Command;
 
+    let folder = notes_folder(&state)?;
+    let target = PathBuf::from(&path);
+    ensure_inside(&folder, &target)?;
+    if !target.exists() {
+        return Err(format!("Path does not exist: {}", target.display()));
+    }
+
     #[cfg(target_os = "macos")]
-    let cmd = Command::new("open").arg(&path).spawn();
+    let cmd = Command::new("open").arg(&target).spawn();
 
     #[cfg(target_os = "windows")]
-    let cmd = Command::new("explorer").arg(&path).spawn();
+    let cmd = Command::new("explorer").arg(&target).spawn();
 
     #[cfg(all(unix, not(target_os = "macos")))]
-    let cmd = Command::new("xdg-open").arg(&path).spawn();
+    let cmd = Command::new("xdg-open").arg(&target).spawn();
 
     cmd.map(|_| ()).map_err(|e| format!("open: {e}"))
 }
 
 #[tauri::command]
-pub fn reveal_path(path: String) -> Result<(), String> {
+pub fn reveal_path(state: State<'_, ConfigState>, path: String) -> Result<(), String> {
     use std::process::Command;
 
+    let folder = notes_folder(&state)?;
+    let target = PathBuf::from(&path);
+    ensure_inside(&folder, &target)?;
+    if !target.exists() {
+        return Err(format!("Path does not exist: {}", target.display()));
+    }
+
     #[cfg(target_os = "macos")]
-    let cmd = Command::new("open").arg("-R").arg(&path).spawn();
+    let cmd = Command::new("open").arg("-R").arg(&target).spawn();
 
     #[cfg(target_os = "windows")]
-    let cmd = Command::new("explorer").arg("/select,").arg(&path).spawn();
+    let cmd = Command::new("explorer")
+        .arg("/select,")
+        .arg(&target)
+        .spawn();
 
     #[cfg(all(unix, not(target_os = "macos")))]
     let cmd = Command::new("xdg-open")
-        .arg(
-            Path::new(&path)
-                .parent()
-                .unwrap_or_else(|| Path::new(&path)),
-        )
+        .arg(target.parent().unwrap_or(&target))
         .spawn();
 
     cmd.map(|_| ()).map_err(|e| format!("reveal: {e}"))

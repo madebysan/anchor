@@ -21,7 +21,7 @@ export default class ErrorBoundary extends React.Component<
   render() {
     if (this.state.error) {
       return (
-        <div className="min-h-dvh bg-background p-8 font-sans text-foreground">
+        <main className="min-h-dvh bg-background p-8 font-sans text-foreground">
           <h1 className="mb-4 text-lg font-semibold text-destructive">Render error</h1>
           <pre
             className="whitespace-pre-wrap rounded-md bg-muted p-3 font-mono text-xs leading-relaxed"
@@ -30,7 +30,7 @@ export default class ErrorBoundary extends React.Component<
             {"\n\n"}
             {this.state.error.stack}
           </pre>
-        </div>
+        </main>
       );
     }
     return this.props.children;

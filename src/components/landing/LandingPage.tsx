@@ -164,10 +164,10 @@ export default function LandingPage() {
     const description = document.querySelector('meta[name="description"]');
     const previousDescription = description?.getAttribute("content");
 
-    document.title = "Anchor - Claude Code edits for local markdown";
+    document.title = "Anchor - AI Writing Agents for Local Markdown";
     description?.setAttribute(
       "content",
-      "Anchor opens local markdown folders and lets you ask Claude Code for edits on selected passages.",
+      "Build your own team of AI writing agents for local markdown notes, with Claude Code working beside the file you keep.",
     );
 
     return () => {
@@ -541,7 +541,7 @@ export default function LandingPage() {
               href="https://santiagoalonso.com"
               target="_blank"
               rel="noreferrer"
-              className="hover:text-[var(--landing-ink)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--landing-ink)]"
+              className="inline-flex min-h-11 items-center hover:text-[var(--landing-ink)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--landing-ink)]"
             >
               santiagoalonso.com
             </a>
@@ -549,13 +549,17 @@ export default function LandingPage() {
           <div className="flex gap-4">
             <a
               href={githubUrl}
-              className="hover:text-[var(--landing-ink)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--landing-ink)]"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center hover:text-[var(--landing-ink)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--landing-ink)]"
             >
               GitHub
             </a>
             <a
               href={releaseUrl}
-              className="hover:text-[var(--landing-ink)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--landing-ink)]"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center hover:text-[var(--landing-ink)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--landing-ink)]"
             >
               Releases
             </a>
