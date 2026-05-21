@@ -48,13 +48,16 @@ Updated every session via `/save-session`.
 - Verified the final state with `npm run lint`, `npm run build`,
   `npm run test:e2e`, `cargo check --manifest-path src-tauri/Cargo.toml`, and
   `cargo test --manifest-path src-tauri/Cargo.toml`.
+- Notarized the 0.1.2 universal macOS DMG with Apple submission
+  `e928cf8c-6483-462c-83ed-25a6ed5e0f21`; the stapled DMG passes Gatekeeper and
+  has SHA256 `529422b2191659d766ec689724eb1c97a867e23b8d5a30f0586f55005d490ee8`.
 
 ### Docs
 - Added public open-source release docs: `CONTRIBUTING.md`, `SECURITY.md`, and
   README updates for setup, Claude Code requirements, privacy posture, and the
   AI-editor collaboration model.
 - Release packaging now targets a universal macOS DMG for Apple Silicon and
-  Intel Macs, with the placeholder landing page saved as
+  Intel Macs, with the landing page saved as
   `https://anchor.santiagoalonso.com`.
 
 ## 2026-05-15
@@ -245,7 +248,7 @@ Updated every session via `/save-session`.
 
 ### Fixes
 - White screen on boot — replaced `claude --version` hang with PATH-based existence check; added ErrorBoundary that surfaces real error message instead of silent failure.
-- Cascading boot crashes — `process.env` reference in inherited inlineai code, API-key gate rendering even though we removed API keys, missing loading states.
+- Cascading boot crashes — `process.env` reference in earlier web-app code, API-key gate rendering even though we removed API keys, missing loading states.
 - "→ ref:" disclosure prefix from global ~/.claude/CLAUDE.md leaking into auto-applied replacement text — explicit prompt override + defensive line-stripper.
 - "Unknown error" wallpapering Tauri invoke string rejections — error handler now handles strings, objects, and Errors.
 - Symlinked subfolders failing path validation — `ensure_inside` rewritten to use literal-prefix match on normalized paths (not `canonicalize`), so Drive-synced symlinks count as "inside" the chosen folder.
@@ -256,7 +259,7 @@ Updated every session via `/save-session`.
 - Multiple `ensure_inside` bugs — `notes.rs` was checking parent_canon == folder_canon (broke nested files); both paths now share consistent normalize-without-symlinks logic.
 
 ### Cleanup
-- Removed ~600 lines of dead inheritance from inlineai web parent: API-key UI tab, multi-provider model picker, providers.ts, model-loader.ts, SetupScreen.tsx, ModelPicker.tsx, localStorage quota machinery, migration shims.
+- Removed ~600 lines of dead web-app inheritance: API-key UI tab, multi-provider model picker, providers.ts, model-loader.ts, SetupScreen.tsx, ModelPicker.tsx, localStorage quota machinery, migration shims.
 - 28 stale `"use client"` directives, 3 unused shadcn primitives (resizable, tooltip, badge), 4 unused npm deps (zod, tiptap-bubble-menu, tauri-plugin-fs, tauri-plugin-shell), 2 unused Cargo crates.
 - Settings dropdown collapsed from 7 context strategies to 3 (passage-only / local-section / full-document) with on-load migration of legacy values.
 
