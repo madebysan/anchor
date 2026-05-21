@@ -38,6 +38,7 @@ const EDITOR_CONTENT_SYNC_DEBOUNCE_MS = 200;
 function looksLikeStructuredMarkdown(text: string): boolean {
   const trimmed = text.trim();
   if (!trimmed) return false;
+  if (/\n\s*\n/.test(trimmed)) return true;
   if (/^#{1,6}\s+\S/m.test(trimmed)) return true;
   if (/^[-*+]\s+\S/m.test(trimmed)) return true;
   if (/^\d+\.\s+\S/m.test(trimmed)) return true;
@@ -46,6 +47,51 @@ function looksLikeStructuredMarkdown(text: string): boolean {
   if (/^\|.+\|\s*$/m.test(trimmed) && /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/m.test(trimmed)) return true;
   if (/<table[\s>]/i.test(trimmed)) return true;
   return false;
+}
+
+function hasMultiplePlainLines(text: string): boolean {
+  return text
+    .trim()
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0)
+    .length > 1;
+}
+
+function shouldApplyAsMarkdownBlock(text: string): boolean {
+  return looksLikeStructuredMarkdown(text) || hasMultiplePlainLines(text);
+}
+
+function normalizeMarkdownBlock(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+  if (looksLikeStructuredMarkdown(trimmed)) return trimmed;
+
+  return trimmed
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function parseMarkdownSlice(editor: TiptapEditor, markdown: string) {
+  const html = markdownToHtml(markdown);
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = html;
+  return ProseMirrorDOMParser
+    .fromSchema(editor.state.schema)
+    .parseSlice(wrapper);
+}
+
+function markdownBlockInsertionPosition(editor: TiptapEditor, from: number): number {
+  const boundedFrom = Math.max(0, Math.min(from, editor.state.doc.content.size));
+  const resolved = editor.state.doc.resolve(boundedFrom);
+  if (resolved.depth === 0 || !resolved.parent.isTextblock) return boundedFrom;
+
+  if (boundedFrom <= resolved.start() && boundedFrom !== resolved.end()) {
+    return resolved.before(resolved.depth);
+  }
+
+  return Math.min(resolved.after(resolved.depth), editor.state.doc.content.size);
 }
 const AISettingsDialog = lazy(() => import("./AISettingsDialog"));
 
@@ -115,13 +161,8 @@ function applyReplacementWithHighlight(
   }
 
   let range = { from: markFrom, to: markFrom + replacement.length };
-  if (looksLikeStructuredMarkdown(replacement)) {
-    const html = markdownToHtml(replacement);
-    const wrapper = document.createElement("div");
-    wrapper.innerHTML = html;
-    const slice = ProseMirrorDOMParser
-      .fromSchema(editor.state.schema)
-      .parseSlice(wrapper);
+  if (shouldApplyAsMarkdownBlock(replacement)) {
+    const slice = parseMarkdownSlice(editor, normalizeMarkdownBlock(replacement));
     let tr = editor.state.tr.replaceRange(markFrom, markTo, slice);
     range = { from: markFrom, to: markFrom + slice.size };
     for (const mark of marks) {
@@ -182,7 +223,9 @@ function applyInsertionWithHighlight(
       ? thread.anchor.pmFrom
       : editor.state.selection.from;
   const from = Math.max(0, Math.min(insertionPosition, editor.state.doc.content.size));
-  const insertionText = normalizeInsertionBoundary(editor, from, insertion);
+  const insertionText = shouldApplyAsMarkdownBlock(insertion)
+    ? normalizeMarkdownBlock(insertion)
+    : normalizeInsertionBoundary(editor, from, insertion);
   if (!insertionText) return null;
 
   const marks = [];
@@ -196,10 +239,21 @@ function applyInsertionWithHighlight(
     marks.push(editHighlight.create({ id: highlightId }));
   }
 
-  const tr = editor.state.tr.insert(from, editor.schema.text(insertionText, marks));
-  editor.view.dispatch(tr);
+  let range = { from, to: from + insertionText.length, text: insertionText };
+  if (shouldApplyAsMarkdownBlock(insertionText)) {
+    const blockFrom = markdownBlockInsertionPosition(editor, from);
+    const slice = parseMarkdownSlice(editor, insertionText);
+    let tr = editor.state.tr.replaceRange(blockFrom, blockFrom, slice);
+    range = { from: blockFrom, to: blockFrom + slice.size, text: insertionText };
+    for (const mark of marks) {
+      tr = tr.addMark(range.from, range.to, mark);
+    }
+    editor.view.dispatch(tr);
+  } else {
+    const tr = editor.state.tr.insert(from, editor.schema.text(insertionText, marks));
+    editor.view.dispatch(tr);
+  }
 
-  const range = { from, to: from + insertionText.length, text: insertionText };
   if (editHighlight) {
     window.setTimeout(() => {
       if (editor.isDestroyed) return;
@@ -220,7 +274,7 @@ function applyDocumentEndInsertionWithHighlight(
   thread: CommentThread,
   insertion: string,
 ): { from: number; to: number; text: string } | null {
-  const insertionText = insertion.trim();
+  const insertionText = normalizeMarkdownBlock(insertion);
   if (!insertionText) return null;
 
   const from = editor.state.doc.content.size;

@@ -145,6 +145,7 @@ export function useAIChat(
           "- Do NOT wrap the output in quotes or code fences.",
           "- Do NOT preface with 'Here is...', 'Sure...', '-> ref:', or any header.",
           "- Match the original's length and style unless the instruction explicitly asks otherwise (e.g. 'translate', 'rewrite to be punchier').",
+          "- Preserve the original block shape. If the passage is a list, return a list. If it has blank lines, keep the same paragraph breaks. Do not collapse multiple items into one paragraph.",
         ].join("\n");
 
         const feedbackPrompt = [
@@ -206,6 +207,7 @@ export function useAIChat(
           "- Do NOT explain where it should go.",
           "- Do NOT wrap the output in quotes or code fences.",
           "- Do NOT preface with 'Here is...', 'Sure...', 'Heads-up', or any header.",
+          "- Use markdown block formatting when the insertion has multiple lines. Preserve blank lines, bullets, numbering, tables, and headings instead of collapsing them into one paragraph.",
           "- If you cannot verify a factual claim, still draft the requested text and include any uncertainty inside the inserted text only if it is essential.",
         ].join("\n");
 
@@ -233,6 +235,7 @@ export function useAIChat(
           "Reply with ONLY the markdown to append at the end of the document. Nothing else.",
           "- Include a heading if the user asked for a new section.",
           "- Preserve the language/style implied by the user's request and the prior thread.",
+          "- Use markdown block formatting. Preserve blank lines, bullets, numbering, tables, and headings instead of collapsing them into one paragraph.",
           "- Do NOT wrap the output in quotes or code fences.",
           "- Do NOT preface with 'Here is...', 'Sure...', 'Heads-up', or any header unless that header is part of the document content.",
         ].join("\n");
@@ -288,6 +291,7 @@ export function useAIChat(
           "- Do NOT explain the change.",
           "- Do NOT wrap the output in quotes or code fences.",
           "- Do NOT preface with 'Here is...', 'Sure...', '-> ref:', or any header.",
+          "- Preserve markdown structure and paragraph breaks instead of collapsing sections, lists, or tables into one paragraph.",
           "- If the instruction is impossible or ambiguous, output the original document unchanged.",
         ].join("\n");
 
