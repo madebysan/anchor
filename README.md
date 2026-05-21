@@ -19,7 +19,9 @@ Leave comments, ask for edits or research notes, and iterate inside your markdow
   <a href="https://anchor.santiagoalonso.com">Landing page</a>
 </p>
 
-![Anchor editor with markdown note, document sidebar, and comments panel](assets/screenshot.png)
+<video src="public/anchor-demo.mp4" controls muted playsinline>
+  <a href="public/anchor-demo.mp4">Watch the Anchor demo video</a>
+</video>
 
 Anchor brings the comment loop from Google Docs into a local markdown editor. The difference is that the editor you tag is Claude Code. Leave feedback on a passage, ask for a rewrite, or use the Chat tab for document-wide changes like summaries, translation, global renames, research notes, and appending new sections.
 

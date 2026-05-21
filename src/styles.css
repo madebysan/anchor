@@ -555,9 +555,6 @@
     transform: none;
   }
 
-  .anchor-play-button {
-    transition: none;
-  }
 }
 
 @keyframes anchor-motion-in {
