@@ -212,8 +212,8 @@
 
 @media (min-width: 1024px) {
   .anchor-screenshot-frame {
-    width: min(1040px, calc(100vw - 4rem));
-    transform: translateX(-18%);
+    width: min(780px, calc(100vw - 4rem));
+    transform: translateX(-9%);
   }
 }
 
@@ -229,6 +229,10 @@
     transform: none;
     transition: none;
     will-change: auto;
+  }
+
+  .anchor-play-button {
+    transition: none;
   }
 }
 
