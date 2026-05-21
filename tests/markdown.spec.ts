@@ -34,3 +34,19 @@ test("markdown tables round-trip as markdown tables", () => {
   expect(markdown).toContain("| --- | --- | --- |");
   expect(markdown).toContain("| Pricing | Paid | Free with fee |");
 });
+
+test("raw html and unsafe markdown links are rendered inert", () => {
+  const html = markdownToHtml([
+    "<img src=x onerror=alert(1)>",
+    "[unsafe](javascript:alert(1))",
+    "[safe](https://example.com?a=1&b=2)",
+    "![ignored](https://example.com/image.png)",
+  ].join("\n\n"));
+
+  expect(html).not.toContain("<img");
+  expect(html).not.toContain("javascript:");
+  expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+  expect(html).toContain("<p>unsafe</p>");
+  expect(html).toContain('<a href="https://example.com?a=1&amp;b=2">safe</a>');
+  expect(html).toContain("<p>ignored</p>");
+});

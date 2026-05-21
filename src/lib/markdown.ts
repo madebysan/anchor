@@ -1,5 +1,31 @@
-import { marked } from "marked";
+import { marked, type RendererObject, type RendererThis, type Tokens } from "marked";
 import TurndownService from "turndown";
+
+type MarkedRendererThis = RendererThis<string, string>;
+
+const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
+
+const safeRenderer = {
+  html({ text }: Tokens.HTML | Tokens.Tag): string {
+    return escapeHtml(text);
+  },
+  link(
+    this: MarkedRendererThis,
+    { href, title, tokens }: Tokens.Link,
+  ): string {
+    const label = this.parser.parseInline(tokens);
+    const safeHref = sanitizeMarkdownUrl(href);
+    if (!safeHref) return label;
+
+    const titleAttribute = title
+      ? ` title="${escapeHtml(title)}"`
+      : "";
+    return `<a href="${escapeHtml(safeHref)}"${titleAttribute}>${label}</a>`;
+  },
+  image({ text }: Tokens.Image): string {
+    return escapeHtml(text);
+  },
+} satisfies RendererObject<string, string>;
 
 // Configure marked for our use case: GFM (tables, strikethrough), no
 // auto-linking that mangles raw URLs, and breaks=false so single newlines
@@ -8,6 +34,7 @@ marked.setOptions({
   gfm: true,
   breaks: false,
 });
+marked.use({ renderer: safeRenderer });
 
 const turndown = new TurndownService({
   headingStyle: "atx",
@@ -72,4 +99,49 @@ function sanitizeTableCell(value: string): string {
     .replace(/\s+/g, " ")
     .replace(/\|/g, "\\|")
     .trim();
+}
+
+function sanitizeMarkdownUrl(href: string): string | null {
+  const trimmed = href.trim();
+  if (!trimmed || hasUnsafeUrlCharacter(trimmed)) return null;
+
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  try {
+    const protocol = new URL(trimmed).protocol.toLowerCase();
+    return SAFE_LINK_PROTOCOLS.has(protocol) ? trimmed : null;
+  } catch {
+    return null;
+  }
+}
+
+function hasUnsafeUrlCharacter(value: string): boolean {
+  for (const character of value) {
+    const codeUnit = character.charCodeAt(0);
+    if (codeUnit <= 0x1f || codeUnit === 0x7f || character.trim() === "") {
+      return true;
+    }
+  }
+  return false;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => {
+    switch (character) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case "\"":
+        return "&quot;";
+      case "'":
+        return "&#39;";
+      default:
+        return character;
+    }
+  });
 }
