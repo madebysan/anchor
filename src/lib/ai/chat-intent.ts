@@ -36,6 +36,8 @@ const QUALITY_EDIT_PATTERN =
   /\b(make|improve|polish|clean up|tighten|revise)\b.*\b(better|clearer|stronger|shorter|longer|punchier|section|intro|paragraph|argument|copy)\b/;
 const FORMAT_REPAIR_PATTERN =
   /\b(fix|repair|format|convert|clean up)\b.*\b(table|markdown|format|formatting)\b|\b(table|markdown|format|formatting)\b.*\b(fix|repair|format|convert|clean up)\b/;
+const GLOBAL_REPLACEMENT_SCOPE_PATTERN =
+  /\b(everywhere|everywhere else|throughout|whole document|entire document|all occurrences|all instances|every occurrence|every instance|rest of (the )?(doc|document))\b/i;
 
 export function classifyChatRequest({
   message,
@@ -103,7 +105,7 @@ function parseReplaceAllInstruction(
 
   if (
     quoted.length >= 2 &&
-    /\b(everywhere|throughout|whole document|entire document|all occurrences|all instances|every occurrence|every instance|rename|replace|called|renamed)\b/i.test(trimmed)
+    (hasGlobalReplacementScope(trimmed) || /\b(rename|replace|called|renamed)\b/i.test(trimmed))
   ) {
     return { original: quoted[0], replacement: quoted[1] };
   }
@@ -115,23 +117,29 @@ function parseReplaceAllInstruction(
     /\bchange\s+(.+?)\s+to\s+(.+?)(?:\s|,|\.|;|$)/i,
   ];
 
-  for (const pattern of patterns) {
-    const match = trimmed.match(pattern);
-    if (!match) continue;
-    const original = stripInstructionToken(match[1]);
-    const replacement = stripInstructionToken(match[2]);
-    if (original && replacement) return { original, replacement };
+  if (hasGlobalReplacementScope(trimmed)) {
+    for (const pattern of patterns) {
+      const match = trimmed.match(pattern);
+      if (!match) continue;
+      const original = stripInstructionToken(match[1]);
+      const replacement = stripInstructionToken(match[2]);
+      if (original && replacement) return { original, replacement };
+    }
   }
 
   if (
     selectedText &&
     /\b(replace|rename|update|change|called|renamed)\b/i.test(trimmed) &&
-    /\b(everywhere|everywhere else|throughout|whole document|entire document|all occurrences|all instances|every occurrence|every instance|rest of (the )?(doc|document))\b/i.test(trimmed)
+    hasGlobalReplacementScope(trimmed)
   ) {
     return { original: selectedText, replacement: null };
   }
 
   return null;
+}
+
+function hasGlobalReplacementScope(text: string): boolean {
+  return GLOBAL_REPLACEMENT_SCOPE_PATTERN.test(text);
 }
 
 function isResearchFirstRequest(normalized: string): boolean {

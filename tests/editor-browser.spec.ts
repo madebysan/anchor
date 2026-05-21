@@ -637,6 +637,36 @@ test("comment rewrite preserves markdown list formatting returned by Claude", as
   expect(prompt).toContain("If the passage is a list, return a list");
 });
 
+test("explicit persona in a plain comment applies the selected passage edit", async ({ page }) => {
+  const originalAudience =
+    "This is for adult beginner photographers who want a simple assignment they can finish in one morning.";
+  const revisedAudience =
+    "This is for kids and teenage photographers who want a simple assignment they can finish in one morning.";
+
+  await installTauriMock(page, {
+    aiOutput: revisedAudience,
+    noteContent: ["# Browser Test", "", "## Audience", "", originalAudience].join("\n"),
+  });
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await selectEditorText(page, originalAudience);
+  await clickSelectionAction(page, "Add Comment");
+
+  const messageInput = page.getByLabel("Comment message");
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("@copywriter change the audience to be kids and teenage photographers");
+  await page.getByLabel("Send comment").click();
+
+  await expect(editor).toContainText(revisedAudience);
+  await expect(editor).not.toContainText(originalAudience);
+  await expect(page.getByText("Applied edit")).toBeVisible();
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("The passage to replace");
+  expect(prompt).not.toContain("whole-document replacement");
+});
+
 test("document-level insert command writes at the caret instead of debating the request", async ({ page }) => {
   await installTauriMock(page);
   await page.goto("/");
