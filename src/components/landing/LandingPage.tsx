@@ -1,16 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  Code2,
+  BookOpen,
+  BrainCircuit,
+  ClipboardCheck,
   Download,
-  FileText,
+  FolderOpen,
   Github,
+  History,
   Languages,
   ListChecks,
   MessageSquare,
+  MessagesSquare,
+  NotebookPen,
   Play,
+  ShieldCheck,
+  Terminal,
   TextCursorInput,
   Undo2,
+  UserRoundCog,
 } from "lucide-react";
 
 import appIcon from "../../../assets/app-icon.png";
@@ -20,12 +28,6 @@ import { Button } from "@/components/ui/button";
 const releaseUrl = "https://github.com/madebysan/anchor/releases/latest";
 const githubUrl = "https://github.com/madebysan/anchor";
 const demoVideoUrl = "/anchor-demo.mp4";
-
-const navItems = [
-  { label: "Product", href: "#product" },
-  { label: "Privacy", href: "#local-first" },
-  { label: "Download", href: releaseUrl },
-] as const;
 
 const workflowItems = [
   {
@@ -74,16 +76,43 @@ const promptCards = [
   },
 ] satisfies readonly PromptCard[];
 
-const localFirstItems = [
+const useCaseItems = [
   {
-    icon: FileText,
-    title: "Plain markdown",
-    description: "Open the folder you already use.",
+    icon: NotebookPen,
+    title: "Writers with messy drafts",
+    description:
+      "Keep notes, outlines, and edits in one file instead of moving between chat and editor.",
   },
   {
-    icon: Code2,
-    title: "Claude Code only",
-    description: "Uses your signed-in Claude Code install.",
+    icon: ClipboardCheck,
+    title: "Product and design reviews",
+    description:
+      "Assign rewrite, critique, and follow-up tasks to the exact paragraph under review.",
+  },
+  {
+    icon: BookOpen,
+    title: "Researchers and students",
+    description:
+      "Ask for summaries, gaps, and next questions without losing where the thought came from.",
+  },
+  {
+    icon: BrainCircuit,
+    title: "Founders running on notes",
+    description:
+      "Turn rough notes into action items while keeping the original source visible.",
+  },
+] as const;
+
+const detailItems = [
+  {
+    icon: FolderOpen,
+    title: "Local markdown folders",
+    description: "Open the notes folder you already use.",
+  },
+  {
+    icon: Terminal,
+    title: "Claude Code sessions",
+    description: "Runs through your signed-in Claude Code install.",
   },
   {
     icon: MessageSquare,
@@ -94,6 +123,33 @@ const localFirstItems = [
     icon: Undo2,
     title: "Undo stays visible",
     description: "Every applied edit has a revert path.",
+  },
+] as const;
+
+const personaItems = [
+  {
+    icon: UserRoundCog,
+    title: "Editor",
+    description:
+      "Give it your voice rules, banned words, and rewrite standards.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Reviewer",
+    description:
+      "Ask it to catch weak logic, missing context, and loose claims.",
+  },
+  {
+    icon: MessagesSquare,
+    title: "Research partner",
+    description:
+      "Point it at a passage and ask for questions, sources, or next steps.",
+  },
+  {
+    icon: History,
+    title: "Project memory",
+    description:
+      "Keep instructions tied to the folder so repeat work starts with context.",
   },
 ] as const;
 
@@ -143,10 +199,10 @@ export default function LandingPage() {
   return (
     <div className="anchor-landing min-h-screen overflow-x-hidden bg-[var(--landing-bg)] text-[var(--landing-ink)]">
       <div className="mx-auto min-h-screen max-w-[680px] border-r border-[var(--landing-line)] px-5 pt-10 sm:px-7 sm:pt-12">
-        <header className="flex items-center justify-between gap-5">
+        <header className="flex justify-center">
           <a
             href="#product"
-            className="inline-flex items-center gap-3 rounded-xl text-base font-bold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--landing-ink)]"
+            className="inline-flex size-11 items-center justify-center rounded-2xl bg-white/70 shadow-[0_10px_28px_var(--landing-card-shadow)] transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_var(--landing-card-hover-shadow)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--landing-ink)]"
             aria-label="Anchor landing page"
           >
             <img
@@ -156,26 +212,7 @@ export default function LandingPage() {
               alt=""
               className="size-8 rounded-xl"
             />
-            <span className="hidden sm:inline">Anchor</span>
           </a>
-
-          <nav
-            aria-label="Landing page navigation"
-            className="flex rounded-full bg-[var(--landing-soft)] p-1 text-sm"
-          >
-            {navItems.map((item, index) => (
-              <a
-                key={item.label}
-                href={item.href}
-                className={[
-                  "rounded-full px-3 py-2 leading-none text-[var(--landing-ink)] transition-colors hover:bg-[var(--landing-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--landing-ink)]",
-                  index === 0 ? "bg-[var(--landing-ink)] text-white hover:bg-[var(--landing-ink)]" : "",
-                ].join(" ")}
-              >
-                {item.label}
-              </a>
-            ))}
-          </nav>
         </header>
 
         <main id="product">
@@ -194,21 +231,35 @@ export default function LandingPage() {
             <div className="anchor-motion-in anchor-motion-delay-3 mt-5 flex flex-wrap gap-3">
               <Button
                 asChild
-                className="h-11 rounded-full px-5 text-base font-bold"
+                className="anchor-cta-button anchor-cta-button--primary h-auto rounded-full px-4 py-2.5 text-base font-bold"
               >
                 <a href={releaseUrl}>
-                  <Download aria-hidden="true" />
-                  Download Anchor
+                  <span className="anchor-cta-icon">
+                    <Download aria-hidden="true" className="size-4" />
+                  </span>
+                  <span className="flex flex-col items-start leading-none">
+                    <span>Download for Mac</span>
+                    <span className="mt-1 font-mono text-[0.68rem] font-normal uppercase tracking-[0.08em] opacity-70">
+                      Latest release
+                    </span>
+                  </span>
                 </a>
               </Button>
               <Button
                 asChild
                 variant="outline"
-                className="h-11 rounded-full border-[var(--landing-line)] bg-white/50 px-5 text-base"
+                className="anchor-cta-button anchor-cta-button--secondary h-auto rounded-full border-[var(--landing-line)] bg-white/55 px-4 py-2.5 text-base"
               >
                 <a href={githubUrl}>
-                  <Github aria-hidden="true" />
-                  View GitHub
+                  <span className="anchor-cta-icon">
+                    <Github aria-hidden="true" className="size-4" />
+                  </span>
+                  <span className="flex flex-col items-start leading-none">
+                    <span>View source</span>
+                    <span className="mt-1 font-mono text-[0.68rem] font-normal uppercase tracking-[0.08em] opacity-65">
+                      GitHub repo
+                    </span>
+                  </span>
                 </a>
               </Button>
             </div>
@@ -342,16 +393,45 @@ export default function LandingPage() {
             id="local-first"
             className="border-t border-[var(--landing-line)] py-12"
           >
-            <h2 className="anchor-landing-display text-balance text-[clamp(2.25rem,5vw,3.25rem)] leading-none">
-              Local notes, no hosted workspace.
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.08em] text-[var(--landing-muted)]">
+              Who it is for
+            </p>
+            <h2 className="anchor-landing-display mt-3 text-balance text-[clamp(2.25rem,5vw,3.25rem)] leading-none">
+              For people who live in drafts, notes, and decisions.
             </h2>
-            <div className="mt-7 grid border-t border-[var(--landing-line)] sm:grid-cols-2">
-              {localFirstItems.map((item) => {
+            <p className="mt-4 max-w-[590px] text-pretty text-lg leading-8 text-[var(--landing-muted)]">
+              Anchor is for work that already happens in markdown. Use it when
+              the file matters, the edit needs context, and a generic chat
+              window would lose the thread.
+            </p>
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              {useCaseItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <article
                     key={item.title}
-                    className="min-h-24 border-b border-[var(--landing-line)] py-5 sm:pr-5 sm:even:pl-5 sm:odd:border-r"
+                    className="anchor-use-card"
+                  >
+                    <span className="anchor-use-card-icon">
+                      <Icon aria-hidden="true" className="size-4" />
+                    </span>
+                    <h3 className="mt-5 font-bold">{item.title}</h3>
+                    <p className="mt-2 text-pretty leading-7 text-[var(--landing-muted)]">
+                      {item.description}
+                    </p>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="mt-8 grid border-t border-[var(--landing-line)] sm:grid-cols-2">
+              {detailItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <article
+                    key={item.title}
+                    className="min-h-20 border-b border-[var(--landing-line)] py-4 sm:pr-5 sm:even:pl-5 sm:odd:border-r"
                   >
                     <div className="mb-3 flex items-center gap-3">
                       <span className="inline-flex size-8 items-center justify-center rounded-full bg-[var(--landing-soft)]">
@@ -368,17 +448,60 @@ export default function LandingPage() {
             </div>
           </section>
 
+          <section className="border-t border-[var(--landing-line)] py-12">
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.08em] text-[var(--landing-muted)]">
+              Personas
+            </p>
+            <h2 className="anchor-landing-display mt-3 text-balance text-[clamp(2.25rem,5vw,3.25rem)] leading-none">
+              Build the small AI team your notes need.
+            </h2>
+            <p className="mt-4 max-w-[590px] text-pretty text-lg leading-8 text-[var(--landing-muted)]">
+              Anchor is not just a blank LLM box. Make personas with their own
+              instructions, context, and standards. Then assign comments and
+              tasks to the right persona from the exact line you are working on.
+            </p>
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              {personaItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <article
+                    key={item.title}
+                    className="anchor-persona-card"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="anchor-persona-card-icon">
+                        <Icon aria-hidden="true" className="size-4" />
+                      </span>
+                      <h3 className="font-bold">{item.title}</h3>
+                    </div>
+                    <p className="mt-4 text-pretty leading-7 text-[var(--landing-muted)]">
+                      {item.description}
+                    </p>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+
           <section className="border-t border-[var(--landing-line)] py-12 sm:py-16">
             <h2 className="anchor-landing-display max-w-[620px] text-balance text-[clamp(3.2rem,8vw,5.5rem)] leading-[0.93]">
               Keep the file. Ask Claude at the exact spot.
             </h2>
             <Button
               asChild
-              className="mt-7 h-11 rounded-full px-5 text-base font-bold"
+              className="anchor-cta-button anchor-cta-button--primary mt-7 h-auto rounded-full px-4 py-2.5 text-base font-bold"
             >
               <a href={releaseUrl}>
-                <Download aria-hidden="true" />
-                Download Anchor
+                <span className="anchor-cta-icon">
+                  <Download aria-hidden="true" className="size-4" />
+                </span>
+                <span className="flex flex-col items-start leading-none">
+                  <span>Download for Mac</span>
+                  <span className="mt-1 font-mono text-[0.68rem] font-normal uppercase tracking-[0.08em] opacity-70">
+                    Latest release
+                  </span>
+                </span>
               </a>
             </Button>
           </section>

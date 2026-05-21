@@ -29,6 +29,38 @@
   src: url("@fontsource/geist-mono/files/geist-mono-latin-400-normal.woff2") format("woff2");
 }
 
+@font-face {
+  font-family: "IBM Plex Serif";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/ibm-plex-serif/files/ibm-plex-serif-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Serif";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("@fontsource/ibm-plex-serif/files/ibm-plex-serif-latin-700-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-700-normal.woff2") format("woff2");
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -77,6 +109,8 @@
 
   --font-geist-sans: "Geist Sans", system-ui, -apple-system, sans-serif;
   --font-geist-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-ibm-plex-serif: "IBM Plex Serif", Georgia, serif;
+  --font-ibm-plex-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -173,11 +207,17 @@
   --landing-badge-structure: oklch(0.54 0.13 255);
   --landing-warm-glow: oklch(0.86 0.12 86 / 36%);
   --landing-green-glow: oklch(0.68 0.08 140 / 18%);
+
+  font-family: var(--font-ibm-plex-serif);
 }
 
 .anchor-landing-display {
-  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-family: var(--font-ibm-plex-serif);
   font-weight: 700;
+}
+
+.anchor-landing .font-mono {
+  font-family: var(--font-ibm-plex-mono);
 }
 
 .anchor-motion-in {
@@ -213,6 +253,45 @@
 .anchor-screenshot-frame[data-loaded="true"] .anchor-screenshot-image {
   opacity: 1;
   transform: translateY(0) scale(1);
+}
+
+.anchor-cta-button {
+  box-shadow: 0 10px 24px var(--landing-card-shadow);
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease,
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.anchor-cta-button:hover {
+  box-shadow: 0 16px 36px var(--landing-card-hover-shadow);
+  transform: translateY(-2px);
+}
+
+.anchor-cta-button--primary:hover {
+  background: oklch(0.23 0.006 75);
+}
+
+.anchor-cta-button--secondary:hover {
+  background: white;
+  border-color: oklch(0.78 0.018 78);
+  color: var(--landing-ink);
+}
+
+.anchor-cta-icon {
+  align-items: center;
+  background: oklch(1 0 0 / 14%);
+  border-radius: 9999px;
+  display: inline-flex;
+  height: 2rem;
+  justify-content: center;
+  width: 2rem;
+}
+
+.anchor-cta-button--secondary .anchor-cta-icon {
+  background: var(--landing-soft);
 }
 
 .anchor-note-card-stack {
@@ -302,7 +381,38 @@
   background: var(--landing-badge-structure);
 }
 
+.anchor-use-card,
+.anchor-persona-card {
+  background: white;
+  border: 1px solid var(--landing-line);
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px var(--landing-card-shadow);
+  padding: 1rem;
+}
+
+.anchor-use-card-icon,
+.anchor-persona-card-icon {
+  align-items: center;
+  background: var(--landing-soft);
+  border-radius: 9999px;
+  display: inline-flex;
+  height: 2.25rem;
+  justify-content: center;
+  width: 2.25rem;
+}
+
+.anchor-persona-card {
+  background:
+    linear-gradient(180deg, white, oklch(0.982 0.008 88)),
+    white;
+}
+
 @media (hover: hover) and (pointer: fine) {
+  .anchor-screenshot-frame[data-loaded="true"]:hover .anchor-screenshot-image {
+    box-shadow: 0 28px 72px var(--landing-card-hover-shadow);
+    transform: translateY(-4px) scale(1.006);
+  }
+
   .anchor-note-card:hover {
     --anchor-note-card-rotate: var(--anchor-note-card-hover-rotate);
     --anchor-note-card-lift: -10px;
@@ -329,7 +439,7 @@
   .anchor-note-card-stack {
     min-height: 22.5rem;
     position: relative;
-    width: min(900px, calc(100vw - 3rem));
+    width: min(800px, calc(100vw - 3rem));
   }
 
   .anchor-note-card {
@@ -351,7 +461,7 @@
     --anchor-note-card-rest-rotate: 3deg;
     --anchor-note-card-hover-rotate: 0.5deg;
 
-    left: 33%;
+    left: 32%;
     top: 0.5rem;
     z-index: 3;
   }
@@ -368,7 +478,7 @@
 
 @media (min-width: 1024px) {
   .anchor-note-card-stack {
-    transform: translateX(-10%);
+    transform: translateX(-7%);
   }
 }
 
@@ -380,7 +490,8 @@
   .anchor-motion-in,
   .anchor-screenshot-image,
   .anchor-note-card,
-  .anchor-note-card-badge {
+  .anchor-note-card-badge,
+  .anchor-cta-button {
     animation: none;
     opacity: 1;
     transition: none;
@@ -392,6 +503,10 @@
     transform: none;
   }
 
+  .anchor-screenshot-frame[data-loaded="true"]:hover .anchor-screenshot-image {
+    transform: none;
+  }
+
   .anchor-note-card,
   .anchor-note-card:hover {
     --anchor-note-card-lift: 0px;
@@ -400,6 +515,10 @@
   }
 
   .anchor-note-card:hover .anchor-note-card-badge {
+    transform: none;
+  }
+
+  .anchor-cta-button:hover {
     transform: none;
   }
 
