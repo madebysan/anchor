@@ -149,9 +149,30 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.anchor-landing {
+  --landing-bg: oklch(0.985 0.008 88);
+  --landing-ink: oklch(0.18 0.005 75);
+  --landing-muted: oklch(0.45 0.012 75);
+  --landing-line: oklch(0.86 0.018 78);
+  --landing-soft: oklch(0.94 0.018 78);
+  --landing-hover: oklch(0.9 0.018 78);
+  --landing-shadow: oklch(0.2 0.02 70 / 14%);
+  --landing-card-shadow: oklch(0.2 0.02 70 / 10%);
+  --landing-warm-glow: oklch(0.86 0.12 86 / 36%);
+  --landing-green-glow: oklch(0.68 0.08 140 / 18%);
+}
+
+.anchor-landing-display {
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-weight: 700;
 }
 
 /* Tiptap editor styles */
