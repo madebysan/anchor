@@ -14,26 +14,45 @@ const SAMPLE_NOTE_TITLE = "Creative Brief - Weekend Photo Walk";
 
 const SAMPLE_NOTE_MARKDOWN = `# Creative Brief: Weekend Photo Walk
 
-## Goal
+## Working Title
 
-Make a small photo set that captures a Saturday morning walk before the neighborhood gets busy. The final set should feel quiet, specific, and easy to share.
+Before the neighborhood wakes up
+
+## Short Version
+
+Make a small photo essay from a Saturday morning walk. The set should feel quiet and local, like somebody noticing details before the day gets loud.
 
 ## Audience
 
-This is for friends who like photography, walking routes, and small city details. It should not feel like a travel guide or a polished campaign.
+This is for adult beginner photographers who want a simple assignment they can finish in one morning. They probably know their camera, but they still need help deciding what to look for and when to stop shooting.
 
-## Route
+## Story
 
-Start at the corner cafe, walk through the side streets with older storefronts, then end near the park entrance. Keep the route short enough to finish in 90 minutes.
+The walk starts with coffee and window light, moves through side streets and closed storefronts, then ends at the park entrance when the neighborhood starts filling up. The sequence should feel like a slow reveal, not a checklist of pretty corners.
+
+## Route Notes
+
+Start at the corner cafe around 7:30 AM. Walk east for two blocks, turn toward the older storefronts, cross at the wide intersection, then finish near the park entrance. The route should take about 90 minutes if the group stops often.
+
+## Source Check
+
+The route passes a Saturday market, a privately owned arcade, and a small park conservatory. Before publishing the route, confirm whether photography is allowed inside the arcade and whether the market has rules about close-up photos of vendors or stalls.
 
 ## Shot List
 
-| Shot | Why It Matters | Note |
+| Shot | Purpose | Direction |
 |---|---|---|
-| First coffee on the table | Sets the morning tone | Look for window light |
-| Closed storefront signs | Adds texture and place | Avoid readable private info |
-| Crosswalk shadows | Gives the set a graphic rhythm | Try a low angle |
+| First coffee on the table | Opens the story quietly | Shoot near the window, not from above |
+| Closed storefront signs | Adds place and texture | Avoid readable phone numbers or private info |
+| Crosswalk shadows | Gives the set a graphic break | Try one low angle and one wide frame |
+| Market setup | Shows the neighborhood waking up | Keep people secondary unless they give permission |
 | Park entrance detail | Creates a natural ending | Wait for a clean frame |
+
+## Caption Drafts
+
+- The first table by the window gets the softest light.
+- The storefronts look asleep, but the reflections are already busy.
+- The best ending might be the park gate, not the park itself.
 
 ## Constraints
 
@@ -41,18 +60,14 @@ Start at the corner cafe, walk through the side streets with older storefronts, 
 - Keep the edit to 12 final photos.
 - Avoid photographing people directly unless they are unrecognizable in the frame.
 - Make the captions plain and specific.
+- Leave room for one unexpected shot if the route feels too predictable.
 
 ## Open Questions
 
 - Should the set be black and white or muted color?
 - Does the route need a stronger ending shot?
 - Is this a standalone post, or the first entry in a recurring weekend series?
-
-## Try This In Anchor
-
-- Select the Goal paragraph and ask Claude to make it more specific.
-- Add a comment on any shot that needs a better constraint.
-- Use Chat to turn the shot list into a tighter sequence.
+- Should the captions mention camera settings, or would that make the piece feel too technical?
 `;
 
 function rememberDismissed(): void {

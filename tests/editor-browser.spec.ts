@@ -574,7 +574,8 @@ test("welcome dialog can create and open the photo walk sample note", async ({ p
     )?.content ?? "";
   });
   expect(sampleContent).toContain("## Shot List");
-  expect(sampleContent).toContain("Use Chat to turn the shot list into a tighter sequence.");
+  expect(sampleContent).toContain("## Source Check");
+  expect(sampleContent).toContain("Before publishing the route");
 });
 
 test("comment rewrite auto-applies, highlights, and survives markdown reload", async ({ page }) => {
