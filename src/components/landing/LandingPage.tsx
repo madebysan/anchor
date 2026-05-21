@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
@@ -13,6 +13,7 @@ import {
   MessageSquare,
   MessagesSquare,
   NotebookPen,
+  Play,
   ShieldCheck,
   Terminal,
   TextCursorInput,
@@ -186,7 +187,10 @@ const faqItems = [
 ] as const;
 
 export default function LandingPage() {
+  const [isDemoPosterLoaded, setIsDemoPosterLoaded] = useState(false);
+  const [isDemoVideoActive, setIsDemoVideoActive] = useState(false);
   const [isDemoVideoLoaded, setIsDemoVideoLoaded] = useState(false);
+  const demoVideoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -206,6 +210,24 @@ export default function LandingPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!isDemoVideoActive) return;
+
+    const playDemoVideo = async () => {
+      try {
+        await demoVideoRef.current?.play();
+      } catch (error) {
+        console.warn("Anchor demo video could not autoplay after click:", error);
+      }
+    };
+
+    void playDemoVideo();
+  }, [isDemoVideoActive]);
+
+  function handlePlayDemoVideo() {
+    setIsDemoVideoActive(true);
+  }
 
   return (
     <div className="anchor-landing min-h-screen overflow-x-hidden bg-[var(--landing-bg)] text-[var(--landing-ink)]">
@@ -279,20 +301,46 @@ export default function LandingPage() {
           <section
             aria-label="Anchor product demo"
             className="anchor-screenshot-frame relative my-6 w-full sm:my-8"
-            data-loaded={isDemoVideoLoaded}
+            data-loaded={isDemoPosterLoaded || isDemoVideoLoaded}
           >
             <div className="absolute inset-0 -z-10 rounded-[1.5rem] bg-[radial-gradient(circle_at_20%_20%,var(--landing-warm-glow),transparent_32%),radial-gradient(circle_at_82%_60%,var(--landing-green-glow),transparent_30%)] blur-sm" />
-            <video
-              src={demoVideoUrl}
-              controls
-              playsInline
-              preload="metadata"
-              poster={appScreenshot}
-              onLoadedData={() => setIsDemoVideoLoaded(true)}
-              className="anchor-screenshot-image block aspect-[16/10] w-full rounded-[1.125rem] border border-[var(--landing-line)] bg-black object-cover shadow-[0_20px_60px_var(--landing-shadow)]"
-            >
-              <a href={demoVideoUrl}>Download the Anchor demo video</a>
-            </video>
+            {isDemoVideoActive ? (
+              <video
+                ref={demoVideoRef}
+                src={demoVideoUrl}
+                controls
+                playsInline
+                preload="metadata"
+                poster={appScreenshot}
+                onLoadedData={() => setIsDemoVideoLoaded(true)}
+                className="anchor-screenshot-image block aspect-[16/10] w-full rounded-[1.125rem] border border-[var(--landing-line)] bg-black object-cover shadow-[0_20px_60px_var(--landing-shadow)]"
+              >
+                <a href={demoVideoUrl}>Download the Anchor demo video</a>
+              </video>
+            ) : (
+              <div className="relative">
+                <img
+                  src={appScreenshot}
+                  width={2880}
+                  height={1800}
+                  fetchPriority="high"
+                  alt="Anchor editor with a markdown note, document sidebar, and comments panel"
+                  onLoad={() => setIsDemoPosterLoaded(true)}
+                  className="anchor-screenshot-image block aspect-[16/10] w-full rounded-[1.125rem] border border-[var(--landing-line)] bg-white object-cover shadow-[0_20px_60px_var(--landing-shadow)]"
+                />
+                <button
+                  type="button"
+                  aria-label="Play Anchor demo video"
+                  onClick={handlePlayDemoVideo}
+                  className="anchor-play-button absolute left-1/2 top-1/2 inline-flex size-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/45 bg-black/82 text-white shadow-[0_20px_60px_var(--landing-shadow)] backdrop-blur-sm transition-[background-color,box-shadow,transform] duration-200 hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--landing-ink)] active:scale-[0.98] motion-reduce:transition-none"
+                >
+                  <Play
+                    aria-hidden="true"
+                    className="ml-1 size-8 fill-current"
+                  />
+                </button>
+              </div>
+            )}
           </section>
 
           <section className="py-12">
