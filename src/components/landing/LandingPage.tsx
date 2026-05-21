@@ -172,7 +172,7 @@ const faqItems = [
   {
     question: "Can I use an existing notes folder?",
     answer:
-      "Yes. Point Anchor at a local markdown folder and keep using the file structure you already have.",
+      "Yes. Choose any local markdown folder, and switch folders later from the sidebar or settings. Anchor keeps the file structure you already have.",
   },
   {
     question: "What are AI writing agents here?",
