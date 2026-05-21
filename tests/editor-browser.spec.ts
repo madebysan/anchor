@@ -608,6 +608,34 @@ test("comment rewrite auto-applies, highlights, and survives markdown reload", a
   await expect(page.locator(".ProseMirror")).not.toContainText(ORIGINAL_TEXT);
 });
 
+test("comment rewrite preserves markdown list formatting returned by Claude", async ({ page }) => {
+  const answeredQuestions = [
+    "- Should the set be black and white or muted color? Muted color, leaning toward desaturated greens.",
+    "- Does the route need a stronger ending shot? Yes, end at the overlook.",
+    "- Is this standalone or recurring? First entry in a recurring weekend series.",
+  ].join("\n");
+  await installTauriMock(page, { aiOutput: answeredQuestions });
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await selectEditorText(page, ORIGINAL_TEXT);
+  await clickSelectionAction(page, "Ask AI");
+
+  const messageInput = page.getByLabel("Comment message");
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("add the answers and more questions");
+  await page.getByLabel("Send comment").click();
+
+  await expect(editor.locator("ul li")).toHaveCount(3);
+  await expect(editor.locator("ul li").last()).toContainText("recurring weekend series");
+  await expect.poll(() => savedMarkdown(page)).toMatch(
+    /^-\s+Should the set be black and white or muted color\?/m,
+  );
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("If the passage is a list, return a list");
+});
+
 test("document-level insert command writes at the caret instead of debating the request", async ({ page }) => {
   await installTauriMock(page);
   await page.goto("/");
@@ -629,6 +657,37 @@ test("document-level insert command writes at the caret instead of debating the 
   const prompt = await latestClaudePrompt(page);
   expect(prompt).toContain("direct insertion command");
   expect(prompt).not.toContain("The user will apply it themselves");
+});
+
+test("chat insert requests preserve markdown block formatting at the caret", async ({ page }) => {
+  const insertedQuestions = [
+    "- Should the set be black and white or muted color? Muted color, leaning toward desaturated greens.",
+    "- Does the route need a stronger ending shot? Yes, end at the overlook.",
+    "- What time of day works best? Early morning, roughly 7-9 AM.",
+  ].join("\n");
+  await installTauriMock(page, {
+    aiOutput: insertedQuestions,
+    noteContent: ["# Browser Test", "", ORIGINAL_TEXT].join("\n"),
+  });
+  await page.goto("/");
+
+  const editor = page.locator(".ProseMirror");
+  await setEditorCaretAfterText(page, ORIGINAL_TEXT);
+
+  await page.getByRole("tab", { name: /Chat/ }).click();
+  const messageInput = page.getByRole("textbox", { name: "Chat message" });
+  await expect(messageInput).toBeVisible();
+  await messageInput.fill("add the answered open questions here");
+  await page.getByRole("button", { name: "Send chat message" }).click();
+
+  await expect(editor.locator("ul li")).toHaveCount(3);
+  await expect(editor.locator("ul li").first()).toContainText("Muted color");
+  await expect.poll(() => savedMarkdown(page)).toMatch(
+    /^-\s+Should the set be black and white or muted color\?/m,
+  );
+
+  const prompt = await latestClaudePrompt(page);
+  expect(prompt).toContain("Preserve blank lines, bullets, numbering, tables, and headings");
 });
 
 test("chat document edit commands use the full document instead of asking for selection", async ({ page }) => {
