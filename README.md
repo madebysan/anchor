@@ -2,8 +2,8 @@
 
 <h1>Anchor</h1>
 
-<p>Write markdown files on your Mac and ask Claude Code to edit the exact passage you mean.<br>
-Comments stay tied to text. Chat works on the whole document.</p>
+<p>Collaborate with AI editors the way you already work with a team.<br>
+Leave comments, ask for edits or research notes, and iterate inside your markdown.</p>
 
 <p><strong>Version 0.1.0</strong> · macOS · Apple Silicon</p>
 
@@ -18,7 +18,7 @@ Comments stay tied to text. Chat works on the whole document.</p>
 
 ![Anchor editor with markdown note, document sidebar, and comments panel](assets/screenshot.png)
 
-Anchor is a local markdown editor built around a small annoyance: AI edits are useful, but copy/paste from a chat thread is not. In Anchor, you can select a paragraph and ask for a rewrite directly in place, or use the Chat tab for document-wide changes like summaries, translation, global renames, and appending new sections.
+Anchor brings the comment loop from Google Docs into a local markdown editor. The difference is that the editor you tag is Claude Code. Leave feedback on a passage, ask for a rewrite, or use the Chat tab for document-wide changes like summaries, translation, global renames, research notes, and appending new sections.
 
 It uses your local [Claude Code](https://docs.anthropic.com/en/docs/claude-code) install. There is no API-key screen in Anchor and no hosted document store. Your notes stay as `.md` files in the folder you choose. When you ask AI to work on text, the selected passage or relevant document context is sent through Claude Code; Anchor does not send notes anywhere on its own.
 
