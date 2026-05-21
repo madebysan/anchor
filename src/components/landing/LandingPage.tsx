@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Code2,
   Download,
@@ -23,28 +23,28 @@ const navItems = [
 
 const workflowItems = [
   {
-    title: "1. Comments stay attached",
+    title: "1. Point to the sentence",
     description:
-      "Highlight the sentence that needs work. Anchor keeps the request tied to the passage instead of losing it in a generic chat thread.",
+      "Select the line that needs help. The request stays with that passage, so the thread does not drift away from the work.",
   },
   {
-    title: "2. Claude edits, you review",
+    title: "2. Review the edit",
     description:
-      "Suggestions apply directly with undo, so the editor remains the writer of record. No copy-paste cleanup loop.",
+      "Claude suggests the change. Anchor applies it through the editor and keeps undo one click away.",
   },
 ] as const;
 
 const promptCards = [
   {
-    prompt: "Make this tighter without changing the point.",
-    title: "Rewrite a passage",
+    prompt: "Tighten this paragraph. Keep the point.",
+    title: "Rewrite one passage",
   },
   {
-    prompt: "Summarize this note and append next steps.",
-    title: "Use full-document chat",
+    prompt: "Turn this note into next steps.",
+    title: "Work from the whole note",
   },
   {
-    prompt: "Translate this section, then keep the markdown headings.",
+    prompt: "Translate this section. Keep the headings.",
     title: "Keep structure intact",
   },
 ] as const;
@@ -53,35 +53,37 @@ const localFirstItems = [
   {
     icon: FileText,
     title: "Plain markdown",
-    description: "Your .md files remain readable anywhere.",
+    description: "Open the folder you already use.",
   },
   {
     icon: Code2,
     title: "Claude Code only",
-    description: "Uses your signed-in local Claude install.",
+    description: "Uses your signed-in Claude Code install.",
   },
   {
     icon: MessageSquare,
     title: "Sidecar threads",
-    description: "Comments live beside notes, not inside a database.",
+    description: "Threads sit next to each note.",
   },
   {
     icon: Undo2,
     title: "Undo stays visible",
-    description: "Applied edits keep a thread record and a revert path.",
+    description: "Every applied edit has a revert path.",
   },
 ] as const;
 
 export default function LandingPage() {
+  const [isScreenshotLoaded, setIsScreenshotLoaded] = useState(false);
+
   useEffect(() => {
     const previousTitle = document.title;
     const description = document.querySelector('meta[name="description"]');
     const previousDescription = description?.getAttribute("content");
 
-    document.title = "Anchor - AI editing for local markdown";
+    document.title = "Anchor - Claude Code edits for local markdown";
     description?.setAttribute(
       "content",
-      "Anchor is a macOS markdown editor where AI instructions stay anchored to the exact passage being reviewed.",
+      "Anchor opens local markdown folders and lets you ask Claude Code for edits on selected passages.",
     );
 
     return () => {
@@ -131,19 +133,19 @@ export default function LandingPage() {
         </header>
 
         <main id="product">
-          <section className="pt-12 sm:pt-14">
-            <p className="mb-4 font-mono text-xs font-bold uppercase tracking-[0.08em] text-[var(--landing-muted)]">
+          <section className="pt-10 sm:pt-12">
+            <p className="anchor-motion-in mb-4 font-mono text-xs font-bold uppercase tracking-[0.08em] text-[var(--landing-muted)]">
               Anchor / Local markdown + Claude Code
             </p>
-            <h1 className="anchor-landing-display max-w-[660px] text-balance text-[clamp(3.25rem,7vw,4.85rem)] leading-[0.94]">
+            <h1 className="anchor-landing-display anchor-motion-in anchor-motion-delay-1 max-w-[660px] text-balance text-[clamp(3rem,6vw,4.35rem)] leading-[0.96]">
               Edit markdown with AI anchored to the words you mean.
             </h1>
-            <p className="mt-6 max-w-[610px] text-pretty text-lg leading-8 text-[var(--landing-muted)]">
-              Anchor brings the comment loop from shared docs into a local
-              markdown editor. Select a passage, ask Claude Code for help, then
-              review and undo the edit inside the document.
+            <p className="anchor-motion-in anchor-motion-delay-2 mt-5 max-w-[590px] text-pretty text-lg leading-8 text-[var(--landing-muted)]">
+              Anchor opens your local notes folder. Select a sentence, ask
+              Claude Code for a change, and review the edit right where you
+              wrote it.
             </p>
-            <div className="mt-7 flex flex-wrap gap-3">
+            <div className="anchor-motion-in anchor-motion-delay-3 mt-6 flex flex-wrap gap-3">
               <Button
                 asChild
                 className="h-11 rounded-full px-5 text-base font-bold"
@@ -168,7 +170,8 @@ export default function LandingPage() {
 
           <section
             aria-label="Anchor product screenshot"
-            className="relative my-12 w-full sm:my-14 lg:w-[150vw] lg:-translate-x-[18%]"
+            className="anchor-screenshot-frame relative my-10 w-full sm:my-12"
+            data-loaded={isScreenshotLoaded}
           >
             <div className="absolute inset-0 -z-10 rounded-[1.5rem] bg-[radial-gradient(circle_at_20%_20%,var(--landing-warm-glow),transparent_32%),radial-gradient(circle_at_82%_60%,var(--landing-green-glow),transparent_30%)] blur-sm" />
             <img
@@ -177,7 +180,8 @@ export default function LandingPage() {
               height={1800}
               fetchPriority="high"
               alt="Anchor editor with a markdown note, document sidebar, and comments panel"
-              className="block w-full rounded-[1.125rem] border border-[var(--landing-line)] bg-white shadow-[0_24px_80px_var(--landing-shadow)]"
+              onLoad={() => setIsScreenshotLoaded(true)}
+              className="anchor-screenshot-image block w-full rounded-[1.125rem] border border-[var(--landing-line)] bg-white shadow-[0_20px_60px_var(--landing-shadow)]"
             />
           </section>
 
@@ -212,7 +216,7 @@ export default function LandingPage() {
                   ].join(" ")}
                 >
                   <p className="font-mono text-sm leading-6 text-[var(--landing-ink)]">
-                    “{card.prompt}”
+                    "{card.prompt}"
                   </p>
                   <h3 className="mt-8 text-lg font-bold">{card.title}</h3>
                 </article>
@@ -225,7 +229,7 @@ export default function LandingPage() {
             className="border-t border-[var(--landing-line)] py-12"
           >
             <h2 className="anchor-landing-display text-balance text-[clamp(2.25rem,5vw,3.25rem)] leading-none">
-              Built for local notes, not a hosted document store.
+              Local notes, no hosted workspace.
             </h2>
             <div className="mt-7 grid border-t border-[var(--landing-line)] sm:grid-cols-2">
               {localFirstItems.map((item) => {
@@ -252,7 +256,7 @@ export default function LandingPage() {
 
           <section className="border-t border-[var(--landing-line)] py-12 sm:py-16">
             <h2 className="anchor-landing-display max-w-[620px] text-balance text-[clamp(3.2rem,8vw,5.5rem)] leading-[0.93]">
-              Your markdown stays yours. Claude helps where you point.
+              Keep the file. Ask Claude at the exact spot.
             </h2>
             <Button
               asChild
