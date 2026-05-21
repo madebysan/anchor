@@ -4,14 +4,18 @@ import OnboardingScreen from "@/components/onboarding/OnboardingScreen";
 import InstallClaudeScreen from "@/components/onboarding/InstallClaudeScreen";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { getNotesFolder, pickNotesFolder, persistNotesFolder } from "@/lib/notes-folder";
-import { checkClaudeCli } from "@/lib/ai-cli";
+import {
+  CLAUDE_UNAVAILABLE_STATUS,
+  checkClaudeStatus,
+  type ClaudeStatus,
+} from "@/lib/ai-cli";
 import { bootPersistence } from "@/lib/persistence";
 
 const EditorPage = lazy(() => import("@/components/editor/EditorPage"));
 
 type FolderState = string | null | undefined;
 interface StartupState {
-  claudeInstalled: boolean;
+  claudeStatus: ClaudeStatus;
   notesFolder: string | null;
 }
 
@@ -32,32 +36,34 @@ export default function App() {
   const [persistenceReady, setPersistenceReady] = useState(false);
 
   useEffect(() => {
-    Promise.allSettled([checkClaudeCli(), getNotesFolder()])
+    Promise.allSettled([checkClaudeStatus(), getNotesFolder()])
       .then(([claudeResult, folderResult]) => {
-        const claudeInstalled =
-          claudeResult.status === "fulfilled" ? claudeResult.value : false;
+        const claudeStatus =
+          claudeResult.status === "fulfilled"
+            ? claudeResult.value
+            : CLAUDE_UNAVAILABLE_STATUS;
         const nextNotesFolder =
           folderResult.status === "fulfilled" ? folderResult.value : null;
 
         if (claudeResult.status === "rejected") {
-          console.error("checkClaudeCli failed:", claudeResult.reason);
+          console.error("checkClaudeStatus failed:", claudeResult.reason);
         }
         if (folderResult.status === "rejected") {
           console.error("getNotesFolder failed:", folderResult.reason);
         }
 
-        setStartup({ claudeInstalled, notesFolder: nextNotesFolder });
+        setStartup({ claudeStatus, notesFolder: nextNotesFolder });
         setNotesFolder(nextNotesFolder);
       })
       .catch((e) => {
         console.error("startup failed:", e);
-        setStartup({ claudeInstalled: false, notesFolder: null });
+        setStartup({ claudeStatus: CLAUDE_UNAVAILABLE_STATUS, notesFolder: null });
         setNotesFolder(null);
       });
   }, []);
 
   useEffect(() => {
-    if (startup?.claudeInstalled !== true || !notesFolder) {
+    if (startup?.claudeStatus.ready !== true || !notesFolder) {
       setPersistenceReady(false);
       return;
     }
@@ -72,7 +78,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [startup?.claudeInstalled, notesFolder]);
+  }, [startup?.claudeStatus.ready, notesFolder]);
 
   // Folder change: re-pick + re-persist, then reload the window so the store
   // re-bootstraps cleanly. Cheap and avoids cross-cutting cache invalidation.
@@ -87,18 +93,21 @@ export default function App() {
     }
   }
 
+  function handleClaudeStatusChange(claudeStatus: ClaudeStatus) {
+    setStartup((currentStartup) => ({
+      claudeStatus,
+      notesFolder: currentStartup?.notesFolder ?? notesFolder ?? null,
+    }));
+  }
+
   let view: React.ReactNode;
   if (startup === undefined) {
     view = <LoadingScreen label="Preparing Anchor…" />;
-  } else if (startup.claudeInstalled === false) {
+  } else if (startup.claudeStatus.ready === false) {
     view = (
       <InstallClaudeScreen
-        onInstalled={() =>
-          setStartup({
-            claudeInstalled: true,
-            notesFolder: notesFolder ?? startup.notesFolder,
-          })
-        }
+        status={startup.claudeStatus}
+        onStatusChange={handleClaudeStatusChange}
       />
     );
   } else if (notesFolder === undefined) {

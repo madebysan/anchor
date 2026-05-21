@@ -14,8 +14,27 @@ export interface AiSessionResult {
   session_id: string | null;
 }
 
+export interface ClaudeStatus {
+  installed: boolean;
+  ready: boolean;
+  detail: string | null;
+  subscription_type: string | null;
+}
+
+export const CLAUDE_UNAVAILABLE_STATUS: ClaudeStatus = {
+  installed: false,
+  ready: false,
+  detail: "Anchor could not check Claude Code.",
+  subscription_type: null,
+};
+
+export async function checkClaudeStatus(): Promise<ClaudeStatus> {
+  return invoke<ClaudeStatus>("ai_check_claude_status");
+}
+
 export async function checkClaudeCli(): Promise<boolean> {
-  return invoke<boolean>("ai_check_claude_cli");
+  const status = await checkClaudeStatus();
+  return status.ready;
 }
 
 export async function cancelClaude(requestId: string): Promise<boolean> {
