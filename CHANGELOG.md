@@ -5,6 +5,50 @@ Updated every session via `/save-session`.
 
 ---
 
+## 2026-05-21
+
+### Features
+- **First-run sample brief:** new users can create a "Creative Brief: Weekend
+  Photo Walk" sample note from onboarding, with sections that naturally demo
+  selection rewrites, research-style comments, table edits, and Chat follow-ups.
+- **Welcome copy for AI collaboration:** onboarding and README copy now frame
+  Anchor as shared-doc feedback, but with AI editors that can rewrite,
+  research, and iterate from anchored comments.
+
+### Fixes
+- **Claude Code subscription launch:** Anchor now strips local Anthropic API key
+  environment variables before launching Claude, so paid subscription users are
+  not accidentally routed into exhausted API billing.
+- **Claude readiness gate:** startup now checks that Claude Code is installed
+  and signed in before loading the editor, with clearer instructions when it is
+  not ready.
+- **Selected comment actions apply edits:** selected passage comments like
+  "change the audience..." now stay scoped to the highlighted passage instead
+  of being misread as whole-document rename requests.
+- **Markdown insert formatting:** AI insertions and selected-passage rewrites
+  preserve markdown blocks, tables, and list output instead of flattening
+  multi-line responses into plain paragraphs.
+- **Selected list formatting:** when a selected bullet list is answered by AI,
+  Anchor keeps one list item per selected item even if Claude returns one
+  flattened paragraph.
+- **Dev restart loop:** Claude now runs from Anchor's private app-support
+  working directory with a `.no-recent` sentinel, preventing local Claude hooks
+  from writing `src-tauri/recent.md` and triggering Tauri restarts after each
+  comment.
+
+### QA
+- Expanded browser coverage for the onboarding sample, selected audience edits,
+  markdown-list preservation, flattened-list recovery, table edits, revert
+  flows, document-wide edits, Chat insertions, and filesystem refresh behavior.
+- Verified the final state with `npm run lint`, `npm run build`,
+  `npm run test:e2e`, `cargo check --manifest-path src-tauri/Cargo.toml`, and
+  `cargo test --manifest-path src-tauri/Cargo.toml`.
+
+### Docs
+- Added public open-source release docs: `CONTRIBUTING.md`, `SECURITY.md`, and
+  README updates for setup, Claude Code requirements, privacy posture, and the
+  AI-editor collaboration model.
+
 ## 2026-05-15
 
 ### Features

@@ -31,6 +31,7 @@ __pycache__/
 # claude
 .claude/
 .claude/settings.local.json
+recent.md
 
 # profiling runs
 /scripts/profile-anchor.py
