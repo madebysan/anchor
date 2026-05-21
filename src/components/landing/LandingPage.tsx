@@ -553,7 +553,7 @@ export default function LandingPage() {
             </div>
           </section>
 
-          <section className="border-t border-[var(--landing-line)] py-12 sm:py-16">
+          <section className="py-12 sm:py-16">
             <h2 className="anchor-landing-display max-w-[560px] text-balance text-[clamp(2.35rem,5vw,3.45rem)] leading-[0.96]">
               Keep the file. Ask Claude at the exact spot.
             </h2>
