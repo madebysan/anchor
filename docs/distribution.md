@@ -40,7 +40,7 @@ identity, creates the DMG, signs the DMG, verifies the image checksum, and
 prints the artifact path:
 
 ```text
-src-tauri/target/universal-apple-darwin/release/bundle/dmg/Anchor_0.1.1_universal.dmg
+src-tauri/target/universal-apple-darwin/release/bundle/dmg/Anchor_0.1.2_universal.dmg
 ```
 
 Current signing identity:
@@ -68,21 +68,21 @@ npm run release:mac
 Expected validation commands:
 
 ```bash
-spctl --assess --type open --context context:primary-signature --verbose=4 "src-tauri/target/universal-apple-darwin/release/bundle/dmg/Anchor_0.1.1_universal.dmg"
+spctl --assess --type open --context context:primary-signature --verbose=4 "src-tauri/target/universal-apple-darwin/release/bundle/dmg/Anchor_0.1.2_universal.dmg"
 spctl --assess --type execute --verbose=4 "src-tauri/target/universal-apple-darwin/release/bundle/macos/Anchor.app"
 codesign --verify --deep --strict --verbose=4 "src-tauri/target/universal-apple-darwin/release/bundle/macos/Anchor.app"
-hdiutil verify "src-tauri/target/universal-apple-darwin/release/bundle/dmg/Anchor_0.1.1_universal.dmg"
+hdiutil verify "src-tauri/target/universal-apple-darwin/release/bundle/dmg/Anchor_0.1.2_universal.dmg"
 ```
 
 Last verified notarized release:
 
 ```text
 Status: Accepted
-Release: Anchor 0.1.1
-Tag: v0.1.1
-Asset: Anchor-0.1.1-macOS-universal.dmg
-Notarization ID: e68bb318-5057-4743-b1d2-8a4ddb735f62
-SHA256: 7c5db4a6034436a387a3013bd821438741dc11cfb0482851a9da70e7dec2c85e
+Release: Anchor 0.1.2
+Tag: v0.1.2
+Asset: Anchor-0.1.2-macOS-universal.dmg
+Notarization ID: e928cf8c-6483-462c-83ed-25a6ed5e0f21
+SHA256: 529422b2191659d766ec689724eb1c97a867e23b8d5a30f0586f55005d490ee8
 ```
 
 ## DMG Design

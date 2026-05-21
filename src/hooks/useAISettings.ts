@@ -14,7 +14,7 @@ export function useAISettings() {
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   // Anchor doesn't use API keys (Claude Code handles auth), but we keep
-  // the AISettings shape from the inlineai parent for the persona/trigger
+  // the legacy AISettings shape for persona/trigger migrations
   // config it carries. Just load whatever's persisted in localStorage.
   useEffect(() => {
     setSettings(loadSettings());

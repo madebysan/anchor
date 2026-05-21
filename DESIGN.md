@@ -86,7 +86,7 @@ Comment highlights use warm yellow/amber `oklch` values. Applied AI edits use gr
 
 | Date | Decision | Rationale |
 |---|---|---|
-| 2026-05-06 | Keep Anchor as a native desktop fork of inlineai. | The app is meant to be the daily-driver target for local markdown editing. |
+| 2026-05-06 | Keep Anchor as a native desktop markdown editor. | The app is meant to be the daily-driver target for local markdown editing. |
 | 2026-05-15 | Use plain markdown files plus thread sidecars. | Files remain user-facing and portable while preserving anchored AI context. |
 | 2026-05-21 | Keep Claude Code read-only from Anchor. | The editor must stay the authoritative writer so undo, persistence, and review stay predictable. |
 

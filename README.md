@@ -5,7 +5,7 @@
 <p>Collaborate with AI writers inside your local notes.<br>
 Select a passage, ask Claude Code for a change, and review the edit where you wrote it.</p>
 
-<p><strong>Version 0.1.1</strong> · macOS · Universal</p>
+<p><strong>Version 0.1.2</strong> · macOS · Universal</p>
 
 <p>
   <img src="https://img.shields.io/badge/Tauri-24c8db" alt="Tauri">
