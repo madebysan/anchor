@@ -3,6 +3,7 @@ import { lazy, Suspense, useRef, useCallback, useEffect, useState, useMemo } fro
 import Editor from "./Editor";
 import CommentSidebar from "@/components/comments/CommentSidebar";
 import DocumentSidebar from "@/components/documents/DocumentSidebar";
+import WelcomeDialog from "@/components/onboarding/WelcomeDialog";
 import { useAIChat } from "@/hooks/useAIChat";
 import { useAISettings } from "@/hooks/useAISettings";
 import { useEditorPreferences } from "@/hooks/useEditorPreferences";
@@ -455,7 +456,7 @@ export default function EditorPage({
 }: EditorPageProps = {}) {
   const editorRef = useRef<TiptapEditor | null>(null);
 
-  // Document store — single source of truth for documents, threads, persistence.
+  // Document store: single source of truth for documents, threads, persistence.
   const documents = useDocumentStore((s) => s.documents);
   const activeDocId = useDocumentStore((s) => s.activeDocId);
   const threads = useDocumentStore((s) => s.threads);
@@ -1242,6 +1243,7 @@ export default function EditorPage({
         </Suspense>
       )}
 
+      <WelcomeDialog />
     </div>
   );
 }

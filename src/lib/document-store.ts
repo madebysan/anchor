@@ -52,6 +52,11 @@ interface DocumentStore {
 
   // ---- Documents ----
   createDocument: (parentFolderId?: string) => void;
+  createDocumentFromMarkdown: (input: {
+    title: string;
+    markdown: string;
+    parentFolderId?: string;
+  }) => Promise<string>;
   switchDocument: (id: string) => void;
   deleteDocument: (id: string) => void;
   renameDocument: (id: string, title: string) => Promise<void>;
@@ -304,6 +309,39 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     });
   },
 
+  createDocumentFromMarkdown: async ({ title, markdown, parentFolderId }) => {
+    const { activeDocId, content, threads } = get();
+
+    if (activeDocId) {
+      get().cancelPendingSaves();
+      await Promise.all([
+        saveDocContent(activeDocId, content),
+        saveDocThreads(activeDocId, threads),
+      ]);
+    }
+
+    const id = allocateNoteId(title, parentFolderId);
+    await writeNote(id, markdown);
+    await refreshPersistence();
+
+    const docs = loadDocIndex() ?? [];
+    const html = loadDocContent(id) ?? "";
+    saveActiveDocId(id);
+
+    set({
+      documents: docs,
+      activeDocId: id,
+      content: html,
+      pendingContentLoad: { docId: id, html },
+      threads: [],
+      activeThreadId: null,
+      saveStatus: "saved",
+      lastSavedAt: Date.now(),
+    });
+
+    return id;
+  },
+
   switchDocument: (targetId: string) => {
     const { activeDocId, content, threads } = get();
     if (targetId === activeDocId) return;
@@ -336,7 +374,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
         return { documents: remaining };
       }
 
-      // Active doc was deleted — pick the next, or auto-create a fresh blank.
+      // Active doc was deleted: pick the next, or auto-create a fresh blank.
       get().cancelPendingSaves();
 
       if (remaining.length === 0) {

@@ -62,15 +62,16 @@ Comment highlights use warm yellow/amber `oklch` values. Applied AI edits use gr
 | Loading | Keep controls visible while Claude is running and expose stop actions. |
 | Errors | Show actionable Claude CLI errors in the sidebar, not raw stack traces. |
 | File refresh | External file changes should refresh the tree without surprising the active editor. |
+| Welcome | First-open guidance should stay brief and offer a sample note only by explicit user action. |
 
 ## Shared Components
 
 | Component | Variants | Sizes | File | Usages |
 |---|---|---|---|---|
 | AlertDialog | default | md | `src/components/ui/alert-dialog.tsx` | 1 |
-| Button | default, destructive, outline, secondary, ghost, link | default, sm, lg, icon, icon-sm, icon-xs | `src/components/ui/button.tsx` | 13 |
+| Button | default, destructive, outline, secondary, ghost, link | default, sm, lg, icon, icon-sm, icon-xs | `src/components/ui/button.tsx` | 15 |
 | ContextMenu | default | md | `src/components/ui/context-menu.tsx` | 1 |
-| Dialog | default | md | `src/components/ui/dialog.tsx` | 1 |
+| Dialog | default | md | `src/components/ui/dialog.tsx` | 2 |
 | DropdownMenu | default | md | `src/components/ui/dropdown-menu.tsx` | 2 |
 | Input | default | md | `src/components/ui/input.tsx` | 2 |
 | Label | default | md | `src/components/ui/label.tsx` | 1 |
