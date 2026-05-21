@@ -146,6 +146,7 @@ export function useAIChat(
           "- Do NOT preface with 'Here is...', 'Sure...', '-> ref:', or any header.",
           "- Match the original's length and style unless the instruction explicitly asks otherwise (e.g. 'translate', 'rewrite to be punchier').",
           "- Preserve the original block shape. If the passage is a list, return a list. If it has blank lines, keep the same paragraph breaks. Do not collapse multiple items into one paragraph.",
+          "- For list passages, keep one output list item for each input list item unless the user explicitly asks to add, remove, or reorder items. If adding answers to questions, append each answer inside the matching bullet.",
         ].join("\n");
 
         const feedbackPrompt = [
@@ -459,10 +460,13 @@ export function useAIChat(
         const shouldAutoInsert = intent === "insert-at-caret" || intent === "append-document";
         const shouldAutoReplaceAll = intent === "replace-all";
         const shouldAutoReplaceDocument = intent === "replace-document";
-        const cleaned =
+        const cleanedOutput =
           shouldAutoApply || shouldAutoInsert || shouldAutoReplaceAll || shouldAutoReplaceDocument
             ? stripCommentary(output)
             : output.trim();
+        const cleaned = shouldAutoApply
+          ? preserveReplacementListShape(passage, cleanedOutput)
+          : cleanedOutput;
 
         onStreamChunk(threadId, messageId, cleaned);
         if (shouldAutoApply) {
@@ -556,4 +560,61 @@ function stripCommentary(raw: string): string {
   }
 
   return s;
+}
+
+interface MarkdownListItem {
+  marker: string;
+  text: string;
+}
+
+function preserveReplacementListShape(passage: string, replacement: string): string {
+  const sourceItems = parseSimpleMarkdownListItems(passage);
+  if (sourceItems.length < 2) return replacement;
+
+  const replacementItems = parseSimpleMarkdownListItems(replacement);
+  if (replacementItems.length >= sourceItems.length) return replacement;
+
+  const flattened = replacement.replace(/\s+/g, " ").trim();
+  if (!flattened) return replacement;
+
+  const starts: number[] = [];
+  const lowerFlattened = flattened.toLocaleLowerCase();
+  let cursor = 0;
+
+  for (const item of sourceItems) {
+    const needle = item.text.replace(/\s+/g, " ").trim().toLocaleLowerCase();
+    const index = lowerFlattened.indexOf(needle, cursor);
+    if (index === -1) return replacement;
+    starts.push(index);
+    cursor = index + needle.length;
+  }
+
+  const segments = starts.map((start, index) => {
+    const nextStart = starts[index + 1] ?? flattened.length;
+    return flattened.slice(start, nextStart).trim();
+  });
+
+  if (segments.some((segment) => segment.length === 0)) return replacement;
+
+  return segments
+    .map((segment, index) => `${sourceItems[index].marker} ${segment}`)
+    .join("\n");
+}
+
+function parseSimpleMarkdownListItems(value: string): MarkdownListItem[] {
+  const lines = value
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return [];
+
+  const items: MarkdownListItem[] = [];
+  for (const line of lines) {
+    const match = line.match(/^([-*+]|\d+[.)])\s+(.+)$/);
+    if (!match) return [];
+    items.push({ marker: match[1], text: match[2].trim() });
+  }
+
+  return items;
 }

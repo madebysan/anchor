@@ -21,7 +21,7 @@ import { parseTrigger, isPlainNote } from "@/lib/triggers";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { DocumentSnapshot } from "@/lib/ai/context-router";
-import type { AppliedEdit, CommentThread, SuggestedEdit } from "@/types";
+import type { AppliedEdit, CommentAnchor, CommentThread, SuggestedEdit } from "@/types";
 import { DOMParser as ProseMirrorDOMParser, type Mark } from "@tiptap/pm/model";
 import type { Editor as TiptapEditor } from "@tiptap/react";
 import { GripVertical } from "lucide-react";
@@ -92,6 +92,64 @@ function markdownBlockInsertionPosition(editor: TiptapEditor, from: number): num
   }
 
   return Math.min(resolved.after(resolved.depth), editor.state.doc.content.size);
+}
+
+function plainTextForRange(editor: TiptapEditor, from: number, to: number): string {
+  return editor.state.doc.textBetween(from, to, " ");
+}
+
+function selectedListMarkdownForRange(
+  editor: TiptapEditor,
+  from: number,
+  to: number,
+): string | null {
+  const items: Array<{ marker: string; text: string }> = [];
+
+  editor.state.doc.nodesBetween(from, to, (node, pos, parent, index) => {
+    if (node.type.name !== "listItem") return true;
+    if (!parent || (parent.type.name !== "bulletList" && parent.type.name !== "orderedList")) {
+      return true;
+    }
+
+    const contentStart = pos + 1;
+    const contentFrom = Math.max(0, from - contentStart);
+    const contentTo = Math.min(node.content.size, to - contentStart);
+    if (contentTo <= contentFrom) return false;
+
+    const text = node.textBetween(contentFrom, contentTo, "\n").trim();
+    if (!text) return false;
+
+    const marker = parent.type.name === "orderedList"
+      ? `${((parent.attrs.start as number | undefined) ?? 1) + index}.`
+      : "-";
+    items.push({ marker, text });
+    return false;
+  });
+
+  if (items.length === 0) return null;
+  return items.map((item) => `${item.marker} ${item.text}`).join("\n");
+}
+
+function selectedPromptTextForRange(editor: TiptapEditor, from: number, to: number): string {
+  const listMarkdown = selectedListMarkdownForRange(editor, from, to);
+  if (listMarkdown) return listMarkdown;
+
+  const blockText = editor.state.doc.textBetween(from, to, "\n\n").trim();
+  if (blockText) return blockText;
+
+  return plainTextForRange(editor, from, to).trim();
+}
+
+function buildThreadAnchorForRange(
+  editor: TiptapEditor,
+  from: number,
+  to: number,
+  selectedText: string,
+): CommentAnchor {
+  return {
+    ...buildAnchorForRange(editor, from, to, plainTextForRange(editor, from, to)),
+    sourceText: selectedText,
+  };
 }
 const AISettingsDialog = lazy(() => import("./AISettingsDialog"));
 
@@ -729,7 +787,7 @@ export default function EditorPage({
         store.updateThread(threadId, (t) => ({
           ...t,
           selectedText: range.text,
-          anchor: buildAnchorForRange(editor, range.from, range.to, range.text),
+          anchor: buildThreadAnchorForRange(editor, range.from, range.to, range.text),
         }));
         return;
       }
@@ -757,7 +815,12 @@ export default function EditorPage({
         store.updateThread(threadId, (t) => ({
           ...t,
           selectedText: replacement,
-          anchor: buildAnchorForRange(editor, result.range.from, result.range.to, replacement),
+          anchor: buildThreadAnchorForRange(
+            editor,
+            result.range.from,
+            result.range.to,
+            replacement,
+          ),
         }));
         return;
       }
@@ -802,7 +865,7 @@ export default function EditorPage({
       store.updateThread(threadId, (t) => ({
         ...t,
         selectedText: replacement,
-        anchor: buildAnchorForRange(editor, range.from, range.to, replacement),
+        anchor: buildThreadAnchorForRange(editor, range.from, range.to, replacement),
       }));
     },
     settings
@@ -930,12 +993,12 @@ export default function EditorPage({
     const { from, to } = editor.state.selection;
     if (from === to) return;
 
-    const selectedText = editor.state.doc.textBetween(from, to, " ");
+    const selectedText = selectedPromptTextForRange(editor, from, to);
     const threadId = useDocumentStore
       .getState()
       .createThread(
         selectedText,
-        buildAnchorForRange(editor, from, to, selectedText),
+        buildThreadAnchorForRange(editor, from, to, selectedText),
         intent
       );
 
@@ -1097,7 +1160,7 @@ export default function EditorPage({
         ...t,
         selectedText: suggestion.suggestedText,
         anchor: range
-          ? buildAnchorForRange(editor, range.from, range.to, suggestion.suggestedText)
+          ? buildThreadAnchorForRange(editor, range.from, range.to, suggestion.suggestedText)
           : t.anchor,
         messages: t.messages.map((m) =>
           m.id === messageId
@@ -1149,7 +1212,12 @@ export default function EditorPage({
         store.updateThread(threadId, (thread) => ({
           ...thread,
           selectedText: edit.originalText,
-          anchor: buildAnchorForRange(editor, result.range.from, result.range.to, edit.originalText),
+          anchor: buildThreadAnchorForRange(
+            editor,
+            result.range.from,
+            result.range.to,
+            edit.originalText,
+          ),
         }));
         store.setAppliedEditStatus(threadId, messageId, edit.id, "reverted");
         return;
@@ -1164,7 +1232,7 @@ export default function EditorPage({
       store.updateThread(threadId, (thread) => ({
         ...thread,
         selectedText: edit.originalText,
-        anchor: buildAnchorForRange(editor, range.from, range.to, edit.originalText),
+        anchor: buildThreadAnchorForRange(editor, range.from, range.to, edit.originalText),
       }));
       store.setAppliedEditStatus(threadId, messageId, edit.id, "reverted");
     },
