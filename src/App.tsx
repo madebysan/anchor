@@ -3,6 +3,7 @@ import ThemeProvider from "@/components/ThemeProvider";
 import OnboardingScreen from "@/components/onboarding/OnboardingScreen";
 import InstallClaudeScreen from "@/components/onboarding/InstallClaudeScreen";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import LandingPage from "@/components/landing/LandingPage";
 import { getNotesFolder, pickNotesFolder, persistNotesFolder } from "@/lib/notes-folder";
 import {
   CLAUDE_UNAVAILABLE_STATUS,
@@ -19,6 +20,10 @@ interface StartupState {
   notesFolder: string | null;
 }
 
+function isLandingRoute() {
+  return window.location.pathname === "/landing";
+}
+
 function LoadingScreen({ label }: { label: string }) {
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-background text-sm text-muted-foreground">
@@ -30,7 +35,7 @@ function LoadingScreen({ label }: { label: string }) {
   );
 }
 
-export default function App() {
+function DesktopApp() {
   const [startup, setStartup] = useState<StartupState | undefined>(undefined);
   const [notesFolder, setNotesFolder] = useState<FolderState>(undefined);
   const [persistenceReady, setPersistenceReady] = useState(false);
@@ -127,10 +132,16 @@ export default function App() {
     );
   }
 
+  return view;
+}
+
+export default function App() {
   return (
     <div className="font-sans antialiased">
       <ThemeProvider>
-        <ErrorBoundary>{view}</ErrorBoundary>
+        <ErrorBoundary>
+          {isLandingRoute() ? <LandingPage /> : <DesktopApp />}
+        </ErrorBoundary>
       </ThemeProvider>
     </div>
   );
