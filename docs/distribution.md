@@ -68,11 +68,14 @@ codesign --verify --deep --strict --verbose=4 "src-tauri/target/release/bundle/m
 hdiutil verify "src-tauri/target/release/bundle/dmg/Anchor_0.1.0_aarch64.dmg"
 ```
 
-Last verified notarization before the Anchor rename:
+Last verified notarized release:
 
 ```text
 Status: Accepted
-Submission ID: 7c9d0db2-0a06-4559-8428-87a1426b6960
+Release: Anchor 0.1.0
+Tag: v0.1.0
+Asset: Anchor-0.1.0-Apple-Silicon.dmg
+SHA256: db5eca71d7e46740890ed607655a3c760bc75ded7e57b03579cdea79947c2ac7
 ```
 
 ## DMG Design

@@ -16,9 +16,11 @@ Comments stay tied to text. Chat works on the whole document.</p>
 
 <p><a href="https://github.com/madebysan/anchor/releases/latest">Download Anchor</a></p>
 
+![Anchor editor with markdown note, document sidebar, and comments panel](assets/screenshot.png)
+
 Anchor is a local markdown editor built around a small annoyance: AI edits are useful, but copy/paste from a chat thread is not. In Anchor, you can select a paragraph and ask for a rewrite directly in place, or use the Chat tab for document-wide changes like summaries, translation, global renames, and appending new sections.
 
-It uses your local [Claude Code](https://docs.anthropic.com/en/docs/claude-code) install. There is no API-key screen in Anchor and no hosted document store. Your notes stay as `.md` files in the folder you choose.
+It uses your local [Claude Code](https://docs.anthropic.com/en/docs/claude-code) install. There is no API-key screen in Anchor and no hosted document store. Your notes stay as `.md` files in the folder you choose. When you ask AI to work on text, the selected passage or relevant document context is sent through Claude Code; Anchor does not send notes anywhere on its own.
 
 ## Install
 

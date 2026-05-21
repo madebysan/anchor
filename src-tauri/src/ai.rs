@@ -124,7 +124,7 @@ pub fn ai_check_claude_cli() -> bool {
     found.is_some()
 }
 
-// Same logic as notes.rs::ensure_inside — normalize without following
+// Same logic as notes.rs::ensure_inside: normalize without following
 // symlinks so files in Drive-synced subfolders (which symlink out of the
 // notes folder) still pass the prefix check.
 fn normalize(path: &Path) -> PathBuf {
@@ -167,7 +167,28 @@ fn claude_failure_message(status: ExitStatus, stderr: &str) -> String {
     }
 }
 
-// One-shot chat with claude — no file argument, just a prompt on stdin.
+enum ClaudeToolPolicy {
+    NoTools,
+    ReadOnly,
+}
+
+fn apply_claude_base_args(cmd: &mut Command, tool_policy: ClaudeToolPolicy) {
+    cmd.arg("--dangerously-skip-permissions").arg("--print");
+
+    match tool_policy {
+        ClaudeToolPolicy::NoTools => {
+            cmd.arg("--tools").arg("");
+        }
+        ClaudeToolPolicy::ReadOnly => {
+            cmd.arg("--allowedTools")
+                .arg("Read")
+                .arg("--disallowedTools")
+                .arg("Write,Edit,MultiEdit,NotebookEdit,Bash");
+        }
+    }
+}
+
+// One-shot chat with claude: no file argument, just a prompt on stdin.
 // Used for chat-only requests when no document context is needed.
 #[tauri::command]
 pub async fn ai_chat_claude(
@@ -188,9 +209,9 @@ fn ai_chat_claude_blocking(
     prompt: String,
     request_id: Option<String>,
 ) -> Result<AiExecutionResult, String> {
-    let mut child = Command::new("claude")
-        .arg("--dangerously-skip-permissions")
-        .arg("--print")
+    let mut cmd = Command::new("claude");
+    apply_claude_base_args(&mut cmd, ClaudeToolPolicy::NoTools);
+    let mut child = cmd
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -277,9 +298,8 @@ fn ai_invoke_claude_blocking(
     request_id: Option<String>,
 ) -> Result<AiSessionResult, String> {
     let mut cmd = Command::new("claude");
-    cmd.arg("--dangerously-skip-permissions")
-        .arg("--print")
-        .arg("--output-format")
+    apply_claude_base_args(&mut cmd, ClaudeToolPolicy::ReadOnly);
+    cmd.arg("--output-format")
         .arg("json");
 
     if let Some(sid) = &session_id {

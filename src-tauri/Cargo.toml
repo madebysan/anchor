@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Document editor where AI instructions are anchored to text passages."
 authors = ["Santiago Alonso"]
 license = "MIT"
-repository = ""
+repository = "https://github.com/madebysan/anchor"
 edition = "2021"
 rust-version = "1.77.2"
 

@@ -24,7 +24,8 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data: blob:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+      "devCsp": "default-src 'self'; connect-src ipc: http://ipc.localhost http://127.0.0.1:1420 http://localhost:1420 ws://127.0.0.1:1420 ws://localhost:1420; img-src 'self' asset: http://asset.localhost data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"
     }
   },
   "bundle": {
@@ -32,7 +33,7 @@
     "targets": "all",
     "category": "Productivity",
     "shortDescription": "AI instructions anchored to your text.",
-    "longDescription": "Anchor is a desktop markdown editor where AI instructions are anchored to passages. Uses Claude Code locally — no API keys.",
+    "longDescription": "Anchor is a desktop markdown editor where AI instructions are anchored to passages. Uses Claude Code locally, no API keys.",
     "macOS": {
       "signingIdentity": "Developer ID Application: Santiago Alonso Alexandre (QAMM2A6WRQ)",
       "providerShortName": "QAMM2A6WRQ"

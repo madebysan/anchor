@@ -3,9 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
+  "homepage": "https://github.com/madebysan/anchor#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/madebysan/anchor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/madebysan/anchor/issues"
+  },
+  "overrides": {
+    "@ts-morph/common": {
+      "brace-expansion": "^5.0.6"
+    }
   },
   "type": "module",
   "scripts": {
