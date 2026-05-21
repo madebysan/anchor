@@ -453,12 +453,13 @@ export default function LandingPage() {
               Personas
             </p>
             <h2 className="anchor-landing-display mt-3 text-balance text-[clamp(2.25rem,5vw,3.25rem)] leading-none">
-              Build the small AI team your notes need.
+              Build your own team of AI writing agents.
             </h2>
             <p className="mt-4 max-w-[590px] text-pretty text-lg leading-8 text-[var(--landing-muted)]">
-              Anchor is not just a blank LLM box. Make personas with their own
-              instructions, context, and standards. Then assign comments and
-              tasks to the right persona from the exact line you are working on.
+              Anchor is not a blank LLM box. Create writer agents with their
+              own instructions, context, and standards. Then assign comments
+              and tasks to the right agent from the exact line you are working
+              on.
             </p>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
