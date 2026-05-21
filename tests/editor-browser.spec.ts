@@ -12,6 +12,7 @@ interface TauriMockOptions {
   aiOutput?: string;
   aiOutputs?: string[];
   noteContent?: string;
+  showWelcome?: boolean;
 }
 
 interface ExternalNotesApi {
@@ -38,6 +39,7 @@ async function installTauriMock(
       aiOutput,
       aiOutputs,
       noteContent,
+      showWelcome,
     }) => {
       interface MockNote {
         id: string;
@@ -103,6 +105,12 @@ async function installTauriMock(
       const win = window as unknown as TestWindow;
       const notePath = (id: string) => `/mock-notes/${id}.md`;
       const nowSeconds = () => Math.floor(Date.now() / 1000);
+      const welcomeStorageKey = "anchor-welcome-dismissed-v1";
+      if (showWelcome) {
+        localStorage.removeItem(welcomeStorageKey);
+      } else {
+        localStorage.setItem(welcomeStorageKey, "true");
+      }
 
       const freshState = (): MockState => ({
         notes: [
@@ -412,6 +420,7 @@ async function installTauriMock(
       aiOutput: options.aiOutput,
       aiOutputs: options.aiOutputs,
       noteContent: options.noteContent,
+      showWelcome: options.showWelcome,
     },
   );
 }
@@ -531,6 +540,35 @@ async function emitExternalNotesChange(page: Page, path?: string): Promise<void>
     win.__inlineMdTestApi.emitNotesChanged(changedPath);
   }, path);
 }
+
+test("welcome dialog can create and open the photo walk sample note", async ({ page }) => {
+  await installTauriMock(page, { showWelcome: true });
+  await page.goto("/");
+
+  await expect(page.getByRole("heading", { name: "Welcome to Anchor" })).toBeVisible();
+  await page.getByRole("button", { name: "Create Sample Note" }).click();
+
+  const editor = page.locator(".ProseMirror");
+  await expect(
+    editor.getByRole("heading", { name: "Creative Brief: Weekend Photo Walk" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator('aside[aria-label="Documents"]')
+      .getByText("Creative Brief - Weekend Photo Walk"),
+  ).toBeVisible();
+
+  const sampleContent = await page.evaluate(() => {
+    const win = window as unknown as {
+      __inlineMdTest?: { notes: Array<{ id: string; content: string }> };
+    };
+    return win.__inlineMdTest?.notes.find(
+      (note) => note.id === "Creative Brief - Weekend Photo Walk",
+    )?.content ?? "";
+  });
+  expect(sampleContent).toContain("## Shot List");
+  expect(sampleContent).toContain("Use Chat to turn the shot list into a tighter sequence.");
+});
 
 test("comment rewrite auto-applies, highlights, and survives markdown reload", async ({ page }) => {
   await installTauriMock(page);
