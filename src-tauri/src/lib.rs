@@ -81,6 +81,7 @@ pub fn run() {
             notes::reveal_path,
             watcher::start_watching_notes,
             ai::ai_check_claude_cli,
+            ai::ai_check_claude_status,
             ai::ai_cancel_claude,
             ai::ai_chat_claude,
             ai::ai_invoke_claude,

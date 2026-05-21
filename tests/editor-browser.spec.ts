@@ -304,6 +304,13 @@ async function installTauriMock(
           state.invocations.push({ cmd, args });
 
           switch (cmd) {
+            case "ai_check_claude_status":
+              return {
+                installed: true,
+                ready: true,
+                detail: "Claude Code is signed in with a Max subscription.",
+                subscription_type: "max",
+              };
             case "ai_check_claude_cli":
               return true;
             case "get_notes_folder":

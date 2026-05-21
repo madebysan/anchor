@@ -20,7 +20,7 @@ Leave comments, ask for edits or research notes, and iterate inside your markdow
 
 Anchor brings the comment loop from Google Docs into a local markdown editor. The difference is that the editor you tag is Claude Code. Leave feedback on a passage, ask for a rewrite, or use the Chat tab for document-wide changes like summaries, translation, global renames, research notes, and appending new sections.
 
-It uses your local [Claude Code](https://docs.anthropic.com/en/docs/claude-code) install. There is no API-key screen in Anchor and no hosted document store. If you have `ANTHROPIC_API_KEY` set in your shell, Anchor removes it before launching Claude so Claude Code uses your signed-in account instead of API credits. Your notes stay as `.md` files in the folder you choose. When you ask AI to work on text, the selected passage or relevant document context is sent through Claude Code; Anchor does not send notes anywhere on its own.
+It uses your local [Claude Code](https://docs.anthropic.com/en/docs/claude-code) install. There is no API-key screen in Anchor and no hosted document store. On launch, Anchor checks that Claude Code is installed and signed in before it opens the editor. If you have `ANTHROPIC_API_KEY` set in your shell, Anchor removes it before launching Claude so Claude Code uses your signed-in account instead of API credits. Your notes stay as `.md` files in the folder you choose. When you ask AI to work on text, the selected passage or relevant document context is sent through Claude Code; Anchor does not send notes anywhere on its own.
 
 ## Install
 
