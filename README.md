@@ -5,7 +5,7 @@
 <p>Collaborate with AI editors the way you already work with a team.<br>
 Leave comments, ask for edits or research notes, and iterate inside your markdown.</p>
 
-<p><strong>Version 0.1.0</strong> · macOS · Apple Silicon</p>
+<p><strong>Version 0.1.1</strong> · macOS · Universal</p>
 
 <p>
   <img src="https://img.shields.io/badge/Tauri-24c8db" alt="Tauri">
@@ -14,7 +14,10 @@ Leave comments, ask for edits or research notes, and iterate inside your markdow
   <img src="https://img.shields.io/badge/macOS-000000" alt="macOS">
 </p>
 
-<p><a href="https://github.com/madebysan/anchor/releases/latest">Download Anchor</a></p>
+<p>
+  <a href="https://github.com/madebysan/anchor/releases/latest">Download Anchor</a> ·
+  <a href="https://anchor.santiagoalonso.com">Landing page</a>
+</p>
 
 ![Anchor editor with markdown note, document sidebar, and comments panel](assets/screenshot.png)
 
@@ -28,7 +31,7 @@ Download the latest DMG from [Releases](https://github.com/madebysan/anchor/rele
 
 Requirements:
 
-- macOS on Apple Silicon.
+- macOS on Apple Silicon or Intel.
 - Claude Code installed and signed in from Terminal.
 - A folder of markdown files, or an empty folder where Anchor can create them.
 
@@ -61,7 +64,7 @@ That builds the app, signs the DMG, submits it for notarization, staples the res
 
 ## Known Limitations
 
-The current release is Apple Silicon only. Comment anchor restoration is best-effort if the underlying passage is heavily rewritten outside the app. Structural edits that move text between two separate locations are intentionally not auto-applied yet.
+Comment anchor restoration is best-effort if the underlying passage is heavily rewritten outside the app. Structural edits that move text between two separate locations are intentionally not auto-applied yet.
 
 For feedback, open an issue in this repo.
 

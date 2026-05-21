@@ -19,6 +19,9 @@ Updated every session via `/save-session`.
 - **Claude Code subscription launch:** Anchor now strips local Anthropic API key
   environment variables before launching Claude, so paid subscription users are
   not accidentally routed into exhausted API billing.
+- **Folder reveal hardening:** file-manager commands now verify the requested
+  path exists inside the selected notes folder before opening it from the
+  app webview.
 - **Claude readiness gate:** startup now checks that Claude Code is installed
   and signed in before loading the editor, with clearer instructions when it is
   not ready.
@@ -35,6 +38,8 @@ Updated every session via `/save-session`.
   working directory with a `.no-recent` sentinel, preventing local Claude hooks
   from writing `src-tauri/recent.md` and triggering Tauri restarts after each
   comment.
+- **Public landing metadata:** the landing route now has title, description,
+  social-preview metadata, larger footer targets, and visible keyboard focus.
 
 ### QA
 - Expanded browser coverage for the onboarding sample, selected audience edits,
@@ -48,6 +53,9 @@ Updated every session via `/save-session`.
 - Added public open-source release docs: `CONTRIBUTING.md`, `SECURITY.md`, and
   README updates for setup, Claude Code requirements, privacy posture, and the
   AI-editor collaboration model.
+- Release packaging now targets a universal macOS DMG for Apple Silicon and
+  Intel Macs, with the placeholder landing page saved as
+  `https://anchor.santiagoalonso.com`.
 
 ## 2026-05-15
 

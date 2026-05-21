@@ -7,15 +7,22 @@ cd "$ROOT"
 PRODUCT_NAME="$(node -e "const fs = require('fs'); const c = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')); process.stdout.write(c.productName);")"
 VERSION="$(node -e "const fs = require('fs'); const c = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')); process.stdout.write(c.version);")"
 SIGNING_IDENTITY="$(node -e "const fs = require('fs'); const c = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')); process.stdout.write(c.bundle?.macOS?.signingIdentity || '');")"
-ARCH="$(uname -m)"
-if [ "$ARCH" = "arm64" ]; then
-  BUNDLE_ARCH="aarch64"
+BUILD_TARGET="${ANCHOR_BUILD_TARGET:-universal-apple-darwin}"
+if [ "$BUILD_TARGET" = "universal-apple-darwin" ]; then
+  BUNDLE_ARCH="universal"
+  TARGET_DIR="src-tauri/target/universal-apple-darwin/release"
 else
-  BUNDLE_ARCH="$ARCH"
+  ARCH="$(uname -m)"
+  if [ "$ARCH" = "arm64" ]; then
+    BUNDLE_ARCH="aarch64"
+  else
+    BUNDLE_ARCH="$ARCH"
+  fi
+  TARGET_DIR="src-tauri/target/release"
 fi
 
-APP_PATH="src-tauri/target/release/bundle/macos/${PRODUCT_NAME}.app"
-OUT_DIR="src-tauri/target/release/bundle/dmg"
+APP_PATH="${TARGET_DIR}/bundle/macos/${PRODUCT_NAME}.app"
+OUT_DIR="${TARGET_DIR}/bundle/dmg"
 DMG_PATH="${OUT_DIR}/${PRODUCT_NAME}_${VERSION}_${BUNDLE_ARCH}.dmg"
 STAGING="$(mktemp -d "${TMPDIR:-/tmp}/anchor-dmg.XXXXXX")"
 
@@ -24,7 +31,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-TAURI_ARGS=(tauri build -- --bundles app)
+TAURI_ARGS=(tauri build -- --target "$BUILD_TARGET" --bundles app)
 if [ "${ANCHOR_NO_SIGN:-0}" = "1" ]; then
   TAURI_ARGS+=(--no-sign)
 fi
