@@ -429,7 +429,7 @@ export default function LandingPage() {
               Who it is for
             </p>
             <h2 className="anchor-landing-display mt-3 text-balance text-[clamp(2.25rem,5vw,3.25rem)] leading-none">
-              For people who live in drafts, notes, and decisions.
+              For writers, designers, and builders shaping rough notes into finished work.
             </h2>
             <p className="mt-4 max-w-[590px] text-pretty text-lg leading-8 text-[var(--landing-muted)]">
               Anchor is for work that already happens in markdown. Use it when
