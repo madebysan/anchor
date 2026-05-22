@@ -59,6 +59,15 @@ Updated every session via `/save-session`.
 - Release packaging now targets a universal macOS DMG for Apple Silicon and
   Intel Macs, with the landing page saved as
   `https://anchor.santiagoalonso.com`.
+- **README voice and structure pass:** audited against the global README style
+  guide, trimmed the privacy paragraph, merged `How it works` + `Working with
+  files` into `Using it`, dropped the generic Development section, switched to
+  sentence-case headers, and applied `/humanizer` + `/myvoice-light` passes for
+  contractions and active voice.
+- **README history wipe:** rewrote git history with `git filter-repo` to strip
+  `README.md` from all 115 historical commits, then added the current README
+  back as a single fresh commit. Force-pushed to `origin/main`. The README now
+  appears in exactly one commit (`Add README`, `f6c07bb`) on GitHub.
 
 ## 2026-05-15
 
