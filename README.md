@@ -2,8 +2,8 @@
 
 <h1>Anchor</h1>
 
-<p>Collaborate with AI writers inside your local notes.<br>
-Select a passage, ask Claude Code for a change, and review the edit where you wrote it.</p>
+<p>Edit local Markdown with an AI collaborator.<br>
+Select a passage, ask for a change, and review the diff before saving.</p>
 
 <p><strong>Version 0.1.2</strong> · macOS · Universal</p>
 
@@ -14,12 +14,11 @@ Select a passage, ask Claude Code for a change, and review the edit where you wr
   <img src="https://img.shields.io/badge/macOS-000000" alt="macOS">
 </p>
 
-<p>
-  <a href="https://github.com/madebysan/anchor/releases/latest">Download for Mac</a> ·
-  <a href="https://anchor.santiagoalonso.com">anchor.santiagoalonso.com</a>
-</p>
+<p><a href="https://github.com/madebysan/anchor/releases/latest">Download Anchor</a></p>
 
-https://github.com/user-attachments/assets/47c28438-fa45-4f50-a00a-07a694073fcb
+<p><a href="https://anchor.santiagoalonso.com">anchor.santiagoalonso.com</a></p>
+
+![Anchor editing a local Markdown note](assets/screenshot.png)
 
 Anchor brings the comment loop from Google Docs into a local markdown editor. Select a sentence, leave a note, or ask Claude Code to rewrite it. The edit lands inside the document with the thread beside it and a revert path if it misses.
 
