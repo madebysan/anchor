@@ -1,0 +1,16 @@
+node_modules
+dist
+build
+test-results
+
+src-tauri
+
+.DS_Store
+*.tsbuildinfo
+
+.claude
+recent.md
+AGENTS.md
+backlog.md
+plan.md
+_archived

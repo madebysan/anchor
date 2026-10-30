@@ -1,0 +1,348 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-code);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+:root {
+  --radius: 0.625rem;
+
+  --font-geist-sans: "Geist Sans", system-ui, -apple-system, sans-serif;
+  --font-geist-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-ibm-plex-serif: "IBM Plex Serif", Georgia, serif;
+  --font-ibm-plex-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Set by the appearance settings (src/lib/appearance.ts); these are the Anchor theme. */
+  --font-ui: var(--font-geist-sans);
+  --font-editor: var(--font-geist-sans);
+  --font-code: var(--font-geist-mono);
+  --link: var(--foreground);
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+:where(
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [tabindex]:not([tabindex="-1"])
+):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+/* Tiptap editor styles */
+.tiptap {
+  outline: none;
+}
+
+/* Paragraph spacing (Appearance → Paragraph spacing). Medium is the
+   typography plugin's own spacing; Small and Large replace it. List items in
+   Tiptap wrap their text in a <p>, so those inner margins are zeroed and the
+   item margin carries the gap. */
+.ProseMirror[data-spacing="small"] :where(p, ul, ol, blockquote, pre, table) {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+.ProseMirror[data-spacing="small"] :where(li) {
+  margin-top: 0.1em;
+  margin-bottom: 0.1em;
+}
+.ProseMirror[data-spacing="large"] :where(p, ul, ol, blockquote, pre, table) {
+  margin-top: 1.75em;
+  margin-bottom: 1.75em;
+}
+.ProseMirror[data-spacing="large"] :where(li) {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+.ProseMirror:is([data-spacing="small"], [data-spacing="large"]) :where(li > p) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.ProseMirror:is([data-spacing="small"], [data-spacing="large"]) > :first-child {
+  margin-top: 0;
+}
+
+/* The editor font is its own setting (Appearance → Editor font). */
+.tiptap {
+  font-family: var(--font-editor);
+}
+
+.prose {
+  --tw-prose-links: var(--link);
+  --tw-prose-invert-links: var(--link);
+}
+
+/* Themes other than Anchor color the note from the theme instead of the
+   typography plugin's grays (see src/lib/appearance.ts). */
+html[data-anchor-theme] .prose {
+  --tw-prose-body: var(--prose-body);
+  --tw-prose-headings: var(--foreground);
+  --tw-prose-lead: var(--prose-body);
+  --tw-prose-bold: var(--foreground);
+  --tw-prose-counters: var(--muted-foreground);
+  --tw-prose-bullets: var(--muted-foreground);
+  --tw-prose-hr: var(--border);
+  --tw-prose-quotes: var(--prose-body);
+  --tw-prose-quote-borders: var(--link);
+  --tw-prose-captions: var(--muted-foreground);
+  --tw-prose-kbd: var(--foreground);
+  --tw-prose-code: var(--foreground);
+  --tw-prose-pre-code: var(--foreground);
+  --tw-prose-pre-bg: var(--muted);
+  --tw-prose-th-borders: var(--border);
+  --tw-prose-td-borders: var(--border);
+  --tw-prose-invert-body: var(--prose-body);
+  --tw-prose-invert-headings: var(--foreground);
+  --tw-prose-invert-lead: var(--prose-body);
+  --tw-prose-invert-bold: var(--foreground);
+  --tw-prose-invert-counters: var(--muted-foreground);
+  --tw-prose-invert-bullets: var(--muted-foreground);
+  --tw-prose-invert-hr: var(--border);
+  --tw-prose-invert-quotes: var(--prose-body);
+  --tw-prose-invert-quote-borders: var(--link);
+  --tw-prose-invert-captions: var(--muted-foreground);
+  --tw-prose-invert-kbd: var(--foreground);
+  --tw-prose-invert-code: var(--foreground);
+  --tw-prose-invert-pre-code: var(--foreground);
+  --tw-prose-invert-pre-bg: var(--muted);
+  --tw-prose-invert-th-borders: var(--border);
+  --tw-prose-invert-td-borders: var(--border);
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  color: var(--muted-foreground);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Comment highlight mark */
+mark.comment-highlight {
+  background-color: oklch(0.9 0.1 95 / 40%);
+  border-bottom: 2px solid oklch(0.75 0.15 85);
+  padding: 1px 0;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 0.15s ease;
+}
+
+@media (hover: hover) {
+  mark.comment-highlight:hover {
+    background-color: oklch(0.9 0.1 95 / 60%);
+  }
+}
+
+/* Active comment — the one currently selected in sidebar */
+mark.comment-highlight.active {
+  background-color: oklch(0.85 0.15 85 / 50%);
+}
+
+/* Dark mode overrides for comment highlights */
+.dark mark.comment-highlight {
+  background-color: oklch(0.45 0.12 80 / 40%);
+  border-bottom-color: oklch(0.55 0.15 75);
+  color: inherit;
+}
+
+@media (hover: hover) {
+  .dark mark.comment-highlight:hover {
+    background-color: oklch(0.45 0.12 80 / 60%);
+  }
+}
+
+.dark mark.comment-highlight.active {
+  background-color: oklch(0.5 0.15 75 / 50%);
+}
+
+mark.edit-highlight {
+  background-color: oklch(0.78 0.16 155 / 35%);
+  border-radius: 2px;
+  animation: anchor-edit-highlight 3s ease-out forwards;
+}
+
+.dark mark.edit-highlight {
+  background-color: oklch(0.55 0.12 155 / 35%);
+}
+
+/* ```mermaid code blocks render as diagrams; double-click to edit. */
+.ProseMirror .code-block-view.is-mermaid {
+  margin-block: 1.5em;
+}
+.ProseMirror .mermaid-preview {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  cursor: default;
+  overflow-x: auto;
+}
+.ProseMirror .mermaid-preview:hover {
+  border-color: var(--border);
+}
+.ProseMirror .mermaid-preview svg {
+  max-width: 100%;
+  height: auto;
+}
+.ProseMirror .mermaid-preview:is([data-state="error"], [data-state="empty"]) {
+  color: var(--muted-foreground);
+  font-size: 0.875em;
+  border-color: var(--border);
+  border-style: dashed;
+}
+.ProseMirror .code-block-view.is-selected .mermaid-preview {
+  background-color: color-mix(in oklch, var(--primary) 12%, transparent);
+  border-color: color-mix(in oklch, var(--primary) 45%, transparent);
+}
+.ProseMirror .code-block-view [hidden] {
+  display: none;
+}
+
+/* The selection that goes to Claude, drawn while focus is in the chat input. */
+.ProseMirror .pinned-selection {
+  background-color: color-mix(in oklch, var(--primary) 18%, transparent);
+  border-radius: 2px;
+}
+
+/* xterm.js draws its own viewport; let it fill the panel. */
+.anchor-terminal .xterm {
+  height: 100%;
+}
+
+@keyframes anchor-edit-highlight {
+  0% {
+    background-color: oklch(0.78 0.16 155 / 45%);
+  }
+  70% {
+    background-color: oklch(0.78 0.16 155 / 20%);
+  }
+  100% {
+    background-color: transparent;
+  }
+}

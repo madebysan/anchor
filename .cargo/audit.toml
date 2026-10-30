@@ -1,0 +1,13 @@
+# Advisories accepted for Anchor (2026-10-29). Each comes from a Tauri plugin
+# and can only be fixed upstream; recheck when the plugins update.
+[advisories]
+ignore = [
+  # rkyv 0.7 via tauri-plugin-log -> byte-unit -> rust_decimal. Anchor never
+  # reads rkyv archives.
+  "RUSTSEC-2026-0235",
+  # zip 4.6 via tauri-plugin-updater: unsafe permissions and symlinks when
+  # extracting archives. macOS updates are signed .tar.gz, not zip.
+  "RUSTSEC-2026-0367",
+  "RUSTSEC-2026-0368",
+  "RUSTSEC-2026-0369",
+]

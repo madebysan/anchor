@@ -1,0 +1,54 @@
+// Bundled fonts (all SIL Open Font License, via Fontsource). Latin subsets only.
+// Declaring a face costs nothing; the browser downloads a file only when a
+// theme or setting actually uses that font, and it all works offline.
+
+import "@fontsource/geist-sans/latin-400.css";
+import "@fontsource/geist-sans/latin-600.css";
+import "@fontsource/geist-sans/latin-700.css";
+import "@fontsource/geist-mono/latin-400.css";
+import "@fontsource/geist-mono/latin-700.css";
+import "@fontsource/inter/latin-400.css";
+import "@fontsource/inter/latin-400-italic.css";
+import "@fontsource/inter/latin-600.css";
+import "@fontsource/inter/latin-700.css";
+import "@fontsource/ibm-plex-sans/latin-400.css";
+import "@fontsource/ibm-plex-sans/latin-400-italic.css";
+import "@fontsource/ibm-plex-sans/latin-600.css";
+import "@fontsource/ibm-plex-sans/latin-700.css";
+import "@fontsource/atkinson-hyperlegible/latin-400.css";
+import "@fontsource/atkinson-hyperlegible/latin-400-italic.css";
+import "@fontsource/atkinson-hyperlegible/latin-700.css";
+import "@fontsource/newsreader/latin-400.css";
+import "@fontsource/newsreader/latin-400-italic.css";
+import "@fontsource/newsreader/latin-600.css";
+import "@fontsource/newsreader/latin-700.css";
+import "@fontsource/literata/latin-400.css";
+import "@fontsource/literata/latin-400-italic.css";
+import "@fontsource/literata/latin-600.css";
+import "@fontsource/literata/latin-700.css";
+import "@fontsource/source-serif-4/latin-400.css";
+import "@fontsource/source-serif-4/latin-400-italic.css";
+import "@fontsource/source-serif-4/latin-600.css";
+import "@fontsource/source-serif-4/latin-700.css";
+import "@fontsource/eb-garamond/latin-400.css";
+import "@fontsource/eb-garamond/latin-400-italic.css";
+import "@fontsource/eb-garamond/latin-600.css";
+import "@fontsource/eb-garamond/latin-700.css";
+import "@fontsource/ibm-plex-serif/latin-400.css";
+import "@fontsource/ibm-plex-serif/latin-400-italic.css";
+import "@fontsource/ibm-plex-serif/latin-600.css";
+import "@fontsource/ibm-plex-serif/latin-700.css";
+import "@fontsource/ibm-plex-mono/latin-400.css";
+import "@fontsource/ibm-plex-mono/latin-400-italic.css";
+import "@fontsource/ibm-plex-mono/latin-600.css";
+import "@fontsource/ibm-plex-mono/latin-700.css";
+import "@fontsource/source-sans-3/latin-400.css";
+import "@fontsource/source-sans-3/latin-400-italic.css";
+import "@fontsource/source-sans-3/latin-600.css";
+import "@fontsource/source-sans-3/latin-700.css";
+import "@fontsource/jetbrains-mono/latin-400.css";
+import "@fontsource/jetbrains-mono/latin-400-italic.css";
+import "@fontsource/jetbrains-mono/latin-700.css";
+import "@fontsource/source-code-pro/latin-400.css";
+import "@fontsource/source-code-pro/latin-400-italic.css";
+import "@fontsource/source-code-pro/latin-700.css";

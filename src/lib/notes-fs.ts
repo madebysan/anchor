@@ -1,0 +1,112 @@
+import { invoke } from "@tauri-apps/api/core";
+
+export interface NoteFile {
+  id: string;
+  path: string;
+  title: string;
+  content: string;
+  modified: number;
+  /** Changes whenever the file does; equal versions mean unchanged content. */
+  version: string;
+}
+
+// Tree node returned by list_note_tree — matches the Rust enum's serde shape.
+export type NoteTreeNode =
+  | {
+      type: "file";
+      id: string;
+      path: string;
+      title: string;
+      /** Present only when the tree was listed with contents. */
+      content?: string;
+      modified: number;
+      version: string;
+      /** Version of the comment sidecar, when the note has one. */
+      threads_version?: string;
+    }
+  | {
+      type: "folder";
+      id: string;
+      path: string;
+      name: string;
+      children: NoteTreeNode[];
+    };
+
+/** The notes folder; without contents it lists names and versions only. */
+export async function listNoteTree(contents = false): Promise<NoteTreeNode[]> {
+  return invoke<NoteTreeNode[]>("list_note_tree", { contents });
+}
+
+export async function readNotes(ids: string[]): Promise<NoteFile[]> {
+  return invoke<NoteFile[]>("read_notes", { ids });
+}
+
+export async function readNotesThreads(ids: string[]): Promise<{ id: string; content: string }[]> {
+  return invoke<{ id: string; content: string }[]>("read_notes_threads", { ids });
+}
+
+// Walk a tree and yield every file node — useful for flattening into the
+// existing id-keyed cache.
+export function* walkFiles(
+  nodes: NoteTreeNode[],
+): Generator<Extract<NoteTreeNode, { type: "file" }>> {
+  for (const n of nodes) {
+    if (n.type === "file") {
+      yield n;
+    } else {
+      yield* walkFiles(n.children);
+    }
+  }
+}
+
+export async function readNote(id: string): Promise<NoteFile> {
+  return invoke<NoteFile>("read_note", { id });
+}
+
+export async function writeNote(id: string, content: string): Promise<NoteFile> {
+  return invoke<NoteFile>("write_note", { id, content });
+}
+
+export async function writeNoteThreads(id: string, content: string): Promise<void> {
+  return invoke<void>("write_note_threads", { id, content });
+}
+
+export async function deleteNoteThreads(id: string): Promise<void> {
+  return invoke<void>("delete_note_threads", { id });
+}
+
+export async function renameNote(oldId: string, newId: string): Promise<NoteFile> {
+  return invoke<NoteFile>("rename_note", { oldId, newId });
+}
+
+export async function renameFolder(oldId: string, newName: string): Promise<void> {
+  return invoke<void>("rename_folder", { oldId, newName });
+}
+
+/** Move a folder into another one ("" or null for the top level). Returns its new id. */
+export async function moveFolder(id: string, targetParent: string | null): Promise<string> {
+  return invoke<string>("move_folder", { id, targetParent });
+}
+
+export async function createFolder(id: string): Promise<void> {
+  return invoke<void>("create_folder", { id });
+}
+
+export async function deleteFolder(id: string): Promise<void> {
+  return invoke<void>("delete_folder", { id });
+}
+
+export async function deleteNote(id: string): Promise<void> {
+  return invoke<void>("delete_note", { id });
+}
+
+export function sanitizeNoteId(input: string): string {
+  // Filenames must be filesystem-safe and not collide with .md extension or
+  // sidecar conventions. Strip path separators and obvious bad characters.
+  return input
+    .trim()
+    .replace(/[/\\:*?"<>|]/g, "-")
+    .replace(/\.md$/i, "")
+    .replace(/^\.+/, "")
+    .slice(0, 120) || "untitled";
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default permissions for Anchor: core + dialog (folder picker). File I/O happens in custom Rust commands, not the fs plugin; claude is spawned via std::process::Command, not the shell plugin. Updater and process (restart) power the in-app update check.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "updater:default",
+    "process:allow-restart",
+    "core:window:allow-start-dragging",
+    "core:window:allow-toggle-maximize"
+  ]
+}

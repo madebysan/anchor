@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+PRODUCT_NAME="$(node -e "const fs = require('fs'); const c = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')); process.stdout.write(c.productName);")"
+VERSION="$(node -e "const fs = require('fs'); const c = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')); process.stdout.write(c.version);")"
+SIGNING_IDENTITY="$(node -e "const fs = require('fs'); const c = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')); process.stdout.write(c.bundle?.macOS?.signingIdentity || '');")"
+BUILD_TARGET="${ANCHOR_BUILD_TARGET:-universal-apple-darwin}"
+if [ "$BUILD_TARGET" = "universal-apple-darwin" ]; then
+  BUNDLE_ARCH="universal"
+  TARGET_DIR="src-tauri/target/universal-apple-darwin/release"
+else
+  ARCH="$(uname -m)"
+  if [ "$ARCH" = "arm64" ]; then
+    BUNDLE_ARCH="aarch64"
+  else
+    BUNDLE_ARCH="$ARCH"
+  fi
+  TARGET_DIR="src-tauri/target/release"
+fi
+
+APP_PATH="${TARGET_DIR}/bundle/macos/${PRODUCT_NAME}.app"
+OUT_DIR="${TARGET_DIR}/bundle/dmg"
+DMG_PATH="${OUT_DIR}/${PRODUCT_NAME}_${VERSION}_${BUNDLE_ARCH}.dmg"
+STAGING="$(mktemp -d "${TMPDIR:-/tmp}/anchor-dmg.XXXXXX")"
+
+cleanup() {
+  rm -rf "$STAGING"
+}
+trap cleanup EXIT
+
+# In-app updates: Tauri signs Anchor.app.tar.gz for the updater with this key
+# (password in the login keychain). Back both up; losing them strands installs.
+if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ] && [ -f "$HOME/.tauri/anchor-updater.key" ]; then
+  export TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/anchor-updater.key")"
+  export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$(security find-generic-password -s anchor-tauri-updater -a signing-key-password -w)"
+fi
+
+# Homebrew's rust has no Intel target; prefer rustup's toolchain for the universal build.
+RUSTUP_BIN="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin"
+if [ -d "$RUSTUP_BIN" ]; then
+  export PATH="$RUSTUP_BIN:$PATH"
+fi
+
+TAURI_ARGS=(tauri build -- --target "$BUILD_TARGET" --bundles app)
+if [ "${ANCHOR_NO_SIGN:-0}" = "1" ]; then
+  TAURI_ARGS+=(--no-sign)
+fi
+
+npm run "${TAURI_ARGS[@]}"
+
+if [ ! -d "$APP_PATH" ]; then
+  echo "Missing built app: $APP_PATH" >&2
+  exit 1
+fi
+
+mkdir -p "$OUT_DIR"
+ditto "$APP_PATH" "$STAGING/${PRODUCT_NAME}.app"
+ln -s /Applications "$STAGING/Applications"
+
+hdiutil create \
+  -volname "${PRODUCT_NAME} ${VERSION}" \
+  -srcfolder "$STAGING" \
+  -format UDZO \
+  -ov \
+  "$DMG_PATH"
+
+if [ "${ANCHOR_NO_SIGN:-0}" != "1" ] && [ -n "$SIGNING_IDENTITY" ]; then
+  codesign --force --sign "$SIGNING_IDENTITY" --timestamp "$DMG_PATH"
+fi
+
+hdiutil verify "$DMG_PATH"
+echo "$DMG_PATH"
