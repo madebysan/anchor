@@ -5,7 +5,7 @@
 <p>A Markdown editor with Claude Code beside every note.<br>
 Ask about the note you're in, and Claude edits it in place.</p>
 
-<p><strong>Version 0.1.4</strong> · Mac · Universal</p>
+<p><strong>Version 0.1.5</strong> · Mac · Universal</p>
 
 <p>
   <img src="https://img.shields.io/badge/Tauri-24c8db" alt="Tauri">
