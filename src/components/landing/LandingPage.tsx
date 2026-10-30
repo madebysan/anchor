@@ -143,7 +143,7 @@ export default function LandingPage() {
           </p>
           <h1 {...enter(1)}>Your notes, with Claude beside them.</h1>
           <p {...enter(2)} className="lp-lede lp-enter">
-            A Markdown editor for Mac where every note and folder gets its own Claude conversation. Runs on your Claude subscription, no API key needed.
+            A Markdown editor for Mac where every note and folder gets its own Claude Code session. Runs on your Claude subscription, no API key needed.
           </p>
           <div {...enter(3)} className="lp-actions lp-enter">
             <GitHubButton size="lg" />
@@ -156,7 +156,7 @@ export default function LandingPage() {
 
         <div className="lp-features">
           <Feature title="A conversation for every note and folder." visual={<ConversationsVisual />}>
-            <p>Each note keeps its conversation, even after you quit. Select a folder and Claude works across every note in it.</p>
+            <p>Each note runs its own Claude Code session, not one shared terminal. Claude knows which note you mean, keeps its context separate from your other notes, and picks up where you left off.</p>
           </Feature>
 
           <Feature flip title="Edits land where you're writing." visual={<EditsVisual />}>

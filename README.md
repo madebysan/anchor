@@ -20,6 +20,7 @@ Ask about the note you're in, and Claude edits it in place.</p>
 
 Anchor opens a folder of Markdown files and gives each note and each folder its own Claude Code conversation in a sidebar. It's for people who keep their writing in plain `.md` files and want Claude to work on the note in front of them, without copying text into a chat.
 
+- Each note runs its own Claude Code session, so Claude knows which note you mean, keeps that note's history, and never mixes it with another note's.
 - Select text and it goes to Claude as a quote with your next message.
 - Claude's change lands in the note, selected, and ⌘Z undoes it.
 - Notes stay plain Markdown files in a folder you pick.
