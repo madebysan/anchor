@@ -1,0 +1,315 @@
+/* Row 2: the note, edited in place. Scoped under .ed */
+.ed {
+  & .ss-stage {
+    overflow: hidden;
+    border-radius: 14px;
+    background: var(--ss-well);
+  }
+
+  /* A 28px gutter top and left; the window runs off the right and the
+     composer straddles its bottom edge */
+  & .ed-window {
+    position: absolute;
+    top: 28px;
+    left: 28px;
+    width: 480px;
+    height: 336px;
+    box-shadow: var(--ss-shadow-hero);
+  }
+
+  & .ed-window > .ss-window__bar {
+    gap: 0;
+  }
+
+  & .ed-tools {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    margin-left: 22px;
+    color: var(--an-ink);
+  }
+
+  & .ed-page {
+    position: relative;
+    padding: 20px 30px 0 28px;
+    background: var(--ss-surface);
+    flex: 1;
+  }
+
+  & .ed-title {
+    font-size: 24px;
+    line-height: 30px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--ss-text-strong);
+  }
+
+  & .ed-h2 {
+    margin-top: 12px;
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--ss-text-strong);
+  }
+
+  /* The note's prose: Geist at 14/23, the typography plugin's gray body.
+     Its measure ends a gutter short of the stage edge; the page past it
+     is the only thing that bleeds. */
+  & .ed-para {
+    width: 246px;
+    margin: 6px 0 0;
+    font-size: 15px;
+    line-height: 24px;
+    color: var(--an-ink);
+  }
+
+  & .ed-anchor {
+    display: inline-block;
+    width: 0;
+    height: 1em;
+    vertical-align: text-bottom;
+  }
+
+  /* Anchor's pinned selection (the accent at 18%, drawn while the chat has
+     focus) and its applied-edit flash (green, fading over 3s) */
+  & .ed-sel[data-on],
+  & .ed-changed[data-sel] {
+    background-color: var(--an-select);
+  }
+
+  & .ed-sel,
+  & .ed-changed {
+    border-radius: 2px;
+    transition: background-color 0.18s ease;
+  }
+
+  & .ed-changed[data-flash] {
+    animation: ed-flash 3.2s ease-out both;
+  }
+
+  & .ed-changed[data-hold] {
+    background: oklch(0.78 0.16 155 / 0.34);
+  }
+
+  & .ed-changed .ss-roll {
+    white-space: pre;
+  }
+
+  & .ed-rest {
+    position: absolute;
+    left: 396px;
+    top: 196px;
+    width: 1px;
+    height: 1px;
+  }
+
+  & .ed-h2-bar {
+    margin-top: 20px;
+  }
+
+  & .ed-bullets {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 16px;
+  }
+
+  & .ed-bullet {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-left: 8px;
+  }
+
+  /* ---- The satellite: the bottom of the conversation panel ---- */
+
+  & .ed-composer {
+    position: absolute;
+    right: 28px;
+    bottom: 28px;
+    width: 232px;
+    padding: 10px;
+    border-radius: 12px;
+    background: var(--ss-surface);
+    box-shadow: var(--ss-shadow-satellite);
+    z-index: 2;
+    will-change: transform;
+  }
+
+  & .ed-busy {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 2px 10px;
+  }
+
+  & .ed-dots {
+    display: flex;
+    gap: 4px;
+  }
+
+  & .ed-dots i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--an-mid);
+    animation: ed-bounce 1s ease-in-out infinite;
+  }
+
+  & .ed-dots i:nth-child(2) { animation-delay: 0.15s; }
+  & .ed-dots i:nth-child(3) { animation-delay: 0.3s; }
+
+  & .ed-stop {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    color: var(--ss-text);
+  }
+
+  & .ed-quote {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 8px;
+    padding: 7px 10px 8px;
+    border-left: 2px solid var(--an-mid);
+    border-radius: 7px;
+    background: var(--an-hover);
+  }
+
+  & .ed-quote-label {
+    font-size: 9.5px;
+    line-height: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ss-text);
+  }
+
+  & .ed-quote-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 11.5px;
+    line-height: 17px;
+    color: var(--an-ink);
+  }
+
+  & .ed-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  & .ed-input {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 8px;
+    background: var(--an-hover);
+    font-size: 12.5px;
+    white-space: nowrap;
+    box-shadow: inset 0 0 0 1px transparent;
+    transition: box-shadow 0.15s ease;
+  }
+
+  & .ed-input[data-focus] {
+    box-shadow: inset 0 0 0 1px var(--an-line-strong);
+  }
+
+  & .ed-placeholder {
+    color: var(--ss-text-faint);
+  }
+
+  & .ed-typed {
+    color: var(--ss-text-strong);
+  }
+
+  & .ed-caret {
+    width: 1.5px;
+    height: 15px;
+    margin-left: 1px;
+    background: var(--ss-text-strong);
+    animation: ed-blink 1s steps(1) infinite;
+  }
+
+  /* Disabled until there's something to send, as the app's own */
+  & .ed-send {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: var(--an-btn);
+    color: var(--an-btn-ink);
+    opacity: 0.45;
+    transition: opacity 0.15s ease, transform 0.12s ease;
+  }
+
+  & .ed-send[data-on] {
+    opacity: 1;
+  }
+
+  & .ed-send[data-pressed] {
+    transform: scale(0.94);
+  }
+
+  /* ---- Compact: the same two objects at 342 ---- */
+  & .ss-stage[data-layout='compact'] .ed-window {
+    left: 18px;
+    top: 20px;
+    width: 380px;
+    height: 318px;
+  }
+
+  /* No room for the day's heading under the composer at 342 */
+  & .ss-stage[data-layout='compact'] .ed-h2 {
+    display: none;
+  }
+
+  & .ss-stage[data-layout='compact'] .ed-para {
+    margin-top: 10px;
+  }
+
+  & .ss-stage[data-layout='compact'] .ed-para {
+    width: 246px;
+  }
+
+  /* Compact: the composer spans the column, one 18px gutter each side */
+  & .ss-stage[data-layout='compact'] .ed-composer {
+    left: 18px;
+    right: 18px;
+    bottom: 20px;
+    width: auto;
+  }
+}
+
+@keyframes ed-flash {
+  0% { background-color: oklch(0.78 0.16 155 / 0.5); }
+  65% { background-color: oklch(0.78 0.16 155 / 0.28); }
+  100% { background-color: var(--an-select); }
+}
+
+@keyframes ed-bounce {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-3px); }
+}
+
+@keyframes ed-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.ed .ss-stage[data-layout='compact'] .ed-rest {
+  left: 316px;
+  top: 214px;
+}

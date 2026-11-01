@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Landing page: new illustrations for the three feature rows, built with the Stageshow kit (MIT). The conversations and edits rows animate, and the theme card tours Anchor's eight themes and repaints the whole page when a visitor picks one. The illustrations follow the page's evening mode and the picked theme.
+
 ## 0.1.5 (2026-10-30)
 
 - **A Claude conversation per note and per folder.** Each note keeps its own conversation, history included, and it comes back when you return to the note, even after quitting. Selecting a folder shows the folder instead of a note and opens that folder's conversation, for work across its notes (rename, reorganize, summarize) with your usual Claude permissions. Conversations follow notes and folders you rename or move in Anchor, and an open note that another tool renames.

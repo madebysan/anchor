@@ -1,0 +1,276 @@
+/* Row 1: the note list and its conversation. Scoped under .cv */
+.cv {
+  & .ss-stage {
+    overflow: hidden;
+    border-radius: 14px;
+    background: var(--ss-well);
+  }
+
+  /* Pinned, bottom bleed: one 32px gutter left, right and top; about a
+     fifth of the window runs past the bottom */
+  & .cv-window {
+    position: absolute;
+    top: 28px;
+    left: 28px;
+    width: 394px;
+    height: 420px;
+    box-shadow: var(--ss-shadow-hero);
+  }
+
+  & .ss-stage[data-layout='compact'] .cv-window {
+    top: 18px;
+    left: 16px;
+    width: 310px;
+    height: 400px;
+  }
+
+  /* ---- The document list ---- */
+
+  & .cv-side {
+    display: flex;
+    flex-direction: column;
+    padding: 0 7px;
+  }
+
+  & .cv-side-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 26px;
+    padding: 0 4px 0 6px;
+    margin-top: 2px;
+  }
+
+  & .cv-caps {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ss-text);
+  }
+
+  & .cv-side-tools {
+    display: flex;
+    gap: 8px;
+    color: var(--ss-icon);
+  }
+
+  & .cv-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    margin: 6px 0 8px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background: var(--an-hover);
+    font-size: 11px;
+    color: var(--ss-text-faint);
+  }
+
+  & .cv-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  & .cv-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 27px;
+    padding: 0 6px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ss-text-strong);
+    white-space: nowrap;
+    /* Selection is quick, as the app's own */
+    transition: background-color 0.14s ease;
+  }
+
+  & .cv-item[data-on] {
+    background: var(--an-press);
+  }
+
+  & .cv-file {
+    padding-left: 22px;
+  }
+
+  & .cv-top {
+    padding-left: 10px;
+  }
+
+  & .cv-chev,
+  & .cv-ficon {
+    flex: none;
+    color: var(--ss-icon);
+  }
+
+  & .cv-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ---- The conversation pane ---- */
+
+  & .cv-window .ss-window__main > .ss-window__bar {
+    padding: 0 12px 0 14px;
+    border-bottom: 0;
+  }
+
+  & .cv-heading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ss-text-strong);
+  }
+
+  & .cv-heading-icon {
+    display: grid;
+    flex: none;
+    color: var(--ss-icon);
+  }
+
+  & .cv-new {
+    flex: none;
+    color: var(--ss-icon);
+  }
+
+  & .cv-body {
+    position: relative;
+    flex: 1;
+    border-top: 1px solid var(--ss-line);
+  }
+
+  /* A page swap inside one pane: the old session fades, the new one rises
+     8px into place a beat later; the pane, its heading and the list hold */
+  & .cv-convo {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 14px 0;
+    opacity: 0;
+    transform: translateY(8px);
+    will-change: transform, opacity;
+    transition: opacity 0.16s ease, transform 0s linear 0.16s;
+  }
+
+  & .cv-convo[data-on] {
+    opacity: 1;
+    transform: none;
+    transition: opacity 0.3s ease 0.1s, transform 0.42s cubic-bezier(0.25, 0.8, 0.25, 1) 0.1s;
+  }
+
+  & .cv-earlier {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding-bottom: 6px;
+  }
+
+  & .cv-ask--quiet {
+    display: flex;
+    align-items: center;
+    height: 30px;
+    margin-bottom: 3px;
+  }
+
+  & .cv-ask {
+    align-self: stretch;
+    padding: 8px 11px;
+    border-radius: 9px;
+    background: var(--an-hover);
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--ss-text-strong);
+  }
+
+  & .cv-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 2px;
+  }
+
+  & .cv-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-family: var(--ss-mono);
+    font-size: 10.5px;
+    line-height: 14px;
+    color: var(--ss-text-faint);
+    white-space: nowrap;
+  }
+
+  & .cv-tick {
+    flex: none;
+    color: var(--an-tick);
+  }
+
+  & .cv-verb {
+    flex: none;
+    color: var(--an-ink);
+  }
+
+  & .cv-path {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  & .cv-reply {
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--ss-text-strong);
+    text-wrap: pretty;
+  }
+
+  /* Compact: the same two panes at 342. The list tightens; the tool
+     steps go, so the question and the answer keep their room */
+  & .ss-stage[data-layout='compact'] .cv-convo {
+    padding: 12px 12px 0;
+  }
+
+  & .ss-stage[data-layout='compact'] .cv-steps {
+    display: none;
+  }
+
+  & .ss-stage[data-layout='compact'] .cv-side {
+    padding: 0 5px;
+  }
+
+  & .ss-stage[data-layout='compact'] .cv-side-tools {
+    gap: 6px;
+  }
+
+  & .ss-stage[data-layout='compact'] .cv-side-tools svg:first-child {
+    display: none;
+  }
+
+  & .ss-stage[data-layout='compact'] .cv-item {
+    font-size: 11px;
+    padding-right: 4px;
+  }
+
+  & .ss-stage[data-layout='compact'] .cv-file {
+    padding-left: 14px;
+  }
+
+  & .ss-stage[data-layout='compact'] .cv-ask {
+    padding: 7px 9px;
+    font-size: 12px;
+  }
+
+  & .ss-stage[data-layout='compact'] .cv-reply {
+    font-size: 12.5px;
+    line-height: 19px;
+  }
+}

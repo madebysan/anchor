@@ -1,0 +1,354 @@
+/* Row 3: theme tiles over the note they restyle. Scoped under .th */
+.th {
+  /* clip, not hidden: a focused tile must never scroll the picture */
+  & .ss-stage {
+    overflow: clip;
+    border-radius: 14px;
+    background: var(--ss-well);
+  }
+
+  /* ---- The setting: Anchor's Theme tiles, a satellite straddling the
+     note's bottom edge on the one left gutter ---- */
+  & .th-card {
+    position: absolute;
+    bottom: 24px;
+    left: 24px;
+    width: 402px;
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--ss-surface);
+    box-shadow: var(--ss-shadow-satellite);
+    z-index: 2;
+  }
+
+  & .th-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0 10px 2px;
+  }
+
+  & .th-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ss-text);
+  }
+
+  & .th-mode {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 2px;
+    border-radius: 8px;
+    background: var(--an-press);
+  }
+
+  & .th-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: calc(50% - 2px);
+    height: calc(100% - 4px);
+    border-radius: 6px;
+    background: var(--ss-surface);
+    box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.1);
+    transition: transform 0.28s cubic-bezier(0.45, 0, 0.1, 1);
+  }
+
+  & .th-thumb[data-dark] {
+    transform: translateX(100%);
+  }
+
+  & .th-mode button {
+    position: relative;
+    height: 22px;
+    min-width: 50px;
+    padding: 0 10px;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 11.5px;
+    color: var(--ss-text);
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+
+  & .th-mode button[data-on] {
+    color: var(--ss-text-strong);
+    font-weight: 500;
+  }
+
+  & .th-grid {
+    display: grid;
+    background: var(--ss-surface);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  /* One tile, as Settings draws it: a picture of the theme over its name;
+     the chosen one gets the foreground border and ring */
+  & .th-tile {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 9px;
+    background: var(--ss-surface);
+    box-shadow: inset 0 0 0 1px var(--ss-line);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: box-shadow 0.18s ease;
+  }
+
+  & .th-tile:hover {
+    box-shadow: inset 0 0 0 1px var(--an-mid);
+  }
+
+  & .th-tile[data-on] {
+    box-shadow: inset 0 0 0 2px var(--ss-text-strong);
+  }
+
+  & .th-tile:focus-visible {
+    outline: 2px solid var(--an-mid);
+    outline-offset: 2px;
+  }
+
+  & .th-swatch {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 42px;
+    margin: 1px 1px 0;
+    padding: 7px 9px 7px;
+    border-radius: 8px 8px 0 0;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  & .th-tile[data-on] .th-swatch {
+    margin: 2px 2px 0;
+    border-radius: 7px 7px 0 0;
+  }
+
+  & .th-aa {
+    font-size: 17px;
+    line-height: 1;
+  }
+
+  & .th-accent {
+    display: block;
+    width: 18px;
+    height: 3px;
+    border-radius: 2px;
+    transition: background-color 0.3s ease;
+  }
+
+  & .th-name {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 24px;
+    padding: 0 8px 1px 9px;
+    font-size: 11px;
+    color: var(--ss-text);
+  }
+
+  & .th-tile[data-on] .th-name {
+    color: var(--ss-text-strong);
+  }
+
+  & .th-check {
+    flex: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  & .th-tile[data-on] .th-check {
+    opacity: 1;
+  }
+
+  /* Names fill a narrow tile; the check would crowd the longest */
+  & .th-check {
+    display: none;
+  }
+
+  /* ---- The detail: the note in the chosen theme, off the bottom ---- */
+  /* The hero: the note, a 24px gutter top and left, off the right */
+  & .th-note {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    width: 470px;
+    height: 256px;
+  }
+
+  & .th-layer {
+    position: absolute;
+    inset: 0;
+  }
+
+  /* The new theme fades in over the old one; nothing moves */
+  & .th-layer[data-fresh] {
+    animation: th-in 0.28s ease both;
+  }
+
+
+  & .th-window {
+    width: 100%;
+    height: 100%;
+    --ss-canvas: var(--th-bg);
+    --ss-surface: var(--th-bg);
+    --ss-chrome: var(--th-bg);
+    --ss-line: var(--th-line);
+    box-shadow: var(--ss-shadow-hero);
+  }
+
+  & .th-tools {
+    display: flex;
+    gap: 11px;
+    color: var(--th-muted);
+  }
+
+  & .th-side {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 2px 6px 0;
+    font-family: var(--th-ui);
+  }
+
+  & .th-caps {
+    padding: 0 6px 6px;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--th-muted);
+  }
+
+  & .th-row {
+    display: flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--th-text);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  & .th-row[data-on] {
+    background: var(--th-fill);
+  }
+
+  & .th-bar {
+    background: var(--th-bar) !important;
+  }
+
+  & .th-page {
+    padding: 16px 20px 0;
+    background: var(--th-bg);
+    flex: 1;
+  }
+
+  & .th-title {
+    font-family: var(--th-editor);
+    font-size: 22px;
+    line-height: 26px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--th-text);
+  }
+
+  /* The measure ends a gutter short of the stage edge; only the page and
+     its filler lines run past it */
+  & .th-para {
+    max-width: 244px;
+    margin: 8px 0 12px;
+    font-family: var(--th-editor);
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--th-body);
+  }
+
+  & .th-link {
+    color: var(--th-link);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+  }
+
+  & .th-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  & .th-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  /* ---- Compact: 342 wide. Tiles in four narrower columns ---- */
+  & .ss-stage[data-layout='compact'] .th-card {
+    left: 16px;
+    bottom: 16px;
+    width: 310px;
+    padding: 10px;
+  }
+
+  & .ss-stage[data-layout='compact'] .th-grid {
+    gap: 8px 6px;
+  }
+
+  & .ss-stage[data-layout='compact'] .th-caps {
+    font-size: 10px;
+  }
+
+  & .ss-stage[data-layout='compact'] .th-swatch {
+    height: 38px;
+    padding: 6px 7px;
+  }
+
+  & .ss-stage[data-layout='compact'] .th-aa {
+    font-size: 15px;
+  }
+
+  & .ss-stage[data-layout='compact'] .th-name {
+    padding: 0 6px 1px 7px;
+    font-size: 10px;
+  }
+
+  & .ss-stage[data-layout='compact'] .th-check {
+    display: none;
+  }
+
+  & .ss-stage[data-layout='compact'] .th-note {
+    left: 16px;
+    top: 16px;
+    width: 380px;
+    height: 236px;
+  }
+}
+
+@keyframes th-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.th .ss-stage[data-layout='compact'] .th-para {
+  max-width: 168px;
+  font-size: 12.5px;
+  line-height: 19px;
+}
+
+.th .ss-stage[data-layout='compact'] .th-row {
+  font-size: 10.5px;
+}

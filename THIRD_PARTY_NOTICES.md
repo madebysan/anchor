@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-Anchor includes the 561 open-source components below. Versions match the lockfiles. Where a component offers a choice of licenses, it is used under the one shown. The license texts follow the tables; identical texts are printed once, with every component that uses them.
+Anchor includes the 562 open-source components below. Versions match the lockfiles. Where a component offers a choice of licenses, it is used under the one shown. The license texts follow the tables; identical texts are printed once, with every component that uses them.
 
 ## JavaScript packages (npm)
 
@@ -288,6 +288,12 @@ Anchor includes the 561 open-source components below. Versions match the lockfil
 | [uuid](https://github.com/uuidjs/uuid) | 14.0.3 | MIT |
 | [w3c-keyname](https://github.com/marijnh/w3c-keyname) | 2.2.8 | MIT |
 | [zustand](https://github.com/pmndrs/zustand) | 5.0.13 | MIT |
+
+## Vendored source
+
+| Component | Version | License |
+| --- | --- | --- |
+| [Stageshow kit](https://github.com/benjitaylor/skills/tree/main/stageshow), a subset copied into `src/components/landing/stageshow/kit/` | commit 80205740 | MIT |
 
 ## Rust crates
 
@@ -3665,6 +3671,32 @@ third-party/chromium/LICENSE.
 // WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 // ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+```
+
+### MIT: Stageshow kit (commit 80205740)
+
+```text
+MIT License
+
+Copyright (c) 2026 Benji Taylor
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
 ### MIT: @antfu/install-pkg 2.1.0

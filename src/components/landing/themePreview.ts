@@ -1,31 +1,19 @@
 import type { CSSProperties } from "react";
-import { FONTS, mix, readableOn, themeById, withContrast, type ThemePreset, type Variant } from "@/lib/appearance";
+import { FONTS, mix, readableOn, withContrast, type ThemePreset, type Variant } from "@/lib/appearance";
 
-// The theme tiles repaint the whole landing page with a theme's real colors
-// and fonts, taken from the app's own presets. Like the app, only three colors
-// come from the theme; every other tone is mixed from them, and text keeps
-// at least 5:1 contrast.
+// A visitor's click in the theme card repaints the whole landing page with a
+// theme's real colors and fonts, taken from the app's own presets. Like the
+// app, only three colors come from the theme; every other tone is mixed from
+// them, and text keeps at least 5:1 contrast.
 
 export interface ThemeTile {
   theme: ThemePreset;
   variant: Variant;
 }
 
-/** Three light and three dark, as the tiles show them. */
-export const THEME_TILES: ThemeTile[] = (
-  [
-    ["anchor", "light"],
-    ["clay", "light"],
-    ["sepia", "light"],
-    ["graphite", "dark"],
-    ["nord", "dark"],
-    ["catppuccin", "dark"],
-  ] as const
-).map(([id, variant]) => ({ theme: themeById(id), variant }));
-
 export const tileKey = (tile: ThemeTile) => `${tile.theme.id}-${tile.variant}`;
 
-export function tileFonts(tile: ThemeTile) {
+function tileFonts(tile: ThemeTile) {
   const { editor, ui, code } = tile.theme.fonts;
   return { editor: FONTS[editor].stack, ui: FONTS[ui].stack, code: FONTS[code].stack };
 }
@@ -76,15 +64,4 @@ export function previewStyle(tile: ThemeTile): CSSProperties {
     "--lp-mono": fonts.code,
   };
   return tokens as CSSProperties;
-}
-
-/** Start loading a tile's fonts so a hover swaps them without a second reflow. */
-export function preloadFonts(tiles: ThemeTile[]) {
-  if (typeof document === "undefined" || !document.fonts) return;
-  for (const tile of tiles) {
-    const { editor, ui, code } = tileFonts(tile);
-    for (const spec of [`400 16px ${ui}`, `600 16px ${ui}`, `400 16px ${editor}`, `700 16px ${editor}`, `400 16px ${code}`]) {
-      document.fonts.load(spec).catch(() => undefined);
-    }
-  }
 }

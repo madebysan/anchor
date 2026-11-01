@@ -1,0 +1,66 @@
+/* Anchor's look for the feature illustrations, taken from the landing page's
+   own tokens (landing.css), so the pictures follow the page: light by day,
+   dark in the evening, and in a theme's colors once a visitor picks one.
+   Geist for interface and notes, Geist Mono for code and tool steps. */
+.anchor-look .ss-stage {
+  --ss-font: var(--lp-ui, "Geist Sans"), system-ui, -apple-system, sans-serif;
+  --ss-mono: var(--lp-mono, "Geist Mono"), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ss-canvas: var(--lp-bg);
+  --ss-surface: var(--lp-card);
+  --ss-chrome: var(--lp-card);
+  --ss-well: var(--lp-soft);
+  --ss-line: var(--lp-line);
+  --ss-line-faint: color-mix(in srgb, var(--lp-line) 55%, var(--lp-card));
+  --ss-text-strong: var(--lp-ink);
+  --ss-text: var(--lp-body);
+  --ss-text-faint: var(--lp-muted);
+  --ss-icon: var(--lp-body);
+  --ss-icon-faint: color-mix(in srgb, var(--lp-muted) 65%, var(--lp-card));
+  /* Placeholder ink, mixed from the page's ink so it reads on light and dark */
+  --ss-ink-1: color-mix(in srgb, var(--lp-ink) 4%, transparent);
+  --ss-ink-2: color-mix(in srgb, var(--lp-ink) 6%, transparent);
+  --ss-ink-3: color-mix(in srgb, var(--lp-ink) 8%, transparent);
+  --ss-ink-4: color-mix(in srgb, var(--lp-ink) 10%, transparent);
+  --ss-ink-5: color-mix(in srgb, var(--lp-ink) 15%, transparent);
+  --ss-fill: color-mix(in srgb, var(--lp-ink) 8%, var(--lp-card));
+  --ss-raised: var(--lp-card);
+  --ss-accent: var(--lp-ink);
+  --ss-accent-soft: var(--lp-active);
+  --ss-accent-text: var(--lp-ink);
+  --ss-radius-sm: 6px;
+  --ss-radius-md: 8px;
+  --ss-radius-lg: 10px;
+  --ss-radius-window: 12px;
+  /* Anchor's own marks: applied edits are green, Claude's tool ticks emerald */
+  --an-edit: oklch(0.78 0.16 155 / 0.38);
+  --an-select: color-mix(in oklch, var(--lp-ink) 13%, transparent);
+  --an-tick: #10b981;
+  --an-muted-fill: var(--lp-chip);
+  /* Fills and inks the pictures use beyond the kit's tokens */
+  --an-hover: var(--lp-soft);
+  --an-press: var(--lp-active);
+  --an-ink: var(--lp-text);
+  --an-line-strong: var(--lp-line-strong);
+  --an-mid: color-mix(in srgb, var(--lp-muted) 60%, var(--lp-card));
+  --an-btn: var(--lp-btn-bg);
+  --an-btn-ink: var(--lp-btn-ink);
+  font-feature-settings: normal;
+}
+
+/* On the dark page (evening, or a dark theme picked): the kit's dark shadows,
+   a light ring and deeper blur, since black on black barely registers */
+.lp[data-mode="dark"] .anchor-look .ss-stage {
+  --ss-raised: color-mix(in srgb, var(--lp-ink) 7%, var(--lp-card));
+  --ss-shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --ss-shadow-window: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 16px rgba(0, 0, 0, 0.4);
+  --ss-shadow-float: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 4px 16px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.3);
+  --ss-shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 12px 28px -6px rgba(0, 0, 0, 0.6);
+  --ss-shadow-hero: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+  --ss-shadow-satellite: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 14px 32px -8px rgba(0, 0, 0, 0.7), 0 4px 10px -4px rgba(0, 0, 0, 0.5);
+  --ss-shadow-ground: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 24px 48px -24px rgba(0, 0, 0, 0.6);
+}
+
+/* In the feature column the stage sits on the column's left edge */
+.lp-feature-visual .ss-fit {
+  margin-inline: 0;
+}

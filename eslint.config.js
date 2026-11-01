@@ -10,6 +10,8 @@ export default [
       "test-results/**",
       "eslint.config.js",
       "vite.config.ts",
+      // Vendored Stageshow kit, kept as published (see its LICENSE)
+      "src/components/landing/stageshow/kit/**",
     ],
   },
   js.configs.recommended,

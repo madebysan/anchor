@@ -2,9 +2,11 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { Github } from "lucide-react";
 import appIcon from "../../../assets/app-icon.png";
 import HeroDemo from "./HeroDemo";
-import { ConversationsVisual, EditsVisual } from "./FeatureVisuals";
 import { useReveal } from "./motion";
-import ThemeTiles from "./ThemeTiles";
+import { Conversations } from "./stageshow/Conversations";
+import { EditInPlace } from "./stageshow/EditInPlace";
+import { Themes } from "./stageshow/Themes";
+import "./stageshow/look.css";
 import { previewStyle, tileKey, type ThemeTile } from "./themePreview";
 import "./landing.css";
 import "@fontsource/bricolage-grotesque/latin-700.css";
@@ -155,18 +157,24 @@ export default function LandingPage() {
         </div>
 
         <div className="lp-features">
-          <Feature title="A conversation for every note and folder." visual={<ConversationsVisual />}>
+          <Feature title="A conversation for every note and folder." visual={<Conversations />}>
             <p>Each note runs its own Claude Code session, not one shared terminal. Claude knows which note you mean, keeps its context separate from your other notes, and picks up where you left off.</p>
           </Feature>
 
-          <Feature flip title="Edits land where you're writing." visual={<EditsVisual />}>
+          <Feature flip title="Edits land where you're writing." visual={<EditInPlace />}>
             <p>Claude replaces only the words that change, right in the note. Select a passage to send it along, and ⌘Z undoes any edit.</p>
           </Feature>
 
           <Feature
             title="Make it yours."
             interactive
-            visual={<ThemeTiles gridRef={theme.gridRef} selected={theme.selected} onSelect={theme.setSelected} />}
+            visual={
+              // A visitor's click repaints the whole page too; the card's own tour doesn't.
+              // Anchor in the page's current mode is the page's own look.
+              <div ref={theme.gridRef}>
+                <Themes onPick={(t, variant) => theme.setSelected(t.id === "anchor" && variant === mode ? null : { theme: t, variant })} />
+              </div>
+            }
           >
             <p>Eight themes in light and dark, each with its own fonts. Change any color and the text stays readable.</p>
           </Feature>
